@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "FixOrTrashPro",
+  "version": "18.3.0",
+  "identifier": "com.fixortrash.pro",
+  "build": {
+    "frontendDist": "../dist-react",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "FixOrTrash Pro",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [
+      "../resources/platform-tools/**/*",
+      "../resources/FixOrTrashPro-debug.apk"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://raw.githubusercontent.com/Sind94/FixOrTrash/main/updater.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRGQUQ3NEIzMDkwN0ZEN0EKUldSNi9RY0pzM1N0VDliamNFVWdxV1NGRXlqR3IvSnYwaEE2WW15YTd6MGhrcHUzMVc1ZHB4bFcK"
+    }
+  }
+}
