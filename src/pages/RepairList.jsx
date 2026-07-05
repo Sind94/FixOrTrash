@@ -120,7 +120,20 @@ const getStatusColor = (status) => {
         case 'tested': return 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30';
         case 'ready': return 'bg-green-500/20 text-green-400 border-green-500/30';
         case 'completed': return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-        default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    }
+};
+
+const getStatusSolidBg = (status) => {
+    switch (status) {
+        case 'check_in': return 'bg-blue-500';
+        case 'diagnostica': return 'bg-purple-500';
+        case 'waiting_approval': return 'bg-orange-500';
+        case 'waiting_parts': return 'bg-amber-500';
+        case 'working': return 'bg-yellow-500';
+        case 'tested': return 'bg-indigo-500';
+        case 'ready': return 'bg-green-500';
+        case 'completed': return 'bg-gray-500';
+        default: return 'bg-gray-500';
     }
 };
 
@@ -456,8 +469,9 @@ const RepairList = () => {
             <div
                 key={ticket.id}
                 onClick={() => setSelectedTicket(ticket)}
-                className={`glass-panel p-6 rounded-theme-panel cursor-pointer hover:border-theme-primary/50 transition-all hover:-translate-y-1 relative group border border-theme-panelBorder ${ticket.status === 'completed' ? 'border-green-500/30' : ''}`}
+                className={`glass-panel p-6 rounded-theme-panel cursor-pointer hover:border-theme-primary/50 transition-all hover:-translate-y-1 relative overflow-hidden group border border-theme-panelBorder ${ticket.status === 'completed' ? 'border-green-500/30' : ''}`}
             >
+                <div className={`status-strip-left ${getStatusSolidBg(ticket.status)}`} />
                 <div className="flex justify-between items-start mb-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${getStatusColor(ticket.status)}`}>
                         {getStatusLabel(ticket.status)}
@@ -503,9 +517,10 @@ const RepairList = () => {
                     <div 
                         key={ticket.id}
                         onClick={() => setSelectedTicket(ticket)}
-                        className={`flex items-center justify-between p-4 glass-panel border border-theme-panelBorder rounded-theme-btn cursor-pointer hover:border-theme-primary/50 transition-colors ${ticket.status === 'completed' ? 'border-green-500/30' : ''}`}
+                        className={`flex items-center justify-between p-4 glass-panel border border-theme-panelBorder rounded-theme-btn cursor-pointer hover:border-theme-primary/50 transition-colors relative overflow-hidden ${ticket.status === 'completed' ? 'border-green-500/30' : ''}`}
                     >
-                        <div className="flex items-center gap-6 w-full overflow-hidden">
+                        <div className={`status-strip-left ${getStatusSolidBg(ticket.status)}`} />
+                        <div className="flex items-center gap-6 w-full overflow-hidden pl-2">
                             <span className={`w-32 text-center px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex-shrink-0 border ${getStatusColor(ticket.status)}`}>
                                 {getStatusLabel(ticket.status)}
                             </span>
@@ -566,8 +581,8 @@ const RepairList = () => {
                     >
                         <ArrowLeft size={24} />
                     </button>
-                    <h1 className="text-4xl font-bold text-theme-text flex items-center gap-3">
-                        <Clock className="text-theme-primary" size={40} />
+                    <h1 className="text-2xl font-bold text-theme-text flex items-center gap-2">
+                        <Clock className="text-[var(--color-primary)]" size={24} />
                         Lista Riparazioni
                     </h1>
                 </div>
