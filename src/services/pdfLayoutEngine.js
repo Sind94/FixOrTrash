@@ -160,7 +160,7 @@ export const DEFAULT_LAYOUTS = {
         { id: 'store_address', type: 'text', x: 60, y: 27, fontSize: 8.5, textColor: '#64748b', content: 'Indirizzo: {{store.address}}' },
         { id: 'doc_title', type: 'text', x: 145, y: 16, fontSize: 12, fontWeight: 'bold', content: 'RICEVUTA DI VENDITA' },
         { id: 'doc_date', type: 'text', x: 145, y: 22, fontSize: 8.5, textColor: '#64748b', content: 'Data: {{current.date}}' },
-        { id: 'purchase_id', type: 'text', x: 14, y: 45, fontSize: 11, fontWeight: 'bold', content: 'Riepilogo Acquisto #{{purchase.id}}' },
+        { id: 'purchase_id', type: 'text', x: 14, y: 45, fontSize: 11, fontWeight: 'bold', content: 'Riepilogo Acquisto' },
         { id: 'client_details', type: 'text', x: 14, y: 52, fontSize: 9.5, textColor: '#505050', content: 'Cliente: {{customer.name}} | Tel: {{customer.phone}} | Email: {{customer.email}}' },
         { id: 'table_purchase_items', type: 'table', x: 14, y: 65, w: 182, tableType: 'purchaseItems', headerBgColor: '#fdf8e1', headerTextColor: '#282828', altRowBgColor: '#f8fafc', fontSize: 9, cellPadding: 2.5 },
         { id: 'table_purchase_totals', type: 'table', x: 120, y: 160, w: 76, tableType: 'purchaseTotals', headerBgColor: '#ffffff', headerTextColor: '#282828', altRowBgColor: '#ffffff', fontSize: 9, cellPadding: 1.8 },
@@ -172,7 +172,19 @@ export const DEFAULT_LAYOUTS = {
 export const getLayout = (templateId) => {
     const settings = dataManager.getSync('settings') || {};
     const layouts = settings.pdfLayouts || {};
-    return layouts[templateId] || DEFAULT_LAYOUTS[templateId];
+    const layout = layouts[templateId] || DEFAULT_LAYOUTS[templateId];
+
+    // Dynamic sanitization to remove receipt number suffix from the title
+    if (templateId === 'purchase' && Array.isArray(layout)) {
+        return layout.map(item => {
+            if (item.id === 'purchase_id' && item.content && item.content.includes('#{{purchase.id}}')) {
+                return { ...item, content: 'Riepilogo Acquisto' };
+            }
+            return item;
+        });
+    }
+
+    return layout;
 };
 
 // Render Table Logic
@@ -387,17 +399,24 @@ const renderTable = (doc, item, dataContext, pdfStyle) => {
         };
     }
     else if (tableType === 'purchaseTotals') {
-        const subtotal = dataContext.subtotal || 0;
-        const totalDiscount = dataContext.totalDiscount || 0;
-        const tax = dataContext.tax || 0;
-        const total = dataContext.total || 0;
+        const subtotal = parseFloat(dataContext.subtotal) || 0;
+        const totalDiscount = parseFloat(dataContext.totalDiscount) || 0;
+        const total = parseFloat(dataContext.total) || 0;
+        const repairDeposit = parseFloat(dataContext.repairDeposit) || 0;
+        const showDiscount = dataContext.showDiscountInPdf === true || dataContext.showDiscountInPdf === 'true';
         head = [];
         body = [
-            ['Subtotale:', `€ ${parseFloat(subtotal).toFixed(2)}`],
-            ['Sconto Totale:', `-€ ${parseFloat(totalDiscount).toFixed(2)}`],
-            ['IVA / Tasse:', `€ ${parseFloat(tax).toFixed(2)}`],
-            ['TOTALE PAGATO:', `€ ${parseFloat(total).toFixed(2)}`]
+            ['Subtotale:', `€ ${subtotal.toFixed(2)}`]
         ];
+        if (showDiscount && totalDiscount > 0) {
+            body.push(['Sconto Totale:', `-€ ${totalDiscount.toFixed(2)}`]);
+        }
+        if (repairDeposit > 0) {
+            body.push(['Acconto:', `-€ ${repairDeposit.toFixed(2)}`]);
+            body.push(['Saldo:', `€ ${total.toFixed(2)}`]);
+        } else {
+            body.push(['TOTALE PAGATO:', `€ ${total.toFixed(2)}`]);
+        }
         styles = { fontSize: 9, cellPadding: 1.8 };
         columnStyles = {
             0: { fontStyle: 'bold', halign: 'right', cellWidth: 45 },
