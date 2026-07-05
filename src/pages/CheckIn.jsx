@@ -715,8 +715,8 @@ const CheckIn = () => {
                 >
                     <ArrowLeft size={24} />
                 </button>
-                <h1 className="text-4xl font-bold text-theme-text flex items-center gap-3">
-                    <Wrench className="text-theme-primary" size={40} />
+                <h1 className="text-2xl font-bold text-theme-text flex items-center gap-2">
+                    <Wrench className="text-[var(--color-primary)]" size={24} />
                     Check-In Riparazione
                 </h1>
             </div>
