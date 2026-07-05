@@ -488,11 +488,11 @@ const TotaleAcquisto = () => {
                     <ArrowLeft size={24} />
                 </button>
                 <div>
-                    <h1 className="text-4xl font-bold text-theme-text flex items-center gap-3">
-                        <Receipt className="text-theme-primary" size={40} />
+                    <h1 className="text-2xl font-bold text-theme-text flex items-center gap-2">
+                        <Receipt className="text-[var(--color-primary)]" size={24} />
                         Totale Acquisto
                     </h1>
-                    <p className="text-gray-400 mt-1">Carrello e cassa negozio per vendite dirette, ricambi e saldo riparazioni.</p>
+                    <p className="text-gray-400 text-xs mt-0.5">Carrello e cassa negozio per vendite dirette, ricambi e saldo riparazioni.</p>
                 </div>
             </div>
 
