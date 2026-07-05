@@ -418,7 +418,7 @@ const Tester = () => {
     const handleOpenPDF = () => {
         const doc = createPDFDoc();
         if (doc) {
-            window.open(doc.output('bloburl'), '_blank');
+            pdfLayoutEngine.openPdf(doc, `report_diagnostico_${ticketData ? ticketData.id : 'generico'}.pdf`);
         }
     };
 
