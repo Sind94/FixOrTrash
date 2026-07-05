@@ -450,8 +450,7 @@ const TotaleAcquisto = () => {
         }
         const doc = createPDF();
         if (doc) {
-            const blobUrl = doc.output('bloburl');
-            window.open(blobUrl);
+            pdfLayoutEngine.openPdf(doc, `ricevuta_${receiptNumber}.pdf`);
             soundService.playSuccess();
         }
     };
