@@ -1,7 +1,7 @@
 {
   "name": "fix-or-trash",
   "private": true,
-  "version": "18.3.0",
+  "version": "18.4.0",
   "main": "electron/main.cjs",
   "author": "Antigravity User",
   "description": "Repair Shop Management Software",
