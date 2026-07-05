@@ -381,8 +381,7 @@ const PdfLayoutEditor = ({ onSave }) => {
                 }
             });
             
-            const blobUrl = doc.output('bloburl');
-            window.open(blobUrl, '_blank');
+            await pdfLayoutEngine.openPdf(doc, `anteprima_${activeTemplate}.pdf`);
             soundService.playSuccess();
         } catch (err) {
             console.error("Errore di preview PDF:", err);
@@ -478,6 +477,10 @@ const PdfLayoutEditor = ({ onSave }) => {
                                         }}
                                         className={`group border ${isSelected ? 'border-theme-primary bg-theme-primary/10 shadow-[0_0_8px_var(--color-primary)] z-10' : 'border-transparent hover:border-gray-400 bg-gray-100/50'}`}
                                         onMouseDown={(e) => handleMouseDown(e, item)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedId(item.id);
+                                        }}
                                     >
                                         {/* Block Contents based on type */}
                                         {item.type === 'text' && (
