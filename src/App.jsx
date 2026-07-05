@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Search, PenTool, ClipboardList, Settings as SettingsIcon, Home as HomeIcon, Box, Activity, Users, Cpu, Smartphone, ChevronLeft, ChevronRight, X, Keyboard, Command, Calculator, AlertTriangle, Plus, Receipt } from 'lucide-react';
+import {
+  Search, PenTool, ClipboardList, Settings as SettingsIcon, Home as HomeIcon,
+  Box, Activity, Users, Cpu, Smartphone, X, Keyboard, Command, Calculator,
+  AlertTriangle, Receipt, Zap, Package, Wrench, ChevronDown
+} from 'lucide-react';
 import Home from './pages/Home';
 import SearchComponents from './pages/SearchComponents';
 import Warehouse from './pages/Warehouse';
@@ -19,110 +23,111 @@ import logoReport from './assets/logo_denis.jpg';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 
-const SidebarItem = ({ icon: Icon, label, path, active, isCollapsed, onNewTabClick }) => {
-  const navigate = useNavigate();
-  return (
-    <div
-      onClick={() => {
-        soundService.playClick();
-        navigate(path);
-      }}
-      title={isCollapsed ? label : ''}
-      className={`
-        flex items-center gap-4 p-4 cursor-pointer transition-all duration-300
-        border-l-4 hover:bg-theme-panel border border-theme-panelBorder relative group
-        ${active
-          ? 'border-[var(--color-primary)] text-[var(--color-primary)] bg-theme-panel border border-theme-panelBorder'
-          : 'border-transparent text-gray-400 hover:text-theme-text'}
-      `}
-    >
-      <Icon size={24} className="shrink-0" />
-      {!isCollapsed && <span className="font-medium tracking-wide text-sm whitespace-nowrap">{label}</span>}
-      
-      {!isCollapsed && onNewTabClick && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onNewTabClick(path);
-          }}
-          className="ml-auto opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all text-gray-400 hover:text-theme-primary flex items-center justify-center shrink-0 z-30"
-          title="Apri in una nuova scheda"
-        >
-          <Plus size={14} />
-        </button>
-      )}
+// ─── Navigation Structure ────────────────────────────────────────────────────
+const NAV_SECTIONS = [
+  {
+    id: 'operativo',
+    label: 'Operativo',
+    icon: Zap,
+    items: [
+      { label: 'Dashboard', path: '/', icon: HomeIcon },
+      { label: 'Nuovo Check-In', path: '/checkin', icon: PenTool },
+      { label: 'Lista Riparazioni', path: '/repairs', icon: ClipboardList },
+      { label: 'Cerca Ricambi', path: '/search', icon: Search },
+      { label: 'Totale Acquisto', path: '/sales-receipt', icon: Receipt },
+    ],
+  },
+  {
+    id: 'gestione',
+    label: 'Gestione',
+    icon: Package,
+    items: [
+      { label: 'Magazzino', path: '/warehouse', icon: Box },
+      { label: 'Database Clienti', path: '/customers', icon: Users },
+    ],
+  },
+  {
+    id: 'strumenti',
+    label: 'Strumenti',
+    icon: Wrench,
+    items: [
+      { label: 'Tester', path: '/tester', icon: Activity },
+      { label: 'Identifica Modello', path: '/identify', icon: Smartphone },
+      { label: 'Configuratore PC', path: '/pc-configurator', icon: Cpu },
+      { label: 'Preventivo Libero', path: '/commercial-quote', icon: Calculator },
+    ],
+  },
+];
 
-      {active && !isCollapsed && !onNewTabClick && (
-        <div className="ml-auto w-2 h-2 rounded-full bg-[var(--color-primary)] shadow-[0_0_10px_var(--color-primary)]" />
-      )}
-      {active && !isCollapsed && onNewTabClick && (
-        <div className="w-2 h-2 rounded-full bg-[var(--color-primary)] shadow-[0_0_10px_var(--color-primary)] group-hover:hidden" />
-      )}
-      {active && isCollapsed && (
-        <div className="absolute right-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[var(--color-primary)] shadow-[0_0_10px_var(--color-primary)]" />
-      )}
-    </div>
-  );
+const ROUTE_LABELS = {
+  '/': 'Dashboard',
+  '/search': 'Ricerca Ricambi',
+  '/identify': 'Identifica Modello',
+  '/warehouse': 'Magazzino',
+  '/settings': 'Impostazioni',
+  '/checkin': 'Nuovo Check-In',
+  '/repairs': 'Lista Riparazioni',
+  '/customers': 'Database Clienti',
+  '/pc-configurator': 'Configuratore PC',
+  '/tester': 'Tester',
+  '/commercial-quote': 'Preventivo Libero',
+  '/sales-receipt': 'Totale Acquisto',
 };
 
+function getSectionForPath(path) {
+  for (const section of NAV_SECTIONS) {
+    if (section.items.some(item => item.path === path)) return section.id;
+  }
+  return 'operativo';
+}
+
+// ─── App ─────────────────────────────────────────────────────────────────────
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
-    localStorage.getItem('sidebarCollapsed') === 'true'
-  );
 
-  // Multi-tab Layout State
-  const [tabs, setTabs] = useState([
-    { id: 'dashboard-init', label: 'Dashboard', path: '/', active: true }
-  ]);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [activeSection, setActiveSection] = useState(() => getSectionForPath(location.pathname));
+  const [badges, setBadges] = useState({ workingTickets: 0, lowStock: 0 });
 
   // Auto Updater State
   const [updateStatus, setUpdateStatus] = useState({
-    checking: false,
-    available: false,
-    version: null,
-    progress: 0,
-    downloading: false,
-    error: null,
-    body: null
+    checking: false, available: false, version: null,
+    progress: 0, downloading: false, error: null, body: null
   });
 
+  // Command Palette
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState('');
+  const [paletteResults, setPaletteResults] = useState({ repairs: [], customers: [], inventory: [], actions: [] });
+
+  // Shortcuts Guide
+  const [showShortcutsGuide, setShowShortcutsGuide] = useState(false);
+
+  // Global PDF Preview
+  const [globalPdfUrl, setGlobalPdfUrl] = useState(null);
+
+  // ── Auto Updater ──────────────────────────────────────────────────────────
   useEffect(() => {
     const runUpdater = async () => {
       try {
-        if (!window.__TAURI_INTERNALS__ && !window.__TAURI__) {
-          console.log("App non in esecuzione in ambiente Tauri, skip updater check.");
-          return;
-        }
-
+        if (!window.__TAURI_INTERNALS__ && !window.__TAURI__) return;
         setUpdateStatus(prev => ({ ...prev, checking: true }));
         const update = await check();
-        
         if (update) {
-          console.log("Nuovo aggiornamento trovato:", update.version);
           setUpdateStatus({
-            checking: false,
-            available: true,
-            version: update.version,
-            progress: 0,
-            downloading: false,
-            error: null,
+            checking: false, available: true, version: update.version,
+            progress: 0, downloading: false, error: null,
             body: update.body || 'Aggiornamento di stabilità ed ottimizzazione.',
-            _updateRef: update,
-            _relaunchRef: relaunch
+            _updateRef: update, _relaunchRef: relaunch
           });
         } else {
           setUpdateStatus(prev => ({ ...prev, checking: false }));
         }
       } catch (err) {
-        console.error("Errore durante la verifica degli aggiornamenti:", err);
         setUpdateStatus(prev => ({ ...prev, checking: false, error: err.message }));
       }
     };
-
     const timer = setTimeout(runUpdater, 4000);
     return () => clearTimeout(timer);
   }, []);
@@ -132,419 +137,155 @@ function App() {
     soundService.playClick();
     try {
       setUpdateStatus(prev => ({ ...prev, downloading: true, progress: 0 }));
-      let downloaded = 0;
-      let contentLength = 0;
-      
+      let downloaded = 0, contentLength = 0;
       await updateStatus._updateRef.downloadAndInstall((event) => {
-        switch (event.event) {
-          case 'Started':
-            contentLength = event.data.contentLength || 0;
-            break;
-          case 'Progress':
-            downloaded += event.data.chunkLength;
-            if (contentLength > 0) {
-              const percent = Math.round((downloaded / contentLength) * 100);
-              setUpdateStatus(prev => ({ ...prev, progress: percent }));
-            }
-            break;
-          case 'Finished':
-            break;
+        if (event.event === 'Started') contentLength = event.data.contentLength || 0;
+        if (event.event === 'Progress') {
+          downloaded += event.data.chunkLength;
+          if (contentLength > 0) {
+            setUpdateStatus(prev => ({ ...prev, progress: Math.round((downloaded / contentLength) * 100) }));
+          }
         }
       });
-      
       await updateStatus._relaunchRef();
     } catch (err) {
-      console.error("Errore di installazione aggiornamento:", err);
       setUpdateStatus(prev => ({ ...prev, downloading: false, error: err.message }));
     }
   };
 
-  // Command Palette State
-  const [showCommandPalette, setShowCommandPalette] = useState(false);
-  const [paletteQuery, setPaletteQuery] = useState('');
-  const [paletteResults, setPaletteResults] = useState({
-    repairs: [],
-    customers: [],
-    inventory: [],
-    actions: []
-  });
-
-  // Keyboard Shortcuts Guide Modal
-  const [showShortcutsGuide, setShowShortcutsGuide] = useState(false);
-
-  // Global PDF Preview State (Tauri Integration)
-  const [globalPdfUrl, setGlobalPdfUrl] = useState(null);
-
+  // ── PDF Preview ───────────────────────────────────────────────────────────
   useEffect(() => {
-    const handlePreview = (e) => {
-      setGlobalPdfUrl(e.detail.url);
-    };
+    const handlePreview = (e) => setGlobalPdfUrl(e.detail.url);
     window.addEventListener('tauri-preview-pdf', handlePreview);
     return () => window.removeEventListener('tauri-preview-pdf', handlePreview);
   }, []);
 
-  // Live sidebar badges/counts
-  const [badges, setBadges] = useState({
-    workingTickets: 0,
-    lowStock: 0
-  });
-
-  // Initialize and Boot backup check
+  // ── Init & Theme ──────────────────────────────────────────────────────────
   useEffect(() => {
     const initApp = async () => {
-      // 1. Load Data System Context
       await dataManager.loadData();
-
-      // 2. Apply theme, shape, and glass vars from settings
       const settings = dataManager.getSync('settings') || {};
-
       document.documentElement.setAttribute('data-theme', settings.theme || 'default');
-      document.documentElement.setAttribute('data-shape', settings.shape || 'liquid-glass');
-
-      if (settings.glassBlur !== undefined) {
+      document.documentElement.setAttribute('data-shape', settings.shape || 'rounded');
+      if (settings.glassBlur !== undefined)
         document.documentElement.style.setProperty('--glass-blur', `${settings.glassBlur}px`);
-      }
-      if (settings.glassOpacity !== undefined) {
+      if (settings.glassOpacity !== undefined)
         document.documentElement.style.setProperty('--glass-opacity', settings.glassOpacity / 100);
-      }
-
       setIsLoaded(true);
-      
-      // Trigger Automatic silent backup check on boot
       checkAutoBackup();
     };
-
     initApp();
   }, []);
 
-  // Update counts/badges periodically
+  // ── Badges ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isLoaded) return;
-
     const updateBadges = () => {
       try {
         const repairs = dataManager.getSync('repairs') || [];
         const inventory = dataManager.getSync('inventory') || [];
-        const settings = dataManager.getSync('settings') || {};
-
-        // 1. Working tickets (status: 'working')
-        const working = repairs.filter(r => r.status === 'working').length;
-
-        // 2. Low stock items (quantity <= minQuantity)
-        const low = inventory.filter(item => {
-          const qty = parseInt(item.quantity) || 0;
-          const min = parseInt(item.minQuantity) || 1;
-          return qty <= min;
-        }).length;
-
         setBadges({
-          workingTickets: working,
-          lowStock: low
+          workingTickets: repairs.filter(r => r.status === 'working').length,
+          lowStock: inventory.filter(item => (parseInt(item.quantity) || 0) <= (parseInt(item.minQuantity) || 1)).length,
         });
-      } catch (e) {
-        console.error("Failed to compute sidebar badges:", e);
-      }
+      } catch (e) { /* silent */ }
     };
-
     updateBadges();
-    const interval = setInterval(updateBadges, 15000); // refresh every 15s
+    const interval = setInterval(updateBadges, 15000);
     return () => clearInterval(interval);
   }, [isLoaded]);
 
-  // Sync tabs with router pathname navigation
+  // ── Sync activeSection with current route ─────────────────────────────────
   useEffect(() => {
-    if (!isLoaded) return;
+    const section = getSectionForPath(location.pathname);
+    if (section) setActiveSection(section);
+  }, [location.pathname]);
 
-    const path = location.pathname;
-    
-    // Map URL routes to human readable labels
-    const routeLabels = {
-      '/': 'Dashboard',
-      '/search': 'Ricerca Ricambi',
-      '/identify': 'Identifica Modello',
-      '/warehouse': 'Magazzino',
-      '/settings': 'Impostazioni',
-      '/checkin': 'Nuovo Check-In',
-      '/repairs': 'Lista Riparazioni',
-      '/customers': 'Database Clienti',
-      '/pc-configurator': 'Configuratore PC',
-      '/tester': 'Tester',
-      '/commercial-quote': 'Preventivo Libero',
-      '/sales-receipt': 'Totale Acquisto'
-    };
-
-    const label = routeLabels[path] || 'Scheda Operativa';
-
-    setTabs(prev => {
-      // Find if there is an active tab that already matches this path
-      const activeTab = prev.find(t => t.active);
-      if (activeTab && activeTab.path === path) {
-        return prev;
-      }
-
-      // If not, reuse the active tab's slot to show the new path/label
-      return prev.map(t => {
-        if (t.active) {
-          return {
-            ...t,
-            label,
-            path
-          };
-        }
-        return t;
-      });
-    });
-  }, [location.pathname, isLoaded]);
-
-  // Command keyboard listener
+  // ── Keyboard Shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ctrl+K or Cmd+K -> Command Palette
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        soundService.playClick();
+        e.preventDefault(); soundService.playClick();
         setShowCommandPalette(prev => !prev);
       }
-
-      // ? -> Shortcuts guide overlay
       if (e.key === '?' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        soundService.playClick();
+        e.preventDefault(); soundService.playClick();
         setShowShortcutsGuide(prev => !prev);
       }
-
-      // Esc -> close both overlays
-      if (e.key === 'Escape') {
-        setShowCommandPalette(false);
-        setShowShortcutsGuide(false);
-      }
-
-      // Alt shortcut navigations
+      if (e.key === 'Escape') { setShowCommandPalette(false); setShowShortcutsGuide(false); }
       if (e.altKey) {
-        const key = e.key.toLowerCase();
-        const routesMap = {
-          'd': '/',
-          'c': '/checkin',
-          'l': '/repairs',
-          'm': '/warehouse',
-          'p': '/commercial-quote',
-          's': '/settings',
-          'i': '/identify',
-          't': '/tester'
-        };
-        if (routesMap[key]) {
-          e.preventDefault();
-          soundService.playClick();
-          navigate(routesMap[key]);
+        const routesMap = { d: '/', c: '/checkin', l: '/repairs', m: '/warehouse', p: '/commercial-quote', s: '/settings', i: '/identify', t: '/tester' };
+        if (routesMap[e.key.toLowerCase()]) {
+          e.preventDefault(); soundService.playClick();
+          navigate(routesMap[e.key.toLowerCase()]);
         }
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate]);
 
-  // Search logic for Command Palette
+  // ── Command Palette Search ────────────────────────────────────────────────
   useEffect(() => {
     if (!showCommandPalette) return;
-
+    const defaultActions = [
+      { name: 'Nuovo Check-In Rapido', path: '/checkin', desc: 'Registra un nuovo ticket' },
+      { name: 'Configuratore PC Wizard', path: '/pc-configurator', desc: 'Crea preventivi hardware PC' },
+      { name: 'Preventivo Commerciale Libero', path: '/commercial-quote', desc: 'Genera preventivi liberi in A4' },
+      { name: 'Apri Impostazioni & Backup', path: '/settings', desc: 'Gestisci stili, database ed export' },
+      { name: 'Identifica Modello Telefono', path: '/identify', desc: 'Verifica immagini e codici marchio' },
+      { name: 'Avvia Collaudo Hardware (Tester)', path: '/tester', desc: 'Accedi alle checklist hardware' },
+    ];
     if (paletteQuery.trim() === '') {
-      // Show default quick actions
-      setPaletteResults({
-        repairs: [],
-        customers: [],
-        inventory: [],
-        actions: [
-          { name: 'Nuovo Check-In Rapido', path: '/checkin', desc: 'Registra un nuovo ticket' },
-          { name: 'Configuratore PC Wizard', path: '/pc-configurator', desc: 'Crea preventivi hardware PC' },
-          { name: 'Preventivo Commerciale Libero', path: '/commercial-quote', desc: 'Genera preventivi liberi in A4' },
-          { name: 'Apri Impostazioni & Backup', path: '/settings', desc: 'Gestisci stili, database ed export' },
-          { name: 'Identifica Modello Telefono', path: '/identify', desc: 'Verifica immagini e codici marchio' },
-          { name: 'Avvia Collaudo Hardware (Tester)', path: '/tester', desc: 'Accedi alle checklist hardware' }
-        ]
-      });
+      setPaletteResults({ repairs: [], customers: [], inventory: [], actions: defaultActions });
       return;
     }
-
     try {
       const q = paletteQuery.toLowerCase();
       const repairs = dataManager.getSync('repairs') || [];
       const inventory = dataManager.getSync('inventory') || [];
-
-      // 1. Search repairs (by ID, customer name, device)
-      const matchedRepairs = repairs.filter(r => 
-        r.id.toString().includes(q) || 
-        r.customer.name.toLowerCase().includes(q) ||
-        r.device.info.toLowerCase().includes(q)
-      ).slice(0, 4);
-
-      // 2. Search unique customers
-      const customerMap = {};
-      repairs.forEach(r => {
-        const name = r.customer.name;
-        if (name && name.toLowerCase().includes(q)) {
-          customerMap[name] = r.customer;
-        }
-      });
-      const matchedCustomers = Object.values(customerMap).slice(0, 4);
-
-      // 3. Search inventory (warehouse parts)
-      const matchedInventory = inventory.filter(item => 
-        item.brand.toLowerCase().includes(q) || 
-        item.model.toLowerCase().includes(q) || 
-        item.component.toLowerCase().includes(q)
-      ).slice(0, 4);
-
-      // 4. Search quick actions
-      const actions = [
-        { name: 'Nuovo Check-In Rapido', path: '/checkin', desc: 'Registra un nuovo ticket' },
-        { name: 'Configuratore PC Wizard', path: '/pc-configurator', desc: 'Crea preventivi hardware PC' },
-        { name: 'Preventivo Commerciale Libero', path: '/commercial-quote', desc: 'Genera preventivi liberi in A4' },
-        { name: 'Apri Impostazioni & Backup', path: '/settings', desc: 'Gestisci stili, database ed export' },
-        { name: 'Identifica Modello Telefono', path: '/identify', desc: 'Verifica immagini e codici marchio' },
-        { name: 'Avvia Collaudo Hardware (Tester)', path: '/tester', desc: 'Accedi alle checklist hardware' }
-      ];
-      const matchedActions = actions.filter(act => 
-        act.name.toLowerCase().includes(q) || 
-        act.desc.toLowerCase().includes(q)
-      );
-
       setPaletteResults({
-        repairs: matchedRepairs,
-        customers: matchedCustomers,
-        inventory: matchedInventory,
-        actions: matchedActions
+        repairs: repairs.filter(r => r.id.toString().includes(q) || r.customer.name.toLowerCase().includes(q) || r.device.info.toLowerCase().includes(q)).slice(0, 4),
+        customers: Object.values((() => { const m = {}; repairs.forEach(r => { if (r.customer.name?.toLowerCase().includes(q)) m[r.customer.name] = r.customer; }); return m; })()).slice(0, 4),
+        inventory: inventory.filter(i => i.brand.toLowerCase().includes(q) || i.model.toLowerCase().includes(q) || i.component.toLowerCase().includes(q)).slice(0, 4),
+        actions: defaultActions.filter(a => a.name.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q)),
       });
-    } catch (e) {
-      console.error("Failed to query palette search:", e);
-    }
+    } catch (e) { /* silent */ }
   }, [paletteQuery, showCommandPalette]);
 
-  // Silent backup checking routine
+  // ── Auto Backup ───────────────────────────────────────────────────────────
   const checkAutoBackup = async () => {
     try {
       const settings = dataManager.getSync('settings') || {};
-      const freq = settings.backupFrequency; // 'daily', 'weekly', 'none'
+      const freq = settings.backupFrequency;
       if (!freq || freq === 'none') return;
-
       const lastBackupStr = localStorage.getItem('lastAutoBackupTime');
       const now = Date.now();
-      let shouldBackup = false;
-
-      if (!lastBackupStr) {
-        shouldBackup = true;
-      } else {
-        const lastBackup = parseInt(lastBackupStr);
-        const diffMs = now - lastBackup;
-        const oneDay = 24 * 60 * 60 * 1000;
-        
-        if (freq === 'daily' && diffMs >= oneDay) {
-          shouldBackup = true;
-        } else if (freq === 'weekly' && diffMs >= 7 * oneDay) {
-          shouldBackup = true;
-        }
-      }
-
-      if (shouldBackup) {
-        console.log(`Triggering silent automatic backup (${freq})...`);
+      const oneDay = 86400000;
+      const shouldBackup = !lastBackupStr ||
+        (freq === 'daily' && now - parseInt(lastBackupStr) >= oneDay) ||
+        (freq === 'weekly' && now - parseInt(lastBackupStr) >= 7 * oneDay);
+      if (shouldBackup && window.writeDatabase) {
         const saveFolder = dataManager.getPath();
         const activeData = dataManager._cache || await dataManager.loadData();
-        
-        if (window.writeDatabase) {
-          const res = await window.writeDatabase(saveFolder, activeData, '_autobackup.json');
-          if (res && res.success) {
-            localStorage.setItem('lastAutoBackupTime', now.toString());
-            console.log("Automatic silent backup completed successfully as _autobackup.json");
-          } else {
-            console.error("Automatic silent backup failed:", res.error);
-          }
-        }
+        const res = await window.writeDatabase(saveFolder, activeData, '_autobackup.json');
+        if (res?.success) localStorage.setItem('lastAutoBackupTime', now.toString());
       }
-    } catch (e) {
-      console.error("Auto backup check failed:", e);
-    }
-  };
-
-  // Close tab handler
-  const handleCloseTab = (e, tabId) => {
-    e.stopPropagation();
-    soundService.playClick();
-
-    setTabs(prev => {
-      if (prev.length <= 1) return prev; // Keep at least one tab open
-      
-      const closingTabIdx = prev.findIndex(t => t.id === tabId);
-      if (closingTabIdx === -1) return prev;
-      
-      const isClosingActive = prev[closingTabIdx].active;
-      const filtered = prev.filter(t => t.id !== tabId);
-
-      if (isClosingActive && filtered.length > 0) {
-        // Find the next tab to activate
-        const nextActiveIdx = Math.max(0, closingTabIdx - 1);
-        const nextActiveTab = filtered[nextActiveIdx];
-        
-        // Update state to make it active
-        const updated = filtered.map(t => ({
-          ...t,
-          active: t.id === nextActiveTab.id
-        }));
-        
-        setTimeout(() => navigate(nextActiveTab.path), 0);
-        return updated;
-      }
-      return filtered;
-    });
-  };
-
-  const handleOpenInNewTab = (path) => {
-    soundService.playClick();
-    const routeLabels = {
-      '/': 'Dashboard',
-      '/search': 'Ricerca Ricambi',
-      '/identify': 'Identifica Modello',
-      '/warehouse': 'Magazzino',
-      '/settings': 'Impostazioni',
-      '/checkin': 'Nuovo Check-In',
-      '/repairs': 'Lista Riparazioni',
-      '/customers': 'Database Clienti',
-      '/pc-configurator': 'Configuratore PC',
-      '/tester': 'Tester',
-      '/commercial-quote': 'Preventivo Libero',
-      '/sales-receipt': 'Totale Acquisto'
-    };
-    const label = routeLabels[path] || 'Scheda Operativa';
-    const newTabId = Math.random().toString();
-
-    setTabs(prev => [
-      ...prev.map(t => ({ ...t, active: false })),
-      { id: newTabId, label, path, active: true }
-    ]);
-    
-    navigate(path);
-  };
-
-  const handleNewTab = () => {
-    handleOpenInNewTab('/');
-  };
-
-  const handleToggleSidebar = () => {
-    soundService.playClick();
-    setIsSidebarCollapsed(prev => {
-      const state = !prev;
-      localStorage.setItem('sidebarCollapsed', state ? 'true' : 'false');
-      return state;
-    });
+    } catch (e) { /* silent */ }
   };
 
   const handlePaletteSelect = (path, state) => {
-    soundService.playClick();
-    setShowCommandPalette(false);
-    setPaletteQuery('');
+    soundService.playClick(); setShowCommandPalette(false); setPaletteQuery('');
     navigate(path, { state });
   };
 
-  const renderTabContent = (path) => {
+  const handleNavItem = (path) => {
+    soundService.playClick();
+    navigate(path);
+  };
+
+  // ── Render page by path ───────────────────────────────────────────────────
+  const renderPage = (path) => {
     switch (path) {
       case '/': return <Home />;
       case '/search': return <SearchComponents />;
@@ -565,259 +306,178 @@ function App() {
   if (!isLoaded) {
     return (
       <div className="flex h-screen bg-[var(--color-bg)] items-center justify-center text-theme-primary">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-theme-primary"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-theme-primary" />
       </div>
     );
   }
 
+  const currentSection = NAV_SECTIONS.find(s => s.id === activeSection) || NAV_SECTIONS[0];
+  const currentPath = location.pathname;
+
   return (
     <div className="flex flex-col h-screen bg-[var(--color-bg)] overflow-hidden">
-      {/* Draggable Top Titlebar Area */}
-      <div className="w-full h-8 shrink-0 titlebar relative z-50 bg-transparent flex justify-between items-center px-4">
-        <div className="text-[10px] text-gray-500 font-mono tracking-wider">FIXORTRASH PRO v18.00.03</div>
-        <div className="flex gap-2">
-          {/* Quick command icon */}
-          <button 
-            onClick={() => { soundService.playClick(); setShowCommandPalette(true); }}
-            className="no-drag p-1 text-gray-500 hover:text-theme-primary transition-colors"
-            title="Cerca (Ctrl+K)"
-          >
-            <Command size={14} />
-          </button>
+
+      {/* ── TOP BAR: Titlebar + Section Nav ───────────────────────────────── */}
+      <div className="topbar-outer shrink-0 z-40 titlebar" style={{ WebkitAppRegion: 'drag' }}>
+        <div className="topbar-inner flex items-center h-12 px-4 gap-6" style={{ WebkitAppRegion: 'no-drag' }}>
+
+          {/* Logo */}
+          <div className="flex items-center gap-2.5 shrink-0 select-none">
+            <img src={logoReport} className="w-7 h-7 rounded-full object-cover border border-[var(--color-primary)]/40" alt="Logo" />
+            <span className="text-sm font-bold tracking-wide text-theme-text">FIX<span className="text-[var(--color-primary)]">OR</span>TRASH</span>
+            <span className="text-[9px] text-gray-500 font-mono tracking-widest hidden sm:block">PRO</span>
+          </div>
+
+          {/* Divider */}
+          <div className="h-5 w-px bg-theme-panelBorder/50" />
+
+          {/* Section Tabs */}
+          <div className="flex items-center gap-1">
+            {NAV_SECTIONS.map(section => {
+              const SIcon = section.icon;
+              const isActive = activeSection === section.id;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => { soundService.playClick(); setActiveSection(section.id); }}
+                  className={`topbar-section-btn flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 select-none
+                    ${isActive
+                      ? 'bg-[var(--color-primary)] text-[var(--color-primary-content)] shadow-sm'
+                      : 'text-gray-400 hover:text-theme-text hover:bg-white/5'
+                    }`}
+                >
+                  <SIcon size={13} />
+                  {section.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Right tools */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => { soundService.playClick(); setShowCommandPalette(true); }}
+              className="topbar-icon-btn flex items-center gap-1 px-2.5 py-1.5 rounded-md text-gray-400 hover:text-theme-text hover:bg-white/5 transition-colors text-xs"
+              title="Ricerca Globale (Ctrl+K)"
+            >
+              <Command size={13} />
+              <span className="text-[10px] font-mono hidden md:block text-gray-500">⌘K</span>
+            </button>
+            <button
+              onClick={() => { soundService.playClick(); setShowShortcutsGuide(true); }}
+              className="topbar-icon-btn w-7 h-7 flex items-center justify-center rounded-md text-gray-500 hover:text-theme-text hover:bg-white/5 transition-colors text-xs font-bold"
+              title="Scorciatoie (?)"
+            >
+              ?
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Main App Container */}
-      <div className="flex flex-1 overflow-hidden relative">
-        
-        {/* Collapsible Sidebar */}
-        <div className={`glass-panel flex flex-col z-20 h-full relative transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
-          
-          {/* Brand/Logo Header */}
-          <div className={`border-b border-theme-panelBorder transition-all duration-300 ${isSidebarCollapsed ? 'p-4 flex justify-center' : 'p-6 pb-4'}`}>
-            {isSidebarCollapsed ? (
-              <div className="relative group">
-                <img 
-                  src={logoReport} 
-                  className="w-10 h-10 rounded-full border-2 border-[var(--color-primary)] shadow-[0_0_10px_rgba(234,179,8,0.25)] object-cover" 
-                  alt="Logo"
-                />
-                <div className="absolute left-12 top-1/2 -translate-y-1/2 hidden group-hover:block bg-theme-surface border border-theme-panelBorder text-theme-text font-bold text-xs p-2 rounded whitespace-nowrap shadow-2xl z-50">
-                  FixOrTrash Pro
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <img 
-                  src={logoReport} 
-                  className="w-10 h-10 rounded-full border-2 border-[var(--color-primary)] object-cover" 
-                  alt="Logo"
-                />
-                <div>
-                  <div className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-[var(--color-primary)]">
-                    FIX OR TRASH
-                  </div>
-                  <div className="text-[9px] text-gray-500 tracking-[0.2em] mt-0.5">REPAIR MANAGER</div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Navigation Items */}
-          <div className="flex-1 flex flex-col gap-0.5 mt-2 overflow-y-auto custom-scroll">
-            {/* GRUPPO 1: OPERATIVO */}
-            {!isSidebarCollapsed ? (
-              <div className="px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2 shrink-0">
-                ⚡ Operativo
-              </div>
-            ) : null}
-            
-            <SidebarItem icon={HomeIcon} label="Dashboard" path="/" active={location.pathname === '/'} isCollapsed={isSidebarCollapsed} onNewTabClick={handleOpenInNewTab} />
-            <SidebarItem icon={PenTool} label="Nuovo Check-In" path="/checkin" active={location.pathname === '/checkin'} isCollapsed={isSidebarCollapsed} onNewTabClick={handleOpenInNewTab} />
-            
-            <div className="relative">
-              <SidebarItem icon={ClipboardList} label="Lista Riparazioni" path="/repairs" active={location.pathname === '/repairs'} isCollapsed={isSidebarCollapsed} onNewTabClick={handleOpenInNewTab} />
-              {badges.workingTickets > 0 && (
-                <span className={`absolute bg-amber-500 text-black font-bold text-[9px] rounded-full flex items-center justify-center pointer-events-none ${isSidebarCollapsed ? 'top-2 right-4 w-4 h-4' : 'top-4 right-4 px-1.5 py-0.5'}`}>
+      {/* ── SUB-NAV: Commands of active section ───────────────────────────── */}
+      <div className="subnav-bar shrink-0 z-30 flex items-center px-4 gap-1 overflow-x-auto" style={{ WebkitAppRegion: 'no-drag' }}>
+        {currentSection.items.map(item => {
+          const IIcon = item.icon;
+          const isActive = currentPath === item.path;
+          return (
+            <button
+              key={item.path}
+              onClick={() => handleNavItem(item.path)}
+              className={`subnav-item flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap relative
+                ${isActive
+                  ? 'text-[var(--color-primary)] bg-[var(--color-primary)]/10 font-semibold'
+                  : 'text-gray-400 hover:text-theme-text hover:bg-white/5'
+                }`}
+            >
+              <IIcon size={13} className="shrink-0" />
+              {item.label}
+              {/* Badge for Lista Riparazioni */}
+              {item.path === '/repairs' && badges.workingTickets > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 text-[9px] font-black bg-amber-500 text-black rounded-full leading-none">
                   {badges.workingTickets}
                 </span>
               )}
-            </div>
-            
-            <SidebarItem icon={Search} label="Ricerca Ricambi" path="/search" active={location.pathname === '/search'} isCollapsed={isSidebarCollapsed} onNewTabClick={handleOpenInNewTab} />
-            <SidebarItem icon={Receipt} label="Totale Acquisto" path="/sales-receipt" active={location.pathname === '/sales-receipt'} isCollapsed={isSidebarCollapsed} onNewTabClick={handleOpenInNewTab} />
-
-            {/* GRUPPO 2: GESTIONE & ARCHIVI */}
-            {!isSidebarCollapsed ? (
-              <div className="px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-4 shrink-0">
-                📦 Gestione & Archivi
-              </div>
-            ) : (
-              <div className="border-t border-theme-panelBorder/30 my-2 mx-4" />
-            )}
-
-            <div className="relative">
-              <SidebarItem icon={Box} label="Magazzino" path="/warehouse" active={location.pathname === '/warehouse'} isCollapsed={isSidebarCollapsed} onNewTabClick={handleOpenInNewTab} />
-              {badges.lowStock > 0 && (
-                <span className={`absolute bg-red-500 text-white font-bold text-[9px] rounded-full flex items-center justify-center pointer-events-none ${isSidebarCollapsed ? 'top-2 right-4 w-4 h-4' : 'top-4 right-4 px-1.5 py-0.5'}`}>
+              {/* Badge for Magazzino */}
+              {item.path === '/warehouse' && badges.lowStock > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 text-[9px] font-black bg-red-500 text-white rounded-full leading-none">
                   {badges.lowStock}
                 </span>
               )}
-            </div>
+              {/* Active underline */}
+              {isActive && (
+                <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-[var(--color-primary)] rounded-full" />
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-            <SidebarItem icon={Users} label="Database Clienti" path="/customers" active={location.pathname === '/customers'} isCollapsed={isSidebarCollapsed} onNewTabClick={handleOpenInNewTab} />
+      {/* ── CONTENT AREA ──────────────────────────────────────────────────── */}
+      <div className="flex-1 relative overflow-hidden">
+        {/* Ambient glows — use primary color only */}
+        <div className="absolute top-[-25%] left-[-10%] w-[50%] h-[50%] bg-[var(--color-primary)] rounded-full blur-[180px] opacity-[0.05] pointer-events-none" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[40%] h-[40%] bg-[var(--color-primary)] rounded-full blur-[180px] opacity-[0.03] pointer-events-none" />
 
-            {/* GRUPPO 3: STRUMENTI */}
-            {!isSidebarCollapsed ? (
-              <div className="px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-4 shrink-0">
-                🛠️ Strumenti
-              </div>
-            ) : (
-              <div className="border-t border-theme-panelBorder/30 my-2 mx-4" />
-            )}
-
-            <SidebarItem icon={Activity} label="Tester" path="/tester" active={location.pathname === '/tester'} isCollapsed={isSidebarCollapsed} onNewTabClick={handleOpenInNewTab} />
-            <SidebarItem icon={Smartphone} label="Identifica Modello" path="/identify" active={location.pathname === '/identify'} isCollapsed={isSidebarCollapsed} onNewTabClick={handleOpenInNewTab} />
-            <SidebarItem icon={Cpu} label="Configuratore PC" path="/pc-configurator" active={location.pathname === '/pc-configurator'} isCollapsed={isSidebarCollapsed} onNewTabClick={handleOpenInNewTab} />
-            <SidebarItem icon={Calculator} label="Preventivo Libero" path="/commercial-quote" active={location.pathname === '/commercial-quote'} isCollapsed={isSidebarCollapsed} onNewTabClick={handleOpenInNewTab} />
-          </div>
-
-          {/* Bottom Settings & Collapse Area */}
-          <div className="border-t border-theme-panelBorder mt-auto shrink-0 bg-transparent">
-            <SidebarItem icon={SettingsIcon} label="Impostazioni" path="/settings" active={location.pathname === '/settings'} isCollapsed={isSidebarCollapsed} onNewTabClick={handleOpenInNewTab} />
-            <div className="p-2 flex justify-center">
-              <button
-                onClick={handleToggleSidebar}
-                className="w-full flex items-center justify-center py-2 rounded-theme-btn hover:bg-theme-panel text-gray-500 hover:text-theme-text transition-colors"
-                title={isSidebarCollapsed ? 'Espandi Sidebar' : 'Collassa Sidebar'}
-              >
-                {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-              </button>
-            </div>
-          </div>
+        <div className="h-full w-full overflow-y-auto custom-scroll">
+          {renderPage(currentPath)}
         </div>
 
-        {/* Multi-Tab and Content Wrapper */}
-        <div className="flex-1 flex flex-col relative overflow-hidden bg-transparent">
-          
-          {/* Background Glows (reactive shifts) */}
-          <div className="absolute top-[-25%] left-[-15%] w-[60%] h-[60%] bg-[var(--color-primary)] rounded-full blur-[170px] opacity-[0.08] pointer-events-none transition-all duration-1000" />
-          <div className="absolute bottom-[-20%] right-[-15%] w-[50%] h-[50%] bg-purple-600 rounded-full blur-[170px] opacity-[0.06] pointer-events-none transition-all duration-1000" />
-
-          {/* Browser-style TabBar Header */}
-          <div className="w-full h-11 border-b border-theme-panelBorder bg-theme-panel/20 backdrop-blur-md flex items-end px-4 gap-1 overflow-x-auto overflow-y-hidden select-none shrink-0 custom-scroll z-10">
-            {tabs.map((tab) => {
-              const active = tab.active;
-              return (
-                <div
-                  key={tab.id}
-                  onClick={() => {
-                    soundService.playClick();
-                    setTabs(prev => prev.map(t => ({
-                      ...t,
-                      active: t.id === tab.id
-                    })));
-                    navigate(tab.path);
-                  }}
-                  className={`
-                    h-8 flex items-center gap-2 px-4 rounded-t-lg text-xs font-semibold cursor-pointer border-t border-x transition-all duration-200 whitespace-nowrap
-                    ${active 
-                      ? 'bg-theme-panel border-theme-panelBorder border-b-[#121212] text-theme-text relative z-10 shadow-[0_-2px_10px_rgba(0,0,0,0.15)] font-bold' 
-                      : 'bg-transparent border-transparent text-gray-400 hover:bg-white/5 hover:text-theme-text'}
-                  `}
-                >
-                  <span>{tab.label}</span>
-                  {tabs.length > 1 && (
-                    <button
-                      onClick={(e) => handleCloseTab(e, tab.id)}
-                      className="p-0.5 rounded-full hover:bg-white/15 text-gray-400 hover:text-white"
-                      title="Chiudi Scheda"
-                    >
-                      <X size={10} />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* New Tab Button */}
-            <button
-              onClick={handleNewTab}
-              className="h-8 w-8 flex items-center justify-center rounded-t-lg text-gray-400 hover:bg-white/5 hover:text-theme-text border-t border-x border-transparent hover:border-theme-panelBorder transition-all duration-200 shrink-0 mb-[1px]"
-              title="Nuova Scheda"
-            >
-              <Plus size={14} />
-            </button>
-          </div>
-
-          {/* Active View Container (Maintains tab state by hiding inactive ones) */}
-          <div className="flex-1 relative overflow-hidden p-0">
-            {tabs.map(tab => (
-              <div
-                key={tab.id}
-                className={`h-full w-full absolute inset-0 overflow-y-auto custom-scroll ${tab.active ? 'block z-0 animate-fade-in' : 'hidden z-[-1]'}`}
-              >
-                {renderTabContent(tab.path)}
-              </div>
-            ))}
-          </div>
-
-          {/* Dummy router Routes to keep history mapping intact */}
-          <div className="hidden">
-            <Routes>
-              <Route path="/" element={null} />
-              <Route path="/search" element={null} />
-              <Route path="/identify" element={null} />
-              <Route path="/warehouse" element={null} />
-              <Route path="/settings" element={null} />
-              <Route path="/checkin" element={null} />
-              <Route path="/repairs" element={null} />
-              <Route path="/customers" element={null} />
-              <Route path="/pc-configurator" element={null} />
-              <Route path="/tester" element={null} />
-              <Route path="/commercial-quote" element={null} />
-              <Route path="/sales-receipt" element={null} />
-            </Routes>
-          </div>
+        {/* Hidden routes for router compatibility */}
+        <div className="hidden">
+          <Routes>
+            <Route path="/" element={null} />
+            <Route path="/search" element={null} />
+            <Route path="/identify" element={null} />
+            <Route path="/warehouse" element={null} />
+            <Route path="/settings" element={null} />
+            <Route path="/checkin" element={null} />
+            <Route path="/repairs" element={null} />
+            <Route path="/customers" element={null} />
+            <Route path="/pc-configurator" element={null} />
+            <Route path="/tester" element={null} />
+            <Route path="/commercial-quote" element={null} />
+            <Route path="/sales-receipt" element={null} />
+          </Routes>
         </div>
       </div>
 
-      {/* OVERLAY 1: COMMAND PALETTE (CTRL+K) */}
+      {/* ── SETTINGS GEAR (bottom-left fixed) ─────────────────────────────── */}
+      <button
+        onClick={() => { soundService.playClick(); navigate('/settings'); }}
+        title="Impostazioni (Alt+S)"
+        className={`settings-gear-btn fixed bottom-4 left-4 z-50 w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-200 shadow-lg
+          ${currentPath === '/settings'
+            ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-[var(--color-primary-content)]'
+            : 'bg-theme-surface border-theme-panelBorder text-gray-400 hover:text-theme-text hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-primary)]/10'
+          }`}
+      >
+        <SettingsIcon size={16} className={currentPath === '/settings' ? '' : 'hover:rotate-45 transition-transform duration-300'} />
+      </button>
+
+      {/* ── COMMAND PALETTE ────────────────────────────────────────────────── */}
       {showCommandPalette && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowCommandPalette(false)}>
-          <div 
-            className="w-full max-w-2xl bg-[#171717] border border-theme-panelBorder rounded-theme-panel shadow-2xl overflow-hidden flex flex-col glass-panel-v2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Search Input Bar */}
+          <div className="w-full max-w-2xl bg-[var(--color-surface)] border border-theme-panelBorder rounded-xl shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 p-4 border-b border-theme-panelBorder">
-              <Search className="text-gray-400" size={20} />
+              <Search className="text-gray-400" size={18} />
               <input
-                type="text"
-                autoFocus
-                value={paletteQuery}
-                onChange={(e) => setPaletteQuery(e.target.value)}
+                type="text" autoFocus value={paletteQuery}
+                onChange={e => setPaletteQuery(e.target.value)}
                 placeholder="Cerca ticket, clienti, ricambi o scorciatoie..."
-                className="w-full bg-transparent text-theme-text placeholder-gray-500 focus:outline-none text-base"
+                className="w-full bg-transparent text-theme-text placeholder-gray-500 focus:outline-none text-sm"
               />
               <span className="text-[10px] text-gray-500 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded font-mono select-none">ESC</span>
             </div>
-
-            {/* Results Area */}
             <div className="flex-1 max-h-[380px] overflow-y-auto p-4 space-y-4 custom-scroll">
-              
-              {/* Quick Actions / Navigation */}
               {paletteResults.actions.length > 0 && (
                 <div className="space-y-1">
-                  <h4 className="text-[10px] text-theme-primary uppercase font-bold tracking-wider mb-2 flex items-center gap-1.5">
-                    <Command size={10} /> Azioni e Navigazione
-                  </h4>
+                  <h4 className="text-[10px] text-[var(--color-primary)] uppercase font-bold tracking-wider mb-2 flex items-center gap-1.5"><Command size={10} /> Azioni e Navigazione</h4>
                   {paletteResults.actions.map(act => (
-                    <div
-                      key={act.path}
-                      onClick={() => handlePaletteSelect(act.path)}
-                      className="p-3 bg-white/[0.02] hover:bg-[var(--color-primary)]/10 hover:text-white rounded border border-white/5 hover:border-[var(--color-primary)]/20 cursor-pointer transition-all flex justify-between items-center"
-                    >
+                    <div key={act.path} onClick={() => handlePaletteSelect(act.path)}
+                      className="p-3 bg-white/[0.02] hover:bg-[var(--color-primary)]/10 rounded border border-white/5 hover:border-[var(--color-primary)]/20 cursor-pointer transition-all flex justify-between items-center">
                       <div>
                         <div className="text-xs font-bold text-theme-text">{act.name}</div>
                         <div className="text-[10px] text-gray-400 mt-0.5">{act.desc}</div>
@@ -827,67 +487,44 @@ function App() {
                   ))}
                 </div>
               )}
-
-              {/* Repairs Results */}
               {paletteResults.repairs.length > 0 && (
                 <div className="space-y-1 pt-2">
-                  <h4 className="text-[10px] text-theme-primary uppercase font-bold tracking-wider mb-2 flex items-center gap-1.5">
-                    <ClipboardList size={10} /> Ticket di Riparazione
-                  </h4>
+                  <h4 className="text-[10px] text-[var(--color-primary)] uppercase font-bold tracking-wider mb-2 flex items-center gap-1.5"><ClipboardList size={10} /> Ticket</h4>
                   {paletteResults.repairs.map(rep => (
-                    <div
-                      key={rep.id}
-                      onClick={() => handlePaletteSelect('/repairs', { searchId: rep.id })}
-                      className="p-3 bg-white/[0.02] hover:bg-[var(--color-primary)]/10 hover:text-white rounded border border-white/5 hover:border-[var(--color-primary)]/20 cursor-pointer transition-all flex justify-between items-center"
-                    >
+                    <div key={rep.id} onClick={() => handlePaletteSelect('/repairs', { searchId: rep.id })}
+                      className="p-3 bg-white/[0.02] hover:bg-[var(--color-primary)]/10 rounded border border-white/5 cursor-pointer transition-all flex justify-between items-center">
                       <div>
-                        <div className="text-xs font-bold text-theme-text">Ticket #{rep.id} - {rep.customer.name}</div>
-                        <div className="text-[10px] text-gray-400 mt-0.5">Dispositivo: {rep.device.info} | Guasto: {rep.device.problem}</div>
+                        <div className="text-xs font-bold text-theme-text">#{rep.id} — {rep.customer.name}</div>
+                        <div className="text-[10px] text-gray-400 mt-0.5">{rep.device.info} | {rep.device.problem}</div>
                       </div>
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${rep.status === 'working' ? 'bg-amber-500 text-black' : 'bg-green-500 text-black'}`}>
-                        {rep.status}
-                      </span>
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${rep.status === 'working' ? 'bg-amber-500 text-black' : 'bg-green-500 text-black'}`}>{rep.status}</span>
                     </div>
                   ))}
                 </div>
               )}
-
-              {/* Customers Results */}
               {paletteResults.customers.length > 0 && (
                 <div className="space-y-1 pt-2">
-                  <h4 className="text-[10px] text-theme-primary uppercase font-bold tracking-wider mb-2 flex items-center gap-1.5">
-                    <Users size={10} /> Clienti
-                  </h4>
+                  <h4 className="text-[10px] text-[var(--color-primary)] uppercase font-bold tracking-wider mb-2 flex items-center gap-1.5"><Users size={10} /> Clienti</h4>
                   {paletteResults.customers.map(cust => (
-                    <div
-                      key={cust.name}
-                      onClick={() => handlePaletteSelect('/customers')}
-                      className="p-3 bg-white/[0.02] hover:bg-[var(--color-primary)]/10 hover:text-white rounded border border-white/5 hover:border-[var(--color-primary)]/20 cursor-pointer transition-all flex justify-between items-center"
-                    >
+                    <div key={cust.name} onClick={() => handlePaletteSelect('/customers')}
+                      className="p-3 bg-white/[0.02] hover:bg-[var(--color-primary)]/10 rounded border border-white/5 cursor-pointer transition-all flex justify-between items-center">
                       <div>
                         <div className="text-xs font-bold text-theme-text">{cust.name}</div>
-                        <div className="text-[10px] text-gray-400 mt-0.5">Tel: {cust.phone} | Email: {cust.email}</div>
+                        <div className="text-[10px] text-gray-400 mt-0.5">Tel: {cust.phone}</div>
                       </div>
                       <span className="text-[9px] text-gray-500 bg-white/5 px-2 py-0.5 rounded border border-white/5">SCHEDA</span>
                     </div>
                   ))}
                 </div>
               )}
-
-              {/* Inventory Results */}
               {paletteResults.inventory.length > 0 && (
                 <div className="space-y-1 pt-2">
-                  <h4 className="text-[10px] text-theme-primary uppercase font-bold tracking-wider mb-2 flex items-center gap-1.5">
-                    <Box size={10} /> Magazzino Ricambi
-                  </h4>
+                  <h4 className="text-[10px] text-[var(--color-primary)] uppercase font-bold tracking-wider mb-2 flex items-center gap-1.5"><Box size={10} /> Magazzino</h4>
                   {paletteResults.inventory.map(item => (
-                    <div
-                      key={item.id}
-                      onClick={() => handlePaletteSelect('/warehouse')}
-                      className="p-3 bg-white/[0.02] hover:bg-[var(--color-primary)]/10 hover:text-white rounded border border-white/5 hover:border-[var(--color-primary)]/20 cursor-pointer transition-all flex justify-between items-center"
-                    >
+                    <div key={item.id} onClick={() => handlePaletteSelect('/warehouse')}
+                      className="p-3 bg-white/[0.02] hover:bg-[var(--color-primary)]/10 rounded border border-white/5 cursor-pointer transition-all flex justify-between items-center">
                       <div>
-                        <div className="text-xs font-bold text-theme-text">{item.brand} {item.model} - {item.component}</div>
+                        <div className="text-xs font-bold text-theme-text">{item.brand} {item.model} — {item.component}</div>
                         <div className="text-[10px] text-gray-400 mt-0.5">Scorte: {item.quantity} pz | Costo: € {item.cost}</div>
                       </div>
                       <span className="text-[9px] text-gray-500 bg-white/5 px-2 py-0.5 rounded border border-white/5">RICAMBI</span>
@@ -895,177 +532,106 @@ function App() {
                   ))}
                 </div>
               )}
-
-              {/* Empty state */}
-              {paletteResults.actions.length === 0 && 
-               paletteResults.repairs.length === 0 && 
-               paletteResults.customers.length === 0 && 
-               paletteResults.inventory.length === 0 && (
+              {paletteResults.actions.length === 0 && paletteResults.repairs.length === 0 && paletteResults.customers.length === 0 && paletteResults.inventory.length === 0 && (
                 <div className="p-8 text-center text-gray-500 text-sm flex flex-col items-center gap-2">
-                  <AlertTriangle size={32} className="text-gray-600" />
-                  Nessun risultato trovato per "{paletteQuery}"
+                  <AlertTriangle size={28} className="text-gray-600" />
+                  Nessun risultato per "{paletteQuery}"
                 </div>
               )}
             </div>
-            
-            <div className="p-3 bg-black/40 border-t border-theme-panelBorder text-[10px] text-gray-500 flex justify-between">
-              <span>Frecce per navigare, Invio per scegliere</span>
-              <span>Scrivi per filtrare il database locale</span>
+            <div className="p-3 bg-black/30 border-t border-theme-panelBorder text-[10px] text-gray-500 flex justify-between">
+              <span>Invio per scegliere</span>
+              <span>Scrivi per filtrare il database</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* OVERLAY 2: KEYBOARD SHORTCUTS GUIDE (?) */}
+      {/* ── KEYBOARD SHORTCUTS GUIDE ───────────────────────────────────────── */}
       {showShortcutsGuide && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in" onClick={() => setShowShortcutsGuide(false)}>
-          <div 
-            className="w-full max-w-lg bg-[#141414] border border-theme-panelBorder rounded-theme-panel p-6 shadow-2xl text-center glass-panel-v2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="w-12 h-12 bg-[var(--color-primary)]/25 rounded-full flex items-center justify-center mx-auto mb-4 text-theme-primary glow-primary">
-              <Keyboard size={24} />
+          <div className="w-full max-w-lg bg-[var(--color-surface)] border border-theme-panelBorder rounded-xl p-6 shadow-2xl text-center" onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-12 bg-[var(--color-primary)]/20 rounded-full flex items-center justify-center mx-auto mb-4 text-[var(--color-primary)]">
+              <Keyboard size={22} />
             </div>
-            <h2 className="text-xl font-bold text-theme-text mb-2">Scorciatoie da Tastiera</h2>
-            <p className="text-gray-400 text-xs mb-6">Migliora la tua produttività accedendo istantaneamente alle pagine chiave.</p>
-            
+            <h2 className="text-lg font-bold text-theme-text mb-1">Scorciatoie da Tastiera</h2>
+            <p className="text-gray-400 text-xs mb-6">Migliora la tua produttività.</p>
             <div className="grid grid-cols-2 gap-4 text-left mb-6 text-sm">
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400 text-xs">Command Palette:</span>
-                  <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded text-xs font-mono">Ctrl+K</kbd>
+              {[
+                ['Command Palette', 'Ctrl+K'], ['Pannello Aiuto', '?'],
+                ['Chiudi Modali', 'ESC'], ['Dashboard', 'Alt+D'],
+                ['Nuovo Check-In', 'Alt+C'], ['Lista Riparazioni', 'Alt+L'],
+                ['Magazzino', 'Alt+M'], ['Preventivo', 'Alt+P'],
+                ['Impostazioni', 'Alt+S'], ['Tester', 'Alt+T'],
+              ].map(([label, key]) => (
+                <div key={key} className="flex justify-between items-center">
+                  <span className="text-gray-400 text-xs">{label}:</span>
+                  <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded text-xs font-mono">{key}</kbd>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400 text-xs">Pannello Aiuto:</span>
-                  <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded text-xs font-mono">?</kbd>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400 text-xs">Chiudi Modali:</span>
-                  <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded text-xs font-mono">ESC</kbd>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400 text-xs">Vai a Dashboard:</span>
-                  <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded text-xs font-mono">Alt+D</kbd>
-                </div>
-              </div>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400 text-xs">Nuovo Check-In:</span>
-                  <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded text-xs font-mono">Alt+C</kbd>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400 text-xs">Lista Riparazioni:</span>
-                  <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded text-xs font-mono">Alt+L</kbd>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400 text-xs">Magazzino Ricambi:</span>
-                  <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded text-xs font-mono">Alt+M</kbd>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400 text-xs">Preventivo Libero:</span>
-                  <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded text-xs font-mono">Alt+P</kbd>
-                </div>
-              </div>
+              ))}
             </div>
-
-            <button 
-              onClick={() => setShowShortcutsGuide(false)}
-              className="w-full py-2.5 bg-theme-panel border border-theme-panelBorder hover:bg-white/5 text-theme-text font-bold text-xs rounded-theme-btn transition-colors"
-            >
+            <button onClick={() => setShowShortcutsGuide(false)}
+              className="w-full py-2.5 bg-white/5 border border-theme-panelBorder hover:bg-white/10 text-theme-text font-bold text-xs rounded-lg transition-colors">
               Ho capito
             </button>
           </div>
         </div>
       )}
 
-      {/* Global PDF Preview Overlay Modal (Tauri Glassmorphic) */}
+      {/* ── PDF PREVIEW OVERLAY ─────────────────────────────────────────────── */}
       {globalPdfUrl && (
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 bg-black/85 backdrop-blur-md animate-fade-in">
-              <div className="bg-[#121212] border border-theme-panelBorder rounded-theme-panel w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden glass-panel-v2">
-                  {/* Header */}
-                  <div className="p-4 border-b border-theme-panelBorder flex justify-between items-center bg-black/40 shrink-0">
-                      <h3 className="font-bold text-theme-text text-sm flex items-center gap-2">
-                          <Receipt className="text-theme-primary" size={18} />
-                          Anteprima Documento PDF (FixOrTrash Reader)
-                      </h3>
-                      <button
-                          onClick={() => {
-                              soundService.playClick();
-                              setGlobalPdfUrl(null);
-                          }}
-                          className="p-1.5 bg-theme-panel border border-theme-panelBorder rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                      >
-                          <X size={18} />
-                      </button>
-                  </div>
-                  {/* PDF Frame */}
-                  <div className="flex-1 bg-[#1a1a1a]">
-                      <iframe
-                          src={globalPdfUrl}
-                          className="w-full h-full border-0"
-                          title="Anteprima PDF"
-                      />
-                  </div>
-              </div>
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="bg-[var(--color-surface)] border border-theme-panelBorder rounded-xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-theme-panelBorder flex justify-between items-center bg-black/30 shrink-0">
+              <h3 className="font-bold text-theme-text text-sm flex items-center gap-2">
+                <Receipt className="text-[var(--color-primary)]" size={16} />
+                Anteprima Documento PDF
+              </h3>
+              <button onClick={() => { soundService.playClick(); setGlobalPdfUrl(null); }}
+                className="p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors border border-white/10">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 bg-[#1a1a1a]">
+              <iframe src={globalPdfUrl} className="w-full h-full border-0" title="Anteprima PDF" />
+            </div>
           </div>
+        </div>
       )}
 
-      {/* Auto Updater Modal Overlay */}
+      {/* ── AUTO UPDATER MODAL ──────────────────────────────────────────────── */}
       {updateStatus.available && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-theme-panel border border-theme-panelBorder rounded-3xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center animate-fade-in">
-            <div className="w-16 h-16 bg-theme-primary/10 rounded-2xl flex items-center justify-center mb-4 text-theme-primary">
-              <Activity className="w-8 h-8 animate-pulse" />
+          <div className="bg-[var(--color-surface)] border border-theme-panelBorder rounded-2xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center animate-fade-in">
+            <div className="w-14 h-14 bg-[var(--color-primary)]/15 rounded-xl flex items-center justify-center mb-4 text-[var(--color-primary)]">
+              <Activity className="w-7 h-7 animate-pulse" />
             </div>
-            
-            <h3 className="text-xl font-bold text-theme-text text-center">
-              Aggiornamento Disponibile!
-            </h3>
-            <p className="text-xs text-gray-400 mt-1 font-mono">
-              Versione v{updateStatus.version}
-            </p>
-            
-            <div className="w-full bg-black/20 border border-theme-panelBorder/50 rounded-xl p-3 my-4 max-h-40 overflow-y-auto text-left text-xs text-gray-400 font-sans leading-relaxed">
-              <strong className="text-gray-300 block mb-1">Cosa c'è di nuovo:</strong>
+            <h3 className="text-xl font-bold text-theme-text text-center">Aggiornamento Disponibile!</h3>
+            <p className="text-xs text-gray-400 mt-1 font-mono">Versione v{updateStatus.version}</p>
+            <div className="w-full bg-black/20 border border-theme-panelBorder/50 rounded-lg p-3 my-4 max-h-40 overflow-y-auto text-left text-xs text-gray-400 leading-relaxed">
+              <strong className="text-gray-300 block mb-1">Novità:</strong>
               {updateStatus.body}
             </div>
-
             {updateStatus.downloading ? (
               <div className="w-full flex flex-col items-center mt-2">
-                <div className="w-full bg-white/10 h-2.5 rounded-full overflow-hidden">
-                  <div 
-                    className="bg-theme-primary h-full transition-all duration-300 shadow-[0_0_10px_var(--color-primary)]" 
-                    style={{ width: `${updateStatus.progress}%` }} 
-                  />
+                <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                  <div className="bg-[var(--color-primary)] h-full transition-all duration-300" style={{ width: `${updateStatus.progress}%` }} />
                 </div>
                 <span className="text-xs text-gray-400 mt-2 font-mono">{updateStatus.progress}% completato</span>
-                <p className="text-[11px] text-gray-500 mt-2 text-center">
-                  Scaricamento in corso... Il software si riavvierà da solo al termine.
-                </p>
               </div>
             ) : (
-              <div className="w-full flex gap-3 mt-4">
-                <button
-                  onClick={() => setUpdateStatus(prev => ({ ...prev, available: false }))}
-                  className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-semibold hover:bg-white/10 text-gray-300 transition-colors"
-                >
+              <div className="w-full flex gap-3 mt-2">
+                <button onClick={() => setUpdateStatus(prev => ({ ...prev, available: false }))}
+                  className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-lg text-xs font-semibold hover:bg-white/10 text-gray-300 transition-colors">
                   Più Tardi
                 </button>
-                <button
-                  onClick={handleStartUpdate}
-                  className="flex-1 py-2.5 bg-theme-primary rounded-xl text-xs font-bold hover:brightness-110 text-black shadow-lg shadow-theme-primary/10 transition-all"
-                >
+                <button onClick={handleStartUpdate}
+                  className="flex-1 py-2.5 bg-[var(--color-primary)] rounded-lg text-xs font-bold text-[var(--color-primary-content)] hover:brightness-110 transition-all">
                   Aggiorna Ora
                 </button>
               </div>
             )}
-            
-            {updateStatus.error && (
-              <p className="text-xs text-red-400 mt-3 text-center">
-                Errore: {updateStatus.error}
-              </p>
-            )}
+            {updateStatus.error && <p className="text-xs text-red-400 mt-3 text-center">Errore: {updateStatus.error}</p>}
           </div>
         </div>
       )}
