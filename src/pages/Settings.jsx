@@ -15,9 +15,12 @@ const Settings = () => {
     ];
 
     const THEMES = [
-        { id: 'default', label: 'Dark Yellow (Predefinito)' },
-        { id: 'classic-light', label: 'Classico Grigio & Blu (Chiaro)' },
-        { id: 'classic-cream', label: 'Classico Crema & Ardesia (Chiaro)' }
+        { id: 'default', label: 'Dark Yellow (Predefinito)', preview: ['#0a0a0a', '#eab308', '#141414'] },
+        { id: 'classic-light', label: 'Classico Grigio & Blu (Chiaro)', preview: ['#f1f5f9', '#2563eb', '#ffffff'] },
+        { id: 'classic-cream', label: 'Classico Crema & Ardesia (Chiaro)', preview: ['#faf6ee', '#44403c', '#ffffff'] },
+        { id: 'ocean-dark', label: 'Ocean Dark — Blu & Ciano', preview: ['#060d1a', '#06b6d4', '#0d1b2e'] },
+        { id: 'slate-pro', label: 'Slate Pro — Ardesia & Viola', preview: ['#0f1117', '#8b5cf6', '#1a1d2e'] },
+        { id: 'forest-night', label: 'Forest Night — Verde & Lime', preview: ['#080f0a', '#84cc16', '#0f1a10'] },
     ];
 
     const SHAPES = [
@@ -523,8 +526,8 @@ const Settings = () => {
                     >
                         <ArrowLeft size={24} />
                     </button>
-                    <h1 className="text-4xl font-bold text-theme-text flex items-center gap-3">
-                        <SettingsIcon className="text-theme-primary" size={40} />
+                    <h1 className="text-2xl font-bold text-theme-text flex items-center gap-2">
+                        <SettingsIcon className="text-[var(--color-primary)]" size={24} />
                         Editor Layout PDF Visivo
                     </h1>
                 </div>
@@ -555,8 +558,8 @@ const Settings = () => {
                 >
                     <ArrowLeft size={24} />
                 </button>
-                <h1 className="text-4xl font-bold text-theme-text flex items-center gap-3">
-                    <SettingsIcon className="text-theme-primary" size={40} />
+                <h1 className="text-2xl font-bold text-theme-text flex items-center gap-2">
+                    <SettingsIcon className="text-[var(--color-primary)]" size={24} />
                     Impostazioni
                 </h1>
             </div>
@@ -664,23 +667,45 @@ const Settings = () => {
 
                         {/* THEME SELECTION */}
                         <div className="space-y-4 pt-4 border-t border-theme-panelBorder">
-                            <div className="space-y-2">
-                                <label className="text-gray-400 block">Tema Visivo (Colori)</label>
-                                <select
-                                    value={theme}
-                                    onChange={(e) => {
-                                        setTheme(e.target.value);
-                                        // Auto-apply preview
-                                        document.documentElement.setAttribute('data-theme', e.target.value);
-                                    }}
-                                    className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                                >
-                                    {THEMES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                                </select>
+                            <div className="space-y-3">
+                                <label className="text-gray-400 block text-sm font-medium">Tema Visivo (Colori)</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {THEMES.map(t => (
+                                        <button
+                                            key={t.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setTheme(t.id);
+                                                document.documentElement.setAttribute('data-theme', t.id);
+                                            }}
+                                            className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
+                                                theme === t.id
+                                                    ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 shadow-sm'
+                                                    : 'border-theme-panelBorder bg-theme-panel/50 hover:border-[var(--color-primary)]/40'
+                                            }`}
+                                        >
+                                            {/* Color swatch preview */}
+                                            <div className="flex shrink-0 rounded overflow-hidden border border-white/10" style={{ width: 36, height: 24 }}>
+                                                <div style={{ backgroundColor: t.preview[0], flex: 2 }} />
+                                                <div style={{ backgroundColor: t.preview[1], flex: 1 }} />
+                                                <div style={{ backgroundColor: t.preview[2], flex: 1 }} />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="text-xs font-semibold text-theme-text truncate">{t.label.split(' — ')[0]}</div>
+                                                {t.label.includes(' — ') && (
+                                                    <div className="text-[10px] text-gray-500 truncate">{t.label.split(' — ')[1]}</div>
+                                                )}
+                                            </div>
+                                            {theme === t.id && (
+                                                <div className="ml-auto w-2 h-2 rounded-full bg-[var(--color-primary)] shrink-0" />
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-gray-400 block">Forma Finestre e Pulsanti</label>
+                                <label className="text-gray-400 block text-sm font-medium">Forma Finestre e Pulsanti</label>
                                 <select
                                     value={shape}
                                     onChange={(e) => {
@@ -694,6 +719,7 @@ const Settings = () => {
                                 </select>
                             </div>
                         </div>
+
 
                         {/* PERSONALIZZAZIONE GLASSMOPHISM & VOLUME SUONI */}
                         <div className="space-y-4 pt-4 border-t border-theme-panelBorder">
