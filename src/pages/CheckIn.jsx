@@ -618,7 +618,7 @@ const CheckIn = () => {
     const handleOpenPDF = () => {
         const doc = createPDFDoc();
         if (doc) {
-            window.open(doc.output('bloburl'), '_blank');
+            pdfLayoutEngine.openPdf(doc, `ticket_${lastTicket.id}.pdf`);
         }
     };
 
@@ -829,7 +829,15 @@ const CheckIn = () => {
                                         <button
                                             key={symptom}
                                             type="button"
-                                            onClick={() => { soundService.playClick(); setProblemDescription(symptom); }}
+                                            onClick={() => {
+                                                soundService.playClick();
+                                                setProblemDescription(prev => {
+                                                    const trimmed = prev.trim();
+                                                    if (!trimmed) return symptom;
+                                                    if (trimmed.toLowerCase().includes(symptom.toLowerCase())) return prev;
+                                                    return `${trimmed}, ${symptom}`;
+                                                });
+                                            }}
                                             className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-[11px] text-gray-400 hover:text-white rounded border border-white/5 transition-colors"
                                         >
                                             {symptom}
