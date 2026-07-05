@@ -132,6 +132,20 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const handleTriggerUpdate = (e) => {
+      const { update } = e.detail;
+      setUpdateStatus({
+        checking: false, available: true, version: update.version,
+        progress: 0, downloading: false, error: null,
+        body: update.body || 'Aggiornamento di stabilità ed ottimizzazione.',
+        _updateRef: update, _relaunchRef: relaunch
+      });
+    };
+    window.addEventListener('trigger-app-update', handleTriggerUpdate);
+    return () => window.removeEventListener('trigger-app-update', handleTriggerUpdate);
+  }, []);
+
   const handleStartUpdate = async () => {
     if (!updateStatus._updateRef) return;
     soundService.playClick();
