@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { DEFAULT_LAYOUTS, getLayout, pdfLayoutEngine } from '../services/pdfLayoutEngine';
-import { Trash2, Plus, RefreshCw, Eye, Save, Move, Type, CheckSquare, Layers, CornerDownRight, Square, ZoomIn, ZoomOut } from 'lucide-react';
-import { dataManager } from '../services/dataManager';
+import React, { useState, useEffect, useRef } from 'react';
+import { DEFAULT_LAYOUTS, getLayout } from '../services/pdfLayoutEngine';
+import { 
+  Trash2, Plus, RefreshCw, Eye, Save, Type, Square, Minus, Table, HelpCircle, 
+  ChevronRight, CheckCircle, FileText, ZoomIn, ZoomOut, Copy, Clipboard, Image
+} from 'lucide-react';
 import { soundService } from '../services/soundService';
 
 const MOCK_DATA = {
@@ -53,9 +55,7 @@ const MOCK_DATA = {
         { label: "Fotocamera Posteriore", status: "ok" },
         { label: "Fotocamera Frontale", status: "ok" },
         { label: "Connettore Ricarica", status: "ok" },
-        { label: "Altoparlante Vivavoce", status: "ok" },
-        { label: "Tasti Volume (+/-)", status: "fail" },
-        { label: "Sensore Prossimità", status: "ok" }
+        { label: "Altoparlante Vivavoce", status: "ok" }
     ],
     customChecks: [
         { label: "Tasto Accensione", status: "ok" },
@@ -76,19 +76,16 @@ const MOCK_DATA = {
         { type: "CPU", model: "Intel Core i7-13700K", price: 380.00 },
         { type: "GPU", model: "NVIDIA RTX 4070 12GB Dual", price: 620.00 },
         { type: "RAM", model: "32GB DDR5 6000MHz Kingston", price: 125.00 },
-        { type: "SSD", model: "1TB NVMe PCIe 4.0 Samsung 980", price: 85.00 },
-        { type: "Scheda Madre", model: "ASUS Prime Z790-P Wi-Fi", price: 210.00 },
-        { type: "Manodopera", model: "Assemblaggio e Stress Test 24h", price: 60.00 }
+        { type: "SSD", model: "1TB NVMe Samsung", price: 85.00 }
     ],
     items: [
         { name: "Cavo Ricarica USB-C 1.5m Maglia Nylon", price: 14.90, quantity: 1, discount: 0, total: 14.90 },
-        { name: "Alimentatore USB-C 20W PD Carica Rapida", price: 19.90, quantity: 1, discount: 10, total: 17.91 },
-        { name: "Pellicola Vetro Temperato iPhone 14", price: 9.90, quantity: 2, discount: 0, total: 19.80 }
+        { name: "Alimentatore USB-C 20W PD Carica Rapida", price: 19.90, quantity: 1, discount: 10, total: 17.91 }
     ],
-    subtotal: 54.60,
+    subtotal: 34.80,
     totalDiscount: 1.99,
     tax: 0.00,
-    total: 52.61,
+    total: 32.81,
     purchase: {
         id: "REC-2026-0842"
     }
@@ -100,564 +97,550 @@ const TEMPLATE_OPTIONS = [
     { id: 'tester', label: 'Report Diagnostico (A4)' },
     { id: 'quote', label: 'Preventivo Riparazione (A4)' },
     { id: 'pc_config', label: 'Preventivo Assemblaggio PC (A4)' },
-    { id: 'purchase', label: 'Ricevuta Vendita (A4)' },
-    { id: 'label', label: 'Etichetta Termica (80x50mm)' }
+    { id: 'label', label: 'Etichetta Termica (80x50mm)' },
+    { id: 'purchase', label: 'Ricevuta Acquisto / Vendita (A4)' }
 ];
 
-const VARIABLE_TAGS = [
-    { tag: '{{store.name}}', desc: 'Nome Negozio' },
-    { tag: '{{store.phone}}', desc: 'Tel. Negozio' },
-    { tag: '{{store.email}}', desc: 'Email Negozio' },
-    { tag: '{{store.address}}', desc: 'Indirizzo Negozio' },
-    { tag: '{{store.technician}}', desc: 'Tecnico Predefinito' },
-    { tag: '{{store.terms}}', desc: 'Termini Legali' },
-    { tag: '{{ticket.id}}', desc: 'ID Ticket' },
-    { tag: '{{ticket.date}}', desc: 'Data Ticket' },
-    { tag: '{{customer.name}}', desc: 'Nome Cliente' },
-    { tag: '{{customer.phone}}', desc: 'Tel. Cliente' },
-    { tag: '{{customer.email}}', desc: 'Email Cliente' },
-    { tag: '{{device.info}}', desc: 'Marca e Modello' },
-    { tag: '{{device.imei}}', desc: 'IMEI Dispositivo' },
-    { tag: '{{device.serial}}', desc: 'Seriale Dispositivo' },
-    { tag: '{{device.defect}}', desc: 'Problema Segnalato' },
-    { tag: '{{current.date}}', desc: 'Data Attuale' }
+const PLACEHOLDERS = [
+  { group: "Negozio", tags: ["{{store.name}}", "{{store.phone}}", "{{store.email}}", "{{store.address}}", "{{store.technician}}", "{{store.terms}}"] },
+  { group: "Scheda Riparazione", tags: ["{{ticket.id}}", "{{ticket.date}}", "{{ticket.defect}}", "{{ticket.notes}}", "{{ticket.dueDate}}", "{{ticket.technician}}"] },
+  { group: "Cliente & Dispositivo", tags: ["{{customer.name}}", "{{customer.phone}}", "{{customer.email}}", "{{device.info}}", "{{device.imei}}", "{{device.serial}}"] }
 ];
 
 const PdfLayoutEditor = ({ onSave }) => {
-    const [selectedTemplate, setSelectedTemplate] = useState('checkin');
+    const [activeTemplate, setActiveTemplate] = useState('checkin');
     const [layoutItems, setLayoutItems] = useState([]);
-    const [selectedItemId, setSelectedItemId] = useState(null);
-    const [isDragging, setIsDragging] = useState(false);
-    const [snapToGrid, setSnapToGrid] = useState(true);
-    const [snapStep, setSnapStep] = useState(2); // in mm
+    const [selectedId, setSelectedId] = useState(null);
+    const [clipboard, setClipboard] = useState(null);
+    const [zoom, setZoom] = useState(1); // Zoom multiplier
+    
+    const canvasRef = useRef(null);
+    const draggingRef = useRef(null); // { id, startX, startY, origX, origY }
 
-    const [zoom, setZoom] = useState(1.0);
+    // Constants for scaling mm to px
+    const mmToPx = activeTemplate === 'label' ? 6 : 3;
+    const sheetWidth = activeTemplate === 'label' ? 80 : 210;
+    const sheetHeight = activeTemplate === 'label' ? 50 : 297;
 
-    const isLabel = selectedTemplate === 'label';
-    const paperWidthMm = isLabel ? 80 : 210;
-    const paperHeightMm = isLabel ? 50 : 297;
-    const scale = isLabel ? 6 : 2.83; // multiplier to fit screen A4 width 595px, Label 480px
-
+    // Load template configuration on change
     useEffect(() => {
-        const loaded = getLayout(selectedTemplate);
-        setLayoutItems(JSON.parse(JSON.stringify(loaded))); // deep clone
-        setSelectedItemId(null);
-    }, [selectedTemplate]);
-
-    // Keyboard Arrow Keys Adjuster
-    useEffect(() => {
-        const handleKeyDown = (e) => {
-            if (!selectedItemId || isDragging) return;
-            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
-
-            const item = layoutItems.find(i => i.id === selectedItemId);
-            if (!item) return;
-
-            const step = e.shiftKey ? 5 : 1; // 5mm with shift, 1mm normal
-            let newX = item.x;
-            let newY = item.y;
-
-            if (e.key === 'ArrowUp') { e.preventDefault(); newY -= step; }
-            else if (e.key === 'ArrowDown') { e.preventDefault(); newY += step; }
-            else if (e.key === 'ArrowLeft') { e.preventDefault(); newX -= step; }
-            else if (e.key === 'ArrowRight') { e.preventDefault(); newX += step; }
-            else return;
-
-            newX = Math.max(0, Math.min(newX, paperWidthMm - (item.w || 10)));
-            newY = Math.max(0, Math.min(newY, paperHeightMm - (item.h || 5)));
-
-            updateItemProperty(selectedItemId, 'x', parseFloat(newX.toFixed(1)));
-            updateItemProperty(selectedItemId, 'y', parseFloat(newY.toFixed(1)));
-        };
-
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [selectedItemId, layoutItems, isDragging, paperWidthMm, paperHeightMm]);
-
-    const updateItemProperty = (id, prop, value) => {
-        setLayoutItems(prev => prev.map(item => {
-            if (item.id === id) {
-                return { ...item, [prop]: value };
+        const layout = getLayout(activeTemplate);
+        // Ensure every table has default styling fields if missing
+        const normalized = layout.map(item => {
+            if (item.type === 'table') {
+                return {
+                    headerBgColor: '#1e293b',
+                    headerTextColor: '#ffffff',
+                    altRowBgColor: '#f8fafc',
+                    fontSize: item.tableType === 'checklist' || item.tableType === 'checkoutChecklist' ? 8 : 9,
+                    cellPadding: item.tableType === 'checklist' || item.tableType === 'checkoutChecklist' ? 1.5 : 2,
+                    ...item
+                };
             }
             return item;
-        }));
-    };
+        });
+        setLayoutItems(normalized);
+        setSelectedId(null);
+    }, [activeTemplate]);
 
-    const handleMouseDown = (e, itemId) => {
-        if (e.button !== 0) return; // Only left click
-        e.preventDefault();
-        setSelectedItemId(itemId);
-        setIsDragging(true);
+    // Handle Keyboard precision arrow nudges
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (!selectedId) return;
+            const step = e.shiftKey ? 5 : 1; // 5mm or 1mm steps
 
-        const item = layoutItems.find(i => i.id === itemId);
-        if (!item) return;
-
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const initialX = item.x;
-        const initialY = item.y;
-
-        const handleMouseMove = (moveEvent) => {
-            const deltaX = (moveEvent.clientX - startX) / (scale * zoom);
-            const deltaY = (moveEvent.clientY - startY) / (scale * zoom);
-
-            let newX = initialX + deltaX;
-            let newY = initialY + deltaY;
-
-            if (snapToGrid) {
-                newX = Math.round(newX / snapStep) * snapStep;
-                newY = Math.round(newY / snapStep) * snapStep;
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                e.preventDefault();
+                setLayoutItems(prev => prev.map(item => {
+                    if (item.id !== selectedId) return item;
+                    let nextX = item.x;
+                    let nextY = item.y;
+                    if (e.key === 'ArrowLeft') nextX = Math.max(0, item.x - step);
+                    if (e.key === 'ArrowRight') nextX = Math.min(sheetWidth - (item.w || 10), item.x + step);
+                    if (e.key === 'ArrowUp') nextY = Math.max(0, item.y - step);
+                    if (e.key === 'ArrowDown') nextY = Math.min(sheetHeight - (item.h || 5), item.y + step);
+                    return { ...item, x: nextX, y: nextY };
+                }));
             }
 
-            newX = Math.max(0, Math.min(newX, paperWidthMm - (item.w || 10)));
-            newY = Math.max(0, Math.min(newY, paperHeightMm - (item.h || 5)));
-
-            updateItemProperty(itemId, 'x', parseFloat(newX.toFixed(1)));
-            updateItemProperty(itemId, 'y', parseFloat(newY.toFixed(1)));
+            // Copy-Paste shortcuts
+            if (e.ctrlKey && e.key === 'c') {
+                e.preventDefault();
+                handleCopy();
+            }
+            if (e.ctrlKey && e.key === 'v') {
+                e.preventDefault();
+                handlePaste();
+            }
         };
 
-        const handleMouseUp = () => {
-            setIsDragging(false);
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedId, sheetWidth, sheetHeight]);
+
+    // Drag-and-Drop Handlers
+    const handleMouseDown = (e, item, isTableBorder = false) => {
+        e.stopPropagation();
+        setSelectedId(item.id);
+        
+        const canvasRect = canvasRef.current.getBoundingClientRect();
+        const clientX = e.clientX;
+        const clientY = e.clientY;
+        
+        draggingRef.current = {
+            id: item.id,
+            startX: clientX,
+            startY: clientY,
+            origX: item.x,
+            origY: item.y
         };
 
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
     };
 
+    const handleMouseMove = (e) => {
+        if (!draggingRef.current) return;
+        const { id, startX, startY, origX, origY } = draggingRef.current;
+        
+        const deltaX = (e.clientX - startX) / (mmToPx * zoom);
+        const deltaY = (e.clientY - startY) / (mmToPx * zoom);
+
+        setLayoutItems(prev => prev.map(item => {
+            if (item.id !== id) return item;
+            let targetX = Math.round((origX + deltaX) * 2) / 2; // Snap to 0.5mm
+            let targetY = Math.round((origY + deltaY) * 2) / 2;
+
+            // Restrict boundaries
+            targetX = Math.max(0, Math.min(sheetWidth - (item.w || 10), targetX));
+            targetY = Math.max(0, Math.min(sheetHeight - (item.h || 5), targetY));
+
+            return { ...item, x: targetX, y: targetY };
+        }));
+    };
+
+    const handleMouseUp = () => {
+        draggingRef.current = null;
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    // Properties Modifiers
+    const updateSelectedProperty = (key, val) => {
+        setLayoutItems(prev => prev.map(item => {
+            if (item.id !== selectedId) return item;
+            return { ...item, [key]: val };
+        }));
+    };
+
+    const handleCopy = () => {
+        const item = layoutItems.find(i => i.id === selectedId);
+        if (item) {
+            setClipboard(JSON.parse(JSON.stringify(item)));
+            soundService.playClick();
+        }
+    };
+
+    const handlePaste = () => {
+        if (!clipboard) return;
+        soundService.playClick();
+        const newItem = {
+            ...clipboard,
+            id: `${clipboard.id}_copy_${Date.now().toString().slice(-4)}`,
+            x: Math.min(sheetWidth - 20, clipboard.x + 5),
+            y: Math.min(sheetHeight - 20, clipboard.y + 5)
+        };
+        setLayoutItems(prev => [...prev, newItem]);
+        setSelectedId(newItem.id);
+    };
+
     const handleAddBlock = (type) => {
-        const id = `${type}_${Date.now()}`;
-        let newItem = {
-            id,
-            type,
-            x: 14,
-            y: 40,
-            w: type === 'text' ? 100 : (type === 'rect' ? 40 : 182),
-            textColor: '#282828'
+        soundService.playClick();
+        const newId = `${type}_${Date.now().toString().slice(-4)}`;
+        let block = {
+            id: newId,
+            type: type,
+            x: 20,
+            y: 30,
+            w: type === 'table' || type === 'line' ? 180 : 50,
+            h: type === 'line' ? 1 : 15,
+            fontSize: type === 'text' ? 10 : undefined,
+            content: type === 'text' ? 'Nuovo Blocco Testo' : type === 'image' ? 'logo' : undefined,
+            align: type === 'text' ? 'left' : undefined,
+            textColor: type === 'text' || type === 'line' ? '#282828' : undefined,
         };
 
-        if (type === 'text') {
-            newItem.content = 'Nuovo Testo';
-            newItem.fontSize = 10;
-            newItem.fontWeight = 'normal';
-            newItem.align = 'left';
-        } else if (type === 'rect') {
-            newItem.h = 20;
-            newItem.fillColor = '#ffffff';
-            newItem.borderColor = '#cbd5e1';
-        } else if (type === 'line') {
-            newItem.h = 0.5; // thickness
-        } else if (type === 'image') {
-            newItem.content = 'logo';
-            newItem.w = 22;
-            newItem.h = 22;
+        if (type === 'table') {
+            block = {
+                ...block,
+                tableType: 'customerInfo',
+                headerBgColor: '#1e293b',
+                headerTextColor: '#ffffff',
+                altRowBgColor: '#f8fafc',
+                fontSize: 8.5,
+                cellPadding: 1.8
+            };
+        }
+        else if (type === 'rect') {
+            block.fillColor = '#e2e8f0';
+            block.borderColor = '#cbd5e1';
         }
 
-        setLayoutItems(prev => [...prev, newItem]);
-        setSelectedItemId(id);
+        setLayoutItems(prev => [...prev, block]);
+        setSelectedId(newId);
     };
 
     const handleDeleteBlock = () => {
-        if (!selectedItemId) return;
-        setLayoutItems(prev => prev.filter(i => i.id !== selectedItemId));
-        setSelectedItemId(null);
+        if (!selectedId) return;
+        soundService.playClick();
+        setLayoutItems(prev => prev.filter(i => i.id !== selectedId));
+        setSelectedId(null);
+    };
+
+    // Save configurations
+    const handleSave = () => {
+        soundService.playClick();
+        onSave(activeTemplate, layoutItems);
+        soundService.playSuccess();
     };
 
     const handleReset = () => {
         soundService.playClick();
-        if (confirm("Sei sicuro di voler ripristinare il layout originale predefinito per questo documento? Le modifiche non salvate andranno perse.")) {
-            const loaded = DEFAULT_LAYOUTS[selectedTemplate];
-            setLayoutItems(JSON.parse(JSON.stringify(loaded)));
-            setSelectedItemId(null);
-            soundService.playSuccess();
+        if (window.confirm("Sei sicuro di ripristinare il modello grafico alle impostazioni predefinite?")) {
+            const defaults = DEFAULT_LAYOUTS[activeTemplate];
+            setLayoutItems(defaults);
+            setSelectedId(null);
         }
     };
 
-    const handleSave = () => {
+    // Export JSON
+    const handleExportJson = () => {
         soundService.playClick();
-        onSave(selectedTemplate, layoutItems);
+        const fileData = {
+            templateId: activeTemplate,
+            layout: layoutItems
+        };
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fileData, null, 2));
+        const anchor = document.createElement('a');
+        anchor.setAttribute("href", dataStr);
+        anchor.setAttribute("download", `FixOrTrash_Layout_${activeTemplate}.json`);
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
     };
 
-    const handlePreview = () => {
+    // Import JSON
+    const handleImportJson = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
         soundService.playClick();
-        let originalSettings = null;
-        try {
-            // Temporarily override layout local storage cache for previewing
-            const settings = dataManager.getSync('settings') || {};
-            originalSettings = JSON.parse(JSON.stringify(settings));
-            
-            if (dataManager._cache) {
-                dataManager._cache.settings = {
-                    ...settings,
-                    pdfLayouts: {
-                        ...(settings.pdfLayouts || {}),
-                        [selectedTemplate]: layoutItems
-                    }
-                };
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const parsed = JSON.parse(event.target.result);
+                if (parsed.layout && Array.isArray(parsed.layout)) {
+                    setLayoutItems(parsed.layout);
+                    setSelectedId(null);
+                    soundService.playSuccess();
+                } else {
+                    alert("File non valido!");
+                }
+            } catch (err) {
+                alert("Errore nel parsing JSON.");
             }
+        };
+        reader.readAsText(file);
+    };
 
-            const doc = pdfLayoutEngine.generate(selectedTemplate, MOCK_DATA);
-            if (doc) {
-                const blobUrl = doc.output('bloburl');
-                window.open(blobUrl, '_blank');
-                soundService.playSuccess();
+    // Render local preview of PDF using the restored layout engine
+    const handlePreviewPdf = async () => {
+        soundService.playClick();
+        // Dynamically import the engine to prevent bundle loops
+        const { pdfLayoutEngine } = await import('../services/pdfLayoutEngine');
+        
+        // Temporarily override layout local storage for previewing
+        const settings = dataManager.getSync('settings') || {};
+        const oldLayouts = settings.pdfLayouts || {};
+        const tempSettings = {
+            ...settings,
+            pdfLayouts: {
+                ...oldLayouts,
+                [activeTemplate]: layoutItems
             }
+        };
+        dataManager.setSync('settings', tempSettings);
+
+        try {
+            const doc = pdfLayoutEngine.generate(activeTemplate, {
+                ...MOCK_DATA,
+                checklistItems: {
+                    power: 'Tasto Accensione', screen: 'Schermo LCD', touch: 'Touch Screen',
+                    charging: 'Ricarica', cameras: 'Fotocamere', wifi: 'Wi-Fi / Connessione',
+                    audio: 'Audio / Altoparlanti', buttons: 'Tasti Volume', proximity: 'Sensore Prossimità',
+                    sim: 'Lettura SIM', biometrics: 'FaceID / Impronta'
+                }
+            });
+            
+            const blobUrl = doc.output('bloburl');
+            window.open(blobUrl, '_blank');
+            soundService.playSuccess();
         } catch (err) {
             console.error("Errore di preview PDF:", err);
-            alert("Errore di generazione dell'anteprima PDF: " + err.message);
+            alert("Errore di generazione dell'anteprima PDF.");
         } finally {
-            // Restore actual layout settings cache
-            if (originalSettings && dataManager._cache) {
-                dataManager._cache.settings = originalSettings;
-            }
+            // Restore actual layout settings
+            dataManager.setSync('settings', settings);
         }
     };
 
-    const injectTag = (tag) => {
-        if (!selectedItemId) return;
-        const item = layoutItems.find(i => i.id === selectedItemId);
-        if (item && item.type === 'text') {
-            updateItemProperty(selectedItemId, 'content', (item.content || '') + ' ' + tag);
-        }
-    };
-
-    const selectedItem = layoutItems.find(i => i.id === selectedItemId);
+    const selectedItem = layoutItems.find(i => i.id === selectedId);
 
     return (
-        <div className="flex flex-col xl:flex-row gap-6 w-full h-full text-theme-text select-none">
-            {/* Left Workspace Panel */}
-            <div className="flex-1 flex flex-col items-center">
-                {/* Editor Bar */}
-                <div className="w-full flex flex-wrap items-center justify-between gap-4 p-4 glass-panel border border-white/5 rounded-2xl mb-4">
-                    <div className="flex items-center gap-3">
-                        <label className="text-sm font-semibold text-gray-400">Documento:</label>
-                        <select
-                            value={selectedTemplate}
-                            onChange={(e) => setSelectedTemplate(e.target.value)}
-                            className="bg-theme-panel border border-theme-panelBorder text-theme-text rounded-lg px-3 py-1.5 focus:outline-none focus:border-theme-primary"
-                        >
-                            {TEMPLATE_OPTIONS.map(opt => (
-                                <option key={opt.id} value={opt.id}>{opt.label}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={snapToGrid}
-                                onChange={(e) => setSnapToGrid(e.target.checked)}
-                                className="rounded text-theme-primary focus:ring-0 focus:ring-offset-0 cursor-pointer bg-theme-panel border border-theme-panelBorder"
-                            />
-                            Griglia Magnetica
-                        </label>
-                        {snapToGrid && (
-                            <select
-                                value={snapStep}
-                                onChange={(e) => setSnapStep(parseInt(e.target.value))}
-                                className="bg-theme-panel border border-theme-panelBorder text-theme-text rounded-lg px-2 py-1 text-xs focus:outline-none"
-                            >
-                                <option value={1}>1 mm</option>
-                                <option value={2}>2 mm</option>
-                                <option value={5}>5 mm</option>
-                            </select>
-                        )}
-                    </div>
-
-                    {/* Zoom Controls */}
-                    <div className="flex items-center gap-2 border-l border-white/10 pl-4">
-                        <label className="text-sm font-semibold text-gray-400">Zoom:</label>
-                        <button 
-                            onClick={() => setZoom(z => Math.max(0.5, parseFloat((z - 0.1).toFixed(1))))}
-                            className="bg-white/5 border border-white/10 hover:bg-theme-panel text-xs p-1.5 rounded-lg transition-all text-gray-300 hover:text-white"
-                            title="Zoom Out (-10%)"
-                        >
-                            <ZoomOut className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="text-xs font-semibold font-mono min-w-[40px] text-center">
-                            {Math.round(zoom * 100)}%
-                        </span>
-                        <button 
-                            onClick={() => setZoom(z => Math.min(2.0, parseFloat((z + 0.1).toFixed(1))))}
-                            className="bg-white/5 border border-white/10 hover:bg-theme-panel text-xs p-1.5 rounded-lg transition-all text-gray-300 hover:text-white"
-                            title="Zoom In (+10%)"
-                        >
-                            <ZoomIn className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                            onClick={() => setZoom(1.0)}
-                            className="bg-white/5 border border-white/10 hover:bg-theme-panel text-[10px] px-2 py-1.5 rounded-lg transition-all text-gray-400 hover:text-white font-semibold"
-                            title="Ripristina zoom originale"
-                        >
-                            100%
-                        </button>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={handleReset}
-                            className="btn-secondary px-3 py-1.5 text-xs flex items-center gap-1.5 rounded-lg border border-white/10 hover:bg-white/5"
-                            title="Ripristina layout originale"
-                        >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                            Ripristina
-                        </button>
-                        <button
-                            onClick={handlePreview}
-                            className="btn-secondary px-3 py-1.5 text-xs flex items-center gap-1.5 rounded-lg border border-white/10 hover:bg-white/5"
-                            title="Genera PDF di prova"
-                        >
-                            <Eye className="w-3.5 h-3.5" />
-                            Anteprima PDF
-                        </button>
-                        <button
-                            onClick={handleSave}
-                            className="btn-primary px-4 py-1.5 text-xs flex items-center gap-1.5 rounded-lg shadow-lg font-bold"
-                            title="Salva layout nel database"
-                        >
-                            <Save className="w-3.5 h-3.5" />
-                            Salva Modifiche
-                        </button>
-                    </div>
+        <div className="flex flex-col gap-6 text-theme-text h-full">
+            {/* Control bar */}
+            <div className="flex flex-wrap items-center justify-between gap-4 bg-theme-panel/40 border border-theme-panelBorder/30 p-4 rounded-2xl backdrop-blur-md">
+                <div className="flex items-center gap-3">
+                    <label className="text-sm font-bold text-gray-400">Layout documento:</label>
+                    <select
+                        value={activeTemplate}
+                        onChange={(e) => setActiveTemplate(e.target.value)}
+                        className="bg-theme-panel border border-theme-panelBorder rounded-xl px-4 py-2 text-sm font-semibold text-theme-text focus:outline-none"
+                    >
+                        {TEMPLATE_OPTIONS.map(opt => (
+                            <option key={opt.id} value={opt.id}>{opt.label}</option>
+                        ))}
+                    </select>
                 </div>
 
-                {/* Grid Canvas Wrapper */}
-                <div className="w-full flex flex-col items-center justify-start p-6 bg-theme-backgroundDark border border-theme-panelBorder/40 rounded-2xl overflow-auto" style={{ minHeight: '600px', maxHeight: '780px' }}>
-                    <div 
-                        className="relative bg-white border border-gray-400 shadow-2xl overflow-hidden rounded-sm shrink-0"
-                        style={{
-                            width: `${paperWidthMm * scale}px`,
-                            height: `${paperHeightMm * scale}px`,
-                            zoom: zoom,
-                            backgroundImage: snapToGrid 
-                                ? `radial-gradient(#cbd5e1 1px, transparent 1px)` 
-                                : 'none',
-                            backgroundSize: `${snapStep * scale}px ${snapStep * scale}px`,
-                            backgroundPosition: '0 0'
-                        }}
-                        onClick={() => setSelectedItemId(null)}
-                    >
-                        {/* Canvas Margins (A4 margin is 14mm) */}
-                        {!isLabel && (
-                            <div 
-                                className="absolute border border-dashed border-gray-200/50 pointer-events-none"
-                                style={{
-                                    left: `${14 * scale}px`,
-                                    right: `${14 * scale}px`,
-                                    top: `${10 * scale}px`,
-                                    bottom: `${10 * scale}px`
-                                }}
-                            />
-                        )}
-
-                        {/* Layout Elements */}
-                        {layoutItems.map(item => {
-                            const isSelected = selectedItemId === item.id;
-                            const itemX = item.x * scale;
-                            const itemY = item.y * scale;
-                            const itemW = item.w ? `${item.w * scale}px` : 'auto';
-                            const itemH = item.h ? `${item.h * scale}px` : 'auto';
-
-                            const itemStyle = {
-                                position: 'absolute',
-                                left: `${itemX}px`,
-                                top: `${itemY}px`,
-                                width: itemW,
-                                height: item.type === 'line' ? '0px' : itemH,
-                                border: isSelected 
-                                    ? '2px dashed #eab308' 
-                                    : (item.type === 'rect' ? `1.5px solid ${item.borderColor || '#cbd5e1'}` : '1px dashed transparent'),
-                                backgroundColor: item.type === 'rect' ? item.fillColor || '#ffffff' : 'transparent',
-                                cursor: isDragging ? 'grabbing' : 'grab',
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                overflow: 'hidden',
-                                boxSizing: 'border-box',
-                                zIndex: isSelected ? 50 : 10
-                            };
-
-                            if (item.type === 'line') {
-                                itemStyle.borderTop = `${(item.h || 0.5) * scale}px solid ${item.textColor || '#282828'}`;
-                            }
-
-                            // Render text blocks
-                            const renderText = () => {
-                                const alignStyle = item.align === 'center' 
-                                    ? 'text-center justify-center w-full' 
-                                    : (item.align === 'right' ? 'text-right justify-end w-full' : 'text-left justify-start w-full');
-                                
-                                return (
-                                    <div 
-                                        className={`flex items-start select-none break-words ${alignStyle}`}
-                                        style={{
-                                            fontSize: `${(item.fontSize || 10) * (scale / 2.83) * 0.95}px`,
-                                            fontWeight: item.fontWeight === 'bold' ? 'bold' : 'normal',
-                                            color: item.textColor || '#282828',
-                                            fontFamily: 'Helvetica, Arial, sans-serif',
-                                            lineHeight: '1.2'
-                                        }}
-                                    >
-                                        {item.content || 'Testo'}
-                                    </div>
-                                );
-                            };
-
-                            return (
-                                <div
-                                    key={item.id}
-                                    style={itemStyle}
-                                    onMouseDown={(e) => handleMouseDown(e, item.id)}
-                                    onClick={(e) => { e.stopPropagation(); setSelectedItemId(item.id); }}
-                                >
-                                    {item.type === 'text' && renderText()}
-                                    
-                                    {item.type === 'image' && (
-                                        <div className="w-full h-full bg-slate-100 flex items-center justify-center border border-slate-300 border-dashed text-slate-500 font-bold text-[8px] uppercase">
-                                            [Logo]
-                                        </div>
-                                    )}
-
-                                    {item.type === 'table' && (
-                                        <div className="w-full h-full bg-yellow-50/50 border border-yellow-200 flex flex-col justify-center items-center p-2 text-center">
-                                            <div className="text-[9px] font-bold text-yellow-800 uppercase flex items-center gap-1">
-                                                <CheckSquare className="w-3 h-3" />
-                                                Tabella Dinamica: {item.tableType}
-                                            </div>
-                                            <div className="text-[7.5px] text-yellow-700 mt-1">
-                                                (Si espanderà dinamicamente in base ai dati reali)
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => handleAddBlock('text')} className="flex items-center gap-1.5 p-2 bg-theme-panel border border-theme-panelBorder hover:bg-white/5 rounded-xl text-xs font-medium"><Type size={14}/>Testo</button>
+                    <button onClick={() => handleAddBlock('line')} className="flex items-center gap-1.5 p-2 bg-theme-panel border border-theme-panelBorder hover:bg-white/5 rounded-xl text-xs font-medium"><Minus size={14}/>Linea</button>
+                    <button onClick={() => handleAddBlock('rect')} className="flex items-center gap-1.5 p-2 bg-theme-panel border border-theme-panelBorder hover:bg-white/5 rounded-xl text-xs font-medium"><Square size={14}/>Rettangolo</button>
+                    <button onClick={() => handleAddBlock('table')} className="flex items-center gap-1.5 p-2 bg-theme-panel border border-theme-panelBorder hover:bg-white/5 rounded-xl text-xs font-medium"><Table size={14}/>Tabella</button>
+                    
+                    <div className="h-6 w-px bg-theme-panelBorder/50 mx-1" />
+                    
+                    <button onClick={handlePreviewPdf} className="flex items-center gap-1.5 p-2 bg-theme-panel border border-theme-panelBorder hover:bg-white/5 rounded-xl text-xs font-bold text-theme-primary"><Eye size={14}/>Anteprima PDF</button>
+                    <button onClick={handleReset} className="flex items-center gap-1.5 p-2 bg-theme-panel border border-theme-panelBorder hover:bg-white/5 rounded-xl text-xs font-medium text-yellow-500"><RefreshCw size={14}/>Ripristina</button>
+                    <button onClick={handleSave} className="flex items-center gap-2 px-5 py-2 bg-theme-primary text-black rounded-xl text-sm font-extrabold hover:brightness-110 shadow-lg shadow-theme-primary/10 ml-2"><Save size={16}/>Salva Layout</button>
                 </div>
             </div>
 
-            {/* Right Side Settings Panel */}
-            <div className="w-full xl:w-96 flex flex-col gap-4">
-                {/* Element Creator */}
-                <div className="glass-panel border border-white/5 rounded-2xl p-5">
-                    <h4 className="text-sm font-bold text-gray-300 mb-3 flex items-center gap-2">
-                        <Plus className="w-4 h-4 text-theme-primary" />
-                        Aggiungi Elementi
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                        <button onClick={() => handleAddBlock('text')} className="flex items-center justify-center gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-xs py-2 px-3 rounded-xl transition-all">
-                            <Type className="w-3.5 h-3.5" />
-                            Blocco Testo
-                        </button>
-                        <button onClick={() => handleAddBlock('line')} className="flex items-center justify-center gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-xs py-2 px-3 rounded-xl transition-all">
-                            <Move className="w-3.5 h-3.5 rotate-90" />
-                            Linea Divisoria
-                        </button>
-                        <button onClick={() => handleAddBlock('rect')} className="flex items-center justify-center gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-xs py-2 px-3 rounded-xl transition-all">
-                            <Square className="w-3.5 h-3.5" />
-                            Riquadro/Box
-                        </button>
-                        <button onClick={() => handleAddBlock('image')} className="flex items-center justify-center gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-xs py-2 px-3 rounded-xl transition-all">
-                            <Layers className="w-3.5 h-3.5" />
-                            Immagine Logo
-                        </button>
+            {/* Split Panel: Canvas and Sidebar properties */}
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-stretch min-h-[650px]">
+                
+                {/* Large Sheet Canvas Area (Occupies 3/4 on large screens, scrollable & zoomable) */}
+                <div className="xl:col-span-3 flex flex-col gap-3 bg-theme-panel/10 border border-theme-panelBorder/20 p-4 rounded-3xl items-center overflow-auto max-h-[750px] relative">
+                    
+                    {/* Floating Zoom & copy toolbar inside canvas */}
+                    <div className="absolute top-4 left-4 z-20 flex items-center gap-1.5 bg-black/60 p-1.5 rounded-xl border border-white/5 backdrop-blur-md">
+                        <button onClick={() => setZoom(prev => Math.max(0.5, prev - 0.1))} className="p-1.5 hover:bg-white/10 rounded-lg text-gray-300" title="Zoom Out"><ZoomOut size={14}/></button>
+                        <span className="text-[10px] font-mono font-bold text-gray-400 px-1">{Math.round(zoom * 100)}%</span>
+                        <button onClick={() => setZoom(prev => Math.min(2.0, prev + 0.1))} className="p-1.5 hover:bg-white/10 rounded-lg text-gray-300" title="Zoom In"><ZoomIn size={14}/></button>
+                        <button onClick={() => setZoom(1.0)} className="text-[9px] hover:bg-white/10 rounded-lg text-gray-300 px-2 py-1" title="Zoom 100%">Reset</button>
+                        
+                        <div className="w-px h-4 bg-white/20 mx-1" />
+                        
+                        <button onClick={handleCopy} disabled={!selectedId} className="p-1.5 hover:bg-white/10 rounded-lg text-gray-300 disabled:opacity-30" title="Copia Blocco"><Copy size={14}/></button>
+                        <button onClick={handlePaste} disabled={!clipboard} className="p-1.5 hover:bg-white/10 rounded-lg text-gray-300 disabled:opacity-30" title="Incolla Blocco"><Clipboard size={14}/></button>
+                    </div>
+
+                    {/* Responsive Scaling Canvas Container */}
+                    <div className="w-full flex justify-center py-6 bg-black/20 rounded-2xl border border-theme-panelBorder/30">
+                        <div 
+                            ref={canvasRef}
+                            style={{
+                                width: `${sheetWidth * mmToPx * zoom}px`,
+                                height: `${sheetHeight * mmToPx * zoom}px`,
+                                transition: 'width 0.1s, height 0.1s'
+                            }}
+                            className="bg-white text-black shadow-2xl relative select-none rounded-sm border border-gray-300 box-content"
+                            onClick={() => setSelectedId(null)}
+                        >
+                            {/* Render elements */}
+                            {layoutItems.map(item => {
+                                const elX = item.x * mmToPx * zoom;
+                                const elY = item.y * mmToPx * zoom;
+                                const elW = (item.w || 20) * mmToPx * zoom;
+                                const elH = (item.h || 8) * mmToPx * zoom;
+                                const isSelected = selectedId === item.id;
+
+                                return (
+                                    <div
+                                        key={item.id}
+                                        style={{
+                                            position: 'absolute',
+                                            left: `${elX}px`,
+                                            top: `${elY}px`,
+                                            width: `${elW}px`,
+                                            height: `${elH}px`,
+                                            cursor: 'move',
+                                        }}
+                                        className={`group border ${isSelected ? 'border-theme-primary bg-theme-primary/10 shadow-[0_0_8px_var(--color-primary)] z-10' : 'border-transparent hover:border-gray-400 bg-gray-100/50'}`}
+                                        onMouseDown={(e) => handleMouseDown(e, item)}
+                                    >
+                                        {/* Block Contents based on type */}
+                                        {item.type === 'text' && (
+                                            <div 
+                                                style={{ 
+                                                    fontSize: `${(item.fontSize || 10) * 1.15 * zoom}px`,
+                                                    textAlign: item.align || 'left',
+                                                    color: item.textColor || '#282828',
+                                                    fontWeight: item.fontWeight || 'normal',
+                                                    lineHeight: 1.2
+                                                }}
+                                                className="w-full h-full p-1 overflow-hidden font-sans whitespace-pre-wrap"
+                                            >
+                                                {item.content}
+                                            </div>
+                                        )}
+
+                                        {item.type === 'line' && (
+                                            <div 
+                                                style={{ 
+                                                    height: `${Math.max(1, (item.h || 0.5) * mmToPx * zoom)}px`,
+                                                    backgroundColor: item.textColor || '#282828'
+                                                }}
+                                                className="w-full mt-1"
+                                            />
+                                        )}
+
+                                        {item.type === 'rect' && (
+                                            <div 
+                                                style={{ 
+                                                    width: '100%',
+                                                    height: '100%',
+                                                    backgroundColor: item.fillColor || '#ffffff',
+                                                    borderColor: item.borderColor || '#cbd5e1',
+                                                    borderWidth: '1px',
+                                                    borderStyle: 'solid'
+                                                }}
+                                            />
+                                        )}
+
+                                        {item.type === 'image' && (
+                                            <div className="w-full h-full bg-slate-200 border border-slate-300 flex items-center justify-center font-bold text-[9px] text-slate-500 gap-1 select-none">
+                                                <Image size={12}/> {item.content.toUpperCase()}
+                                            </div>
+                                        )}
+
+                                        {item.type === 'table' && (
+                                            <div className="w-full h-full border border-slate-300 text-[8px] font-sans flex flex-col select-none overflow-hidden">
+                                                <div 
+                                                    style={{ 
+                                                        backgroundColor: item.headerBgColor || '#1e293b', 
+                                                        color: item.headerTextColor || '#ffffff',
+                                                        padding: `${2 * zoom}px`
+                                                    }} 
+                                                    className="font-bold border-b border-slate-300 flex justify-between"
+                                                >
+                                                    <span>TABELLA: {item.tableType.toUpperCase()}</span>
+                                                    <span>INTESTAZIONE</span>
+                                                </div>
+                                                <div style={{ padding: `${3 * zoom}px` }} className="bg-white text-slate-400 italic flex-1 flex items-center justify-center text-[7px]">
+                                                    [Dati autogenerati dal database del ticket]
+                                                </div>
+                                                <div style={{ backgroundColor: item.altRowBgColor || '#f8fafc', padding: `${2 * zoom}px` }} className="border-t border-slate-300 text-[6px] text-slate-500 text-right font-bold">
+                                                    Carattere: {item.fontSize || 8.5}pt | Padding: {item.cellPadding || 1.8}mm
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
 
-                {/* Selected Item Properties Panel */}
-                <div className="flex-1 glass-panel border border-white/5 rounded-2xl p-5 flex flex-col">
-                    <h4 className="text-sm font-bold text-gray-300 mb-4 flex items-center justify-between">
-                        <span>Proprietà Elemento</span>
-                        {selectedItemId && (
-                            <button
-                                onClick={handleDeleteBlock}
-                                className="text-red-400 hover:text-red-500 transition-colors p-1"
-                                title="Rimuovi elemento"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        )}
-                    </h4>
-
+                {/* Right Panel: Selected element properties */}
+                <div className="xl:col-span-1 flex flex-col gap-4 bg-theme-panel/20 border border-theme-panelBorder/30 p-5 rounded-3xl h-[750px] overflow-y-auto">
                     {selectedItem ? (
-                        <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-1" style={{ maxHeight: '420px' }}>
-                            {/* Position & Size */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-[10px] uppercase font-bold text-gray-400">Posizione X (mm)</label>
-                                    <input
-                                        type="number"
-                                        step={0.5}
-                                        value={selectedItem.x}
-                                        onChange={(e) => updateItemProperty(selectedItemId, 'x', parseFloat(e.target.value) || 0)}
-                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-lg px-3 py-1.5 text-sm mt-1 focus:outline-none focus:border-theme-primary"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] uppercase font-bold text-gray-400">Posizione Y (mm)</label>
-                                    <input
-                                        type="number"
-                                        step={0.5}
-                                        value={selectedItem.y}
-                                        onChange={(e) => updateItemProperty(selectedItemId, 'y', parseFloat(e.target.value) || 0)}
-                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-lg px-3 py-1.5 text-sm mt-1 focus:outline-none focus:border-theme-primary"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] uppercase font-bold text-gray-400">Larghezza (mm)</label>
-                                    <input
-                                        type="number"
-                                        step={1}
-                                        value={selectedItem.w || 0}
-                                        onChange={(e) => updateItemProperty(selectedItemId, 'w', parseFloat(e.target.value) || 0)}
-                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-lg px-3 py-1.5 text-sm mt-1 focus:outline-none focus:border-theme-primary"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] uppercase font-bold text-gray-400">
-                                        {selectedItem.type === 'line' ? 'Spessore (mm)' : 'Altezza (mm)'}
-                                    </label>
-                                    <input
-                                        type="number"
-                                        step={0.1}
-                                        value={selectedItem.h || 0}
-                                        onChange={(e) => updateItemProperty(selectedItemId, 'h', parseFloat(e.target.value) || 0)}
-                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-lg px-3 py-1.5 text-sm mt-1 focus:outline-none focus:border-theme-primary"
-                                    />
-                                </div>
+                        <div className="flex flex-col gap-4">
+                            <div className="border-b border-theme-panelBorder/50 pb-2 mb-1 flex justify-between items-center">
+                                <h4 className="font-bold text-sm text-theme-primary flex items-center gap-1.5">
+                                    <Type size={16} />
+                                    Proprietà Blocco
+                                </h4>
+                                <button
+                                    onClick={handleDeleteBlock}
+                                    className="p-1 hover:bg-red-500/10 text-red-400 rounded-lg transition-colors"
+                                    title="Elimina blocco selezionato"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
                             </div>
 
-                            {/* Text Specific Options */}
-                            {selectedItem.type === 'text' && (
-                                <>
+                            {/* Position & coordinates inputs */}
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                    <label className="text-[10px] text-gray-400 font-bold block mb-1">X (mm)</label>
+                                    <input 
+                                        type="number"
+                                        value={selectedItem.x}
+                                        onChange={(e) => updateSelectedProperty('x', parseFloat(e.target.value) || 0)}
+                                        className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-theme-text"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-gray-400 font-bold block mb-1">Y (mm)</label>
+                                    <input 
+                                        type="number"
+                                        value={selectedItem.y}
+                                        onChange={(e) => updateSelectedProperty('y', parseFloat(e.target.value) || 0)}
+                                        className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-theme-text"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-gray-400 font-bold block mb-1">Largh. (mm)</label>
+                                    <input 
+                                        type="number"
+                                        value={selectedItem.w || 10}
+                                        onChange={(e) => updateSelectedProperty('w', parseFloat(e.target.value) || 10)}
+                                        className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-theme-text"
+                                    />
+                                </div>
+                                {selectedItem.type !== 'line' && (
                                     <div>
-                                        <label className="text-[10px] uppercase font-bold text-gray-400">Contenuto Testo</label>
+                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Altezza (mm)</label>
+                                        <input 
+                                            type="number"
+                                            value={selectedItem.h || 5}
+                                            onChange={(e) => updateSelectedProperty('h', parseFloat(e.target.value) || 5)}
+                                            className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-theme-text"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Text specific controls */}
+                            {selectedItem.type === 'text' && (
+                                <div className="flex flex-col gap-3">
+                                    <div>
+                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Contenuto Testo</label>
                                         <textarea
-                                            value={selectedItem.content || ''}
-                                            onChange={(e) => updateItemProperty(selectedItemId, 'content', e.target.value)}
-                                            rows={3}
-                                            className="w-full bg-theme-panel border border-theme-panelBorder rounded-lg px-3 py-1.5 text-sm mt-1 focus:outline-none focus:border-theme-primary font-mono"
+                                            value={selectedItem.content}
+                                            onChange={(e) => updateSelectedProperty('content', e.target.value)}
+                                            rows={4}
+                                            className="w-full bg-black/20 border border-theme-panelBorder rounded-lg p-2 text-xs text-theme-text focus:outline-none focus:border-theme-primary/50 font-sans"
                                         />
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="text-[10px] uppercase font-bold text-gray-400">Font Size (pt)</label>
-                                            <input
+                                    <div className="flex gap-2">
+                                        <div className="flex-1">
+                                            <label className="text-[10px] text-gray-400 font-bold block mb-1">Dimensione</label>
+                                            <input 
                                                 type="number"
-                                                step={0.5}
                                                 value={selectedItem.fontSize || 10}
-                                                onChange={(e) => updateItemProperty(selectedItemId, 'fontSize', parseFloat(e.target.value) || 10)}
-                                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-lg px-3 py-1.5 text-sm mt-1 focus:outline-none"
+                                                onChange={(e) => updateSelectedProperty('fontSize', parseInt(e.target.value) || 8)}
+                                                className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-xs text-theme-text"
                                             />
                                         </div>
-                                        <div>
-                                            <label className="text-[10px] uppercase font-bold text-gray-400">Stile Font</label>
+                                        <div className="flex-1">
+                                            <label className="text-[10px] text-gray-400 font-bold block mb-1">Stile</label>
                                             <select
                                                 value={selectedItem.fontWeight || 'normal'}
-                                                onChange={(e) => updateItemProperty(selectedItemId, 'fontWeight', e.target.value)}
-                                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-lg px-3 py-1.5 text-sm mt-1 focus:outline-none"
+                                                onChange={(e) => updateSelectedProperty('fontWeight', e.target.value)}
+                                                className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-xs text-theme-text"
                                             >
                                                 <option value="normal">Normale</option>
                                                 <option value="bold">Grassetto</option>
@@ -665,161 +648,204 @@ const PdfLayoutEditor = ({ onSave }) => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="text-[10px] uppercase font-bold text-gray-400">Allineamento</label>
+                                    <div className="flex gap-2">
+                                        <div className="flex-1">
+                                            <label className="text-[10px] text-gray-400 font-bold block mb-1">Allinea</label>
                                             <select
                                                 value={selectedItem.align || 'left'}
-                                                onChange={(e) => updateItemProperty(selectedItemId, 'align', e.target.value)}
-                                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-lg px-3 py-1.5 text-sm mt-1 focus:outline-none"
+                                                onChange={(e) => updateSelectedProperty('align', e.target.value)}
+                                                className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-xs text-theme-text"
                                             >
                                                 <option value="left">Sinistra</option>
                                                 <option value="center">Centro</option>
                                                 <option value="right">Destra</option>
                                             </select>
                                         </div>
-                                        <div>
-                                            <label className="text-[10px] uppercase font-bold text-gray-400">Colore Testo</label>
-                                            <input
+                                        <div className="flex-1">
+                                            <label className="text-[10px] text-gray-400 font-bold block mb-1">Colore Testo</label>
+                                            <input 
                                                 type="color"
                                                 value={selectedItem.textColor || '#282828'}
-                                                onChange={(e) => updateItemProperty(selectedItemId, 'textColor', e.target.value)}
-                                                className="w-full bg-transparent border-0 cursor-pointer h-9 mt-1"
+                                                onChange={(e) => updateSelectedProperty('textColor', e.target.value)}
+                                                className="w-full h-8 bg-black/20 border border-theme-panelBorder rounded-lg cursor-pointer"
                                             />
                                         </div>
                                     </div>
-
-                                    {/* Variable Injector List */}
-                                    <div className="border-t border-white/5 pt-3">
-                                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-2">Tag Dinamici (Clicca per inserire)</label>
-                                        <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1 bg-black/10 rounded-xl border border-white/5">
-                                            {VARIABLE_TAGS.map(tag => (
-                                                <button
-                                                    key={tag.tag}
-                                                    onClick={() => injectTag(tag.tag)}
-                                                    className="bg-white/5 hover:bg-white/10 text-[9px] px-2 py-1 rounded border border-white/5 text-gray-300 font-mono transition-colors"
-                                                    title={tag.desc}
-                                                >
-                                                    {tag.tag}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </>
+                                </div>
                             )}
 
-                            {/* Line Specific Options */}
+                            {/* Line specific controls */}
                             {selectedItem.type === 'line' && (
                                 <div>
-                                    <label className="text-[10px] uppercase font-bold text-gray-400">Colore Linea</label>
-                                    <input
+                                    <label className="text-[10px] text-gray-400 font-bold block mb-1">Spessore Linea (mm)</label>
+                                    <input 
+                                        type="number"
+                                        step="0.1"
+                                        value={selectedItem.h || 0.5}
+                                        onChange={(e) => updateSelectedProperty('h', parseFloat(e.target.value) || 0.1)}
+                                        className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-xs text-theme-text"
+                                    />
+                                    <label className="text-[10px] text-gray-400 font-bold block mt-3 mb-1">Colore Linea</label>
+                                    <input 
                                         type="color"
                                         value={selectedItem.textColor || '#282828'}
-                                        onChange={(e) => updateItemProperty(selectedItemId, 'textColor', e.target.value)}
-                                        className="w-full bg-transparent border-0 cursor-pointer h-9 mt-1"
+                                        onChange={(e) => updateSelectedProperty('textColor', e.target.value)}
+                                        className="w-full h-8 bg-black/20 border border-theme-panelBorder rounded-lg cursor-pointer"
                                     />
                                 </div>
                             )}
 
-                            {/* Rect Specific Options */}
+                            {/* Rectangle specific controls */}
                             {selectedItem.type === 'rect' && (
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-[10px] uppercase font-bold text-gray-400">Sfondo (Fill)</label>
-                                        <input
+                                <div className="flex gap-2">
+                                    <div className="flex-1">
+                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Colore Sfondo</label>
+                                        <input 
                                             type="color"
                                             value={selectedItem.fillColor || '#ffffff'}
-                                            onChange={(e) => updateItemProperty(selectedItemId, 'fillColor', e.target.value)}
-                                            className="w-full bg-transparent border-0 cursor-pointer h-9 mt-1"
+                                            onChange={(e) => updateSelectedProperty('fillColor', e.target.value)}
+                                            className="w-full h-8 bg-black/20 border border-theme-panelBorder rounded-lg cursor-pointer"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="text-[10px] uppercase font-bold text-gray-400">Bordo (Stroke)</label>
-                                        <input
+                                    <div className="flex-1">
+                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Colore Bordo</label>
+                                        <input 
                                             type="color"
                                             value={selectedItem.borderColor || '#cbd5e1'}
-                                            onChange={(e) => updateItemProperty(selectedItemId, 'borderColor', e.target.value)}
-                                            className="w-full bg-transparent border-0 cursor-pointer h-9 mt-1"
+                                            onChange={(e) => updateSelectedProperty('borderColor', e.target.value)}
+                                            className="w-full h-8 bg-black/20 border border-theme-panelBorder rounded-lg cursor-pointer"
                                         />
                                     </div>
                                 </div>
                             )}
 
-                            {/* Table Specific Options */}
+                            {/* TABLE specific design controls (New Feature!) */}
                             {selectedItem.type === 'table' && (
-                                <div className="flex flex-col gap-4 border-t border-white/5 pt-3">
-                                    <div className="p-3 bg-white/5 rounded-xl border border-white/5 text-xs text-gray-400">
-                                        <p className="font-semibold text-gray-300 mb-1">Tipo Tabella: <span className="font-mono text-theme-primary">{selectedItem.tableType}</span></p>
-                                        <p className="text-[10px]">Questo elemento viene generato dinamicamente in base ai dati della riparazione o ricevuta.</p>
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="text-[10px] uppercase font-bold text-gray-400">Sfondo Intestazione</label>
-                                            <input
-                                                type="color"
-                                                value={selectedItem.headerBgColor || '#fdf8e1'}
-                                                onChange={(e) => updateItemProperty(selectedItemId, 'headerBgColor', e.target.value)}
-                                                className="w-full bg-transparent border-0 cursor-pointer h-9 mt-1"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] uppercase font-bold text-gray-400">Testo Intestazione</label>
-                                            <input
-                                                type="color"
-                                                value={selectedItem.headerTextColor || '#282828'}
-                                                onChange={(e) => updateItemProperty(selectedItemId, 'headerTextColor', e.target.value)}
-                                                className="w-full bg-transparent border-0 cursor-pointer h-9 mt-1"
-                                            />
-                                        </div>
+                                <div className="flex flex-col gap-3">
+                                    <div>
+                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Tipo di Tabella Dinamica</label>
+                                        <select
+                                            value={selectedItem.tableType || 'customerInfo'}
+                                            onChange={(e) => updateSelectedProperty('tableType', e.target.value)}
+                                            className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-xs text-theme-text"
+                                        >
+                                            <option value="customerInfo">Dettagli Cliente & Device</option>
+                                            <option value="checklist">Collaudo Ingresso (Checklist)</option>
+                                            <option value="checkoutChecklist">Collaudo Uscita (Checklist)</option>
+                                            <option value="repairItems">Preventivo Ricambi (Ticket)</option>
+                                            <option value="pricesSummary">Dettagli Riparazione & Saldo</option>
+                                            <option value="testerResults">Report Tester Diagnostico</option>
+                                            <option value="quoteDetails">Articoli Preventivo Commerciale</option>
+                                            <option value="pcComponents">Componenti Assemblaggio PC</option>
+                                            <option value="purchaseItems">Articoli Carrello Vendita</option>
+                                            <option value="purchaseTotals">Riepilogo Totale Cassa</option>
+                                        </select>
                                     </div>
 
                                     <div>
-                                        <label className="text-[10px] uppercase font-bold text-gray-400 block">Sfondo Righe Alternate</label>
-                                        <input
+                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Colore Intestazione</label>
+                                        <input 
                                             type="color"
-                                            value={selectedItem.altRowBgColor || '#f8fafc'}
-                                            onChange={(e) => updateItemProperty(selectedItemId, 'altRowBgColor', e.target.value)}
-                                            className="w-full bg-transparent border-0 cursor-pointer h-9 mt-1"
+                                            value={selectedItem.headerBgColor || '#1e293b'}
+                                            onChange={(e) => updateSelectedProperty('headerBgColor', e.target.value)}
+                                            className="w-full h-8 bg-black/20 border border-theme-panelBorder rounded-lg cursor-pointer"
                                         />
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="text-[10px] uppercase font-bold text-gray-400">Dimensione Font (pt)</label>
-                                            <input
+                                    <div>
+                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Colore Testo Intestazione</label>
+                                        <input 
+                                            type="color"
+                                            value={selectedItem.headerTextColor || '#ffffff'}
+                                            onChange={(e) => updateSelectedProperty('headerTextColor', e.target.value)}
+                                            className="w-full h-8 bg-black/20 border border-theme-panelBorder rounded-lg cursor-pointer"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Colore Righe Alternate</label>
+                                        <input 
+                                            type="color"
+                                            value={selectedItem.altRowBgColor || '#f8fafc'}
+                                            onChange={(e) => updateSelectedProperty('altRowBgColor', e.target.value)}
+                                            className="w-full h-8 bg-black/20 border border-theme-panelBorder rounded-lg cursor-pointer"
+                                        />
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                        <div className="flex-1">
+                                            <label className="text-[10px] text-gray-400 font-bold block mb-1">Dim. Carattere</label>
+                                            <input 
                                                 type="number"
-                                                step={0.5}
-                                                min={5}
-                                                max={16}
-                                                value={selectedItem.fontSize || (selectedItem.tableType === 'customerInfo' ? 10 : 8)}
-                                                onChange={(e) => updateItemProperty(selectedItemId, 'fontSize', parseFloat(e.target.value) || 8)}
-                                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-lg px-3 py-1.5 text-sm mt-1 focus:outline-none"
+                                                step="0.5"
+                                                value={selectedItem.fontSize || 8.5}
+                                                onChange={(e) => updateSelectedProperty('fontSize', parseFloat(e.target.value) || 8)}
+                                                className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-xs text-theme-text"
                                             />
                                         </div>
-                                        <div>
-                                            <label className="text-[10px] uppercase font-bold text-gray-400">Padding Celle (mm)</label>
-                                            <input
+                                        <div className="flex-1">
+                                            <label className="text-[10px] text-gray-400 font-bold block mb-1">Padding Celle (mm)</label>
+                                            <input 
                                                 type="number"
-                                                step={0.1}
-                                                min={0.5}
-                                                max={10}
-                                                value={selectedItem.cellPadding || (selectedItem.tableType === 'customerInfo' ? 2.5 : 1.5)}
-                                                onChange={(e) => updateItemProperty(selectedItemId, 'cellPadding', parseFloat(e.target.value) || 1.5)}
-                                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-lg px-3 py-1.5 text-sm mt-1 focus:outline-none"
+                                                step="0.1"
+                                                value={selectedItem.cellPadding || 1.8}
+                                                onChange={(e) => updateSelectedProperty('cellPadding', parseFloat(e.target.value) || 1)}
+                                                className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-xs text-theme-text"
                                             />
                                         </div>
                                     </div>
+                                </div>
+                            )}
+
+                            {/* Side panel placeholder helpers */}
+                            {selectedItem.type === 'text' && (
+                                <div className="border-t border-theme-panelBorder/30 pt-3 mt-2 flex flex-col gap-2">
+                                    <label className="text-[10px] text-gray-400 font-bold block">Segnaposto Disponibili</label>
+                                    <p className="text-[10px] text-gray-500">Scrivi o copia questi codici nel testo per visualizzare i dati dinamici:</p>
+                                    {PLACEHOLDERS.map((group, idx) => (
+                                        <div key={idx} className="bg-black/10 rounded-xl p-2.5 border border-theme-panelBorder/20">
+                                            <strong className="text-[10px] text-gray-400 block mb-1">{group.group}</strong>
+                                            <div className="flex flex-wrap gap-1">
+                                                {group.tags.map(t => (
+                                                    <span 
+                                                        key={t}
+                                                        onClick={() => {
+                                                            const orig = selectedItem.content;
+                                                            updateSelectedProperty('content', orig + ' ' + t);
+                                                        }}
+                                                        className="font-mono text-[9px] bg-theme-panel hover:bg-white/5 border border-theme-panelBorder hover:text-theme-primary px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                                                    >
+                                                        {t}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-gray-500">
-                            <Move className="w-8 h-8 text-gray-600 mb-2" />
-                            <p className="text-xs">Seleziona un elemento sulla tela per modificarne le proprietà o trascinarlo con il mouse per regolarne la posizione.</p>
-                            <p className="text-[10px] text-gray-600 mt-2 font-semibold">SUGGERIMENTO: Puoi anche spostare gli elementi di 1mm usando le frecce direzionali (o 5mm tenendo premuto Shift)!</p>
+                        <div className="h-full flex flex-col items-center justify-center text-center text-gray-500 gap-2">
+                            <FileText size={48} className="opacity-25" />
+                            <p className="text-xs">Seleziona un elemento sul foglio A4 per modificarne le coordinate e le proprietà grafiche.</p>
                         </div>
                     )}
+                </div>
+
+            </div>
+
+            {/* Import / Export JSON bar */}
+            <div className="flex items-center justify-between gap-4 bg-theme-panel/20 border border-theme-panelBorder/20 px-5 py-3 rounded-2xl">
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <HelpCircle size={16}/>
+                    <span>Usa le frecce della tastiera per spostare gli elementi con precisione millimetrica (+Shift per 5mm). Copia con Ctrl+C e incolla con Ctrl+V.</span>
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={handleExportJson} className="p-2 bg-theme-panel border border-theme-panelBorder/60 hover:bg-white/5 rounded-xl text-xs font-semibold">Esporta Preset JSON</button>
+                    <label className="p-2 bg-theme-panel border border-theme-panelBorder/60 hover:bg-white/5 rounded-xl text-xs font-semibold cursor-pointer">
+                        Importa Preset JSON
+                        <input type="file" accept=".json" onChange={handleImportJson} className="hidden"/>
+                    </label>
                 </div>
             </div>
         </div>
