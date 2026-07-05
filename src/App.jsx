@@ -16,6 +16,8 @@ import TotaleAcquisto from './pages/TotaleAcquisto';
 import { dataManager } from './services/dataManager';
 import { soundService } from './services/soundService';
 import logoReport from './assets/logo_denis.jpg';
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 
 const SidebarItem = ({ icon: Icon, label, path, active, isCollapsed, onNewTabClick }) => {
   const navigate = useNavigate();
@@ -95,9 +97,6 @@ function App() {
           console.log("App non in esecuzione in ambiente Tauri, skip updater check.");
           return;
         }
-
-        const { check } = await import('@tauri-apps/plugin-updater');
-        const { relaunch } = await import('@tauri-apps/plugin-process');
 
         setUpdateStatus(prev => ({ ...prev, checking: true }));
         const update = await check();
