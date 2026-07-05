@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, Settings as SettingsIcon, GripVertical, Folder, X, CheckCircle, Database, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Save, Settings as SettingsIcon, GripVertical, Folder, X, CheckCircle, Database, RefreshCw, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { dataManager } from '../services/dataManager';
 import { libraryService } from '../services/libraryService';
 import PdfLayoutEditor from '../components/PdfLayoutEditor';
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
+import { getVersion } from '@tauri-apps/api/app';
 
 const Settings = () => {
     const navigate = useNavigate();
@@ -96,6 +99,49 @@ const Settings = () => {
     // Backup & Restore states
     const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
     const [pendingRestoreData, setPendingRestoreData] = useState(null);
+
+    // App Updater states
+    const [appVersion, setAppVersion] = useState('18.7.0');
+    const [updaterState, setUpdaterState] = useState({
+        checking: false,
+        error: null,
+        noUpdate: false,
+        updateRef: null
+    });
+
+    useEffect(() => {
+        const fetchVersion = async () => {
+            try {
+                if (window.__TAURI_INTERNALS__) {
+                    const ver = await getVersion();
+                    setAppVersion(ver);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        };
+        fetchVersion();
+    }, []);
+
+    const handleCheckUpdate = async () => {
+        try {
+            setUpdaterState({ checking: true, error: null, noUpdate: false, updateRef: null });
+            if (!window.__TAURI_INTERNALS__) {
+                setUpdaterState({ checking: false, error: 'Tauri internals non rilevate (l\'updater funziona solo dentro l\'app compilata).', noUpdate: false, updateRef: null });
+                return;
+            }
+            const update = await check();
+            if (update) {
+                setUpdaterState({ checking: false, error: null, noUpdate: false, updateRef: update });
+                const event = new CustomEvent('trigger-app-update', { detail: { update } });
+                window.dispatchEvent(event);
+            } else {
+                setUpdaterState({ checking: false, error: null, noUpdate: true, updateRef: null });
+            }
+        } catch (err) {
+            setUpdaterState({ checking: false, error: `Errore: ${err.message}`, noUpdate: false, updateRef: null });
+        }
+    };
 
     const loadLibraryStats = () => {
         const library = dataManager.getSync('library');
@@ -1258,6 +1304,48 @@ const Settings = () => {
                     >
                         <RefreshCw size={20} className={isUpdatingLib ? 'animate-spin' : ''} />
                         {isUpdatingLib ? 'Download & Parsing in corso...' : 'Aggiorna Dispositivi e Componenti'}
+                    </button>
+                </div>
+
+                {/* AGGIORNAMENTI APPLICAZIONE */}
+                <div className="glass-panel p-8 rounded-theme-panel mb-8 border border-theme-panelBorder" style={{ marginBottom: '2rem' }}>
+                    <h2 className="text-2xl font-bold text-theme-text mb-2 flex items-center gap-2">
+                        <Activity className="text-theme-primary" size={24} />
+                        Aggiornamento Software
+                    </h2>
+                    <p className="text-gray-400 text-sm mb-6">
+                        Verifica se sono presenti aggiornamenti per l'applicazione FixOrTrash Pro. Il sistema effettua un controllo all'avvio, ma puoi forzarlo manualmente qui.
+                    </p>
+
+                    <div className="p-4 rounded-lg bg-theme-panel border border-theme-panelBorder mb-6 space-y-3 text-sm">
+                        <div className="flex justify-between text-gray-400">
+                            <span>Versione installata:</span>
+                            <span className="font-mono font-bold text-theme-text">v{appVersion}</span>
+                        </div>
+                        {updaterState.error && (
+                            <div className="text-red-400 text-xs border-t border-red-500/10 pt-2 font-mono">
+                                {updaterState.error}
+                            </div>
+                        )}
+                        {updaterState.noUpdate && (
+                            <div className="text-green-400 text-xs border-t border-green-500/10 pt-2">
+                                L'applicazione è già aggiornata all'ultima versione disponibile.
+                            </div>
+                        )}
+                        {updaterState.updateRef && (
+                            <div className="text-[var(--color-primary)] text-xs border-t border-[var(--color-primary)]/10 pt-2 font-semibold">
+                                Nuova versione v{updaterState.updateRef.version} disponibile! Avvio del download in corso...
+                            </div>
+                        )}
+                    </div>
+
+                    <button
+                        onClick={handleCheckUpdate}
+                        disabled={updaterState.checking}
+                        className="w-full bg-theme-panel hover:bg-theme-panel border border-theme-panelBorder text-theme-text font-bold py-4 rounded-theme-btn transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                        <RefreshCw size={20} className={updaterState.checking ? 'animate-spin' : ''} />
+                        {updaterState.checking ? 'Verifica in corso...' : 'Verifica Aggiornamenti'}
                     </button>
                 </div>
             </div>
