@@ -570,7 +570,14 @@ export const pdfLayoutEngine = {
     openPdf: async (doc, filename = 'documento.pdf') => {
         try {
             if (window.__TAURI_INTERNALS__) {
-                const pdfBase64 = doc.output('datauristring').split(',')[1];
+                const arrayBuffer = doc.output('arraybuffer');
+                const bytes = new Uint8Array(arrayBuffer);
+                let binary = '';
+                const len = bytes.byteLength;
+                for (let i = 0; i < len; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                const pdfBase64 = window.btoa(binary);
                 await invoke('open_pdf_data', { base64Data: pdfBase64, filename });
             } else {
                 const blobUrl = doc.output('bloburl');
@@ -578,6 +585,7 @@ export const pdfLayoutEngine = {
             }
         } catch (err) {
             console.error("Errore nell'apertura del PDF:", err);
+            alert("Errore anteprima PDF: " + (err.message || err));
             const blobUrl = doc.output('bloburl');
             window.open(blobUrl, '_blank');
         }
