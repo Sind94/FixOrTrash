@@ -442,7 +442,7 @@ const RepairList = () => {
         soundService.playClick();
         const doc = createPDFDoc(ticket);
         if (doc) {
-            window.open(doc.output('bloburl'));
+            pdfLayoutEngine.openPdf(doc, `ricevuta_${ticket.id}.pdf`);
             soundService.playSuccess();
         }
     };
@@ -451,7 +451,7 @@ const RepairList = () => {
         if (!ticket) return;
         soundService.playClick();
         const doc = pdfLayoutEngine.generate('label', { ticket });
-        window.open(doc.output('bloburl'));
+        pdfLayoutEngine.openPdf(doc, `etichetta_${ticket.id}.pdf`);
         soundService.playSuccess();
     };
 
