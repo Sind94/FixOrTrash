@@ -546,11 +546,11 @@ const maxTypeCount = Math.max(...Object.values(deviceTypeCounts), 1);
     return (
         <div className="p-8 min-h-screen animate-fade-in pb-24 relative z-10">
             {/* Header Dashboard */}
-            <div className="mb-8">
-                <h1 className="text-4xl font-extrabold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+            <div className="mb-6">
+                <h1 className="text-2xl font-bold text-theme-text tracking-tight">
                     Dashboard di Controllo
                 </h1>
-                <p className="text-gray-400 text-sm">
+                <p className="text-gray-400 text-xs mt-0.5">
                     Panoramica in tempo reale del laboratorio e dell'andamento economico.
                 </p>
             </div>
@@ -584,69 +584,69 @@ const maxTypeCount = Math.max(...Object.values(deviceTypeCounts), 1);
             {activeTab === 'overview' && (
                 <div className="animate-fade-in">
                     {/* KPI Cards Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                         {/* Metrica 1: In Lavorazione */}
-                        <div className="glass-panel p-6 rounded-theme-panel kpi-card border border-theme-panelBorder flex flex-col justify-between h-36">
+                        <div className="glass-panel p-5 rounded-theme-panel kpi-card border border-theme-panelBorder border-t-4 border-t-amber-500/80 flex flex-col justify-between h-32">
                             <div className="flex justify-between items-center text-gray-400">
-                                <span className="text-xs font-bold tracking-wider uppercase">In Lavorazione</span>
-                                <Clock size={20} className="text-yellow-400" />
+                                <span className="text-[10px] font-bold tracking-wider uppercase">In Lavorazione</span>
+                                <Clock size={16} className="text-amber-500" />
                             </div>
                             <div>
-                                <div className="text-3xl font-black text-theme-text">{stats.inProgress}</div>
-                                <p className="text-xs text-gray-500 mt-1">Dispositivi in riparazione</p>
+                                <div className="text-2xl font-black text-theme-text">{stats.inProgress}</div>
+                                <p className="text-[10px] text-gray-500 mt-0.5">Dispositivi in riparazione</p>
                             </div>
                         </div>
 
                         {/* Metrica 2: Pronti per il Ritiro */}
-                        <div className="glass-panel p-6 rounded-theme-panel kpi-card border border-theme-panelBorder flex flex-col justify-between h-36">
+                        <div className="glass-panel p-5 rounded-theme-panel kpi-card border border-theme-panelBorder border-t-4 border-t-cyan-500/80 flex flex-col justify-between h-32">
                             <div className="flex justify-between items-center text-gray-400">
-                                <span className="text-xs font-bold tracking-wider uppercase">Pronti per Ritiro</span>
-                                <CheckCircle size={20} className="text-cyan-400" />
+                                <span className="text-[10px] font-bold tracking-wider uppercase">Pronti per Ritiro</span>
+                                <CheckCircle size={16} className="text-cyan-400" />
                             </div>
                             <div>
-                                <div className="text-3xl font-black text-theme-text">{stats.ready}</div>
-                                <p className="text-xs text-gray-500 mt-1">In attesa di ritiro cliente</p>
+                                <div className="text-2xl font-black text-theme-text">{stats.ready}</div>
+                                <p className="text-[10px] text-gray-500 mt-0.5">In attesa di ritiro cliente</p>
                             </div>
                         </div>
 
                         {/* Metrica 3: Consegnati Oggi */}
-                        <div className="glass-panel p-6 rounded-theme-panel kpi-card border border-theme-panelBorder flex flex-col justify-between h-36">
+                        <div className="glass-panel p-5 rounded-theme-panel kpi-card border border-theme-panelBorder border-t-4 border-t-green-500/80 flex flex-col justify-between h-32">
                             <div className="flex justify-between items-center text-gray-400">
-                                <span className="text-xs font-bold tracking-wider uppercase">Consegnati Oggi</span>
-                                <CheckCircle size={20} className="text-green-400" />
+                                <span className="text-[10px] font-bold tracking-wider uppercase">Consegnati Oggi</span>
+                                <CheckCircle size={16} className="text-green-400" />
                             </div>
                             <div>
-                                <div className="text-3xl font-black text-theme-text">{stats.completedToday}</div>
-                                <p className="text-xs text-gray-500 mt-1">Riparazioni ultimate oggi</p>
+                                <div className="text-2xl font-black text-theme-text">{stats.completedToday}</div>
+                                <p className="text-[10px] text-gray-500 mt-0.5">Riparazioni ultimate oggi</p>
                             </div>
                         </div>
 
                         {/* Metrica 4: Spesa/Fatturato Stimato */}
                         <div 
                             onClick={() => setShowStatsModal(true)}
-                            className="glass-panel p-6 rounded-theme-panel kpi-card border border-theme-panelBorder flex flex-col justify-between h-36 cursor-pointer hover:border-emerald-500/50 transition-all group"
+                            className="glass-panel p-5 rounded-theme-panel kpi-card border border-theme-panelBorder border-t-4 border-t-emerald-500/80 flex flex-col justify-between h-32 cursor-pointer hover:border-emerald-500/50 transition-all group"
                         >
                             <div className="flex justify-between items-center text-gray-400">
-                                <span className="text-xs font-bold tracking-wider uppercase">Fatturato Mese</span>
-                                <Euro size={20} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+                                <span className="text-[10px] font-bold tracking-wider uppercase">Fatturato Mese</span>
+                                <Euro size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
                             </div>
                             <div>
-                                <div className="text-3xl font-black text-emerald-400">€ {stats.monthlyRevenue.toFixed(2)}</div>
-                                <p className="text-[10px] text-theme-primary font-bold mt-1 flex items-center gap-1 group-hover:underline">
-                                    Vedi dettagli finanziari <ArrowRight size={10} />
+                                <div className="text-2xl font-black text-emerald-400">€ {stats.monthlyRevenue.toFixed(2)}</div>
+                                <p className="text-[9px] text-theme-primary font-bold mt-0.5 flex items-center gap-1 group-hover:underline">
+                                    Dettagli finanziari <ArrowRight size={8} />
                                 </p>
                             </div>
                         </div>
 
                         {/* Metrica 5: Sotto Scorta */}
-                        <div className="glass-panel p-6 rounded-theme-panel kpi-card border border-theme-panelBorder flex flex-col justify-between h-36">
+                        <div className="glass-panel p-5 rounded-theme-panel kpi-card border border-theme-panelBorder border-t-4 border-t-red-500/80 flex flex-col justify-between h-32">
                             <div className="flex justify-between items-center text-gray-400">
-                                <span className="text-xs font-bold tracking-wider uppercase">Sotto Scorta</span>
-                                <AlertTriangle size={20} className="text-red-400" />
+                                <span className="text-[10px] font-bold tracking-wider uppercase">Sotto Scorta</span>
+                                <AlertTriangle size={16} className="text-red-400" />
                             </div>
                             <div>
-                                <div className="text-3xl font-black text-theme-text">{stats.lowStockCount}</div>
-                                <p className="text-xs text-gray-500 mt-1">Componenti in esaurimento</p>
+                                <div className="text-2xl font-black text-theme-text">{stats.lowStockCount}</div>
+                                <p className="text-[10px] text-gray-500 mt-0.5">Componenti in esaurimento</p>
                             </div>
                         </div>
                     </div>
