@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import logoReport from '../assets/logo_denis.jpg';
 import { dataManager } from './dataManager';
+import { invoke } from '@tauri-apps/api/core';
 
 // Hex to RGB helper
 const hexToRgb = (hex, defaultColor = { r: 30, g: 41, b: 59 }) => {
@@ -182,9 +183,26 @@ const renderTable = (doc, item, dataContext, pdfStyle) => {
     let body = [];
     let startY = item.y;
     
-    // Extracted styling attributes with fallback to old global settings
-    const headerBgHex = item.headerBgColor || (pdfStyle === 'tech' ? '#0f172a' : (pdfStyle === 'emerald' ? '#064e3b' : '#fdf8e1'));
-    const headerTextHex = item.headerTextColor || (pdfStyle === 'classic' ? '#282828' : '#ffffff');
+    // Determine header colors based on global pdfStyle theme
+    let headerBgHex = item.headerBgColor;
+    let headerTextHex = item.headerTextColor;
+
+    const isDefaultColor = !item.headerBgColor || 
+        ['#1e293b', '#334155', '#eab308', '#3b82f6', '#10b981', '#0f172a'].includes(item.headerBgColor);
+
+    if (isDefaultColor) {
+        if (pdfStyle === 'classic') {
+            headerBgHex = '#fdf8e1';
+            headerTextHex = '#282828';
+        } else if (pdfStyle === 'emerald') {
+            headerBgHex = '#064e3b';
+            headerTextHex = '#ffffff';
+        } else { // 'tech' or fallback
+            headerBgHex = '#0f172a';
+            headerTextHex = '#ffffff';
+        }
+    }
+
     const altRowBgHex = item.altRowBgColor || '#f8fafc';
     
     const headerBg = hexToRgb(headerBgHex, { r: 30, g: 41, b: 59 });
@@ -548,5 +566,20 @@ export const pdfLayoutEngine = {
         }
 
         return doc;
+    },
+    openPdf: async (doc, filename = 'documento.pdf') => {
+        try {
+            if (window.__TAURI_INTERNALS__) {
+                const pdfBase64 = doc.output('datauristring').split(',')[1];
+                await invoke('open_pdf_data', { base64Data: pdfBase64, filename });
+            } else {
+                const blobUrl = doc.output('bloburl');
+                window.open(blobUrl, '_blank');
+            }
+        } catch (err) {
+            console.error("Errore nell'apertura del PDF:", err);
+            const blobUrl = doc.output('bloburl');
+            window.open(blobUrl, '_blank');
+        }
     }
 };
