@@ -948,8 +948,7 @@ const PcConfigurator = () => {
         });
 
         if (action === 'view') {
-            const blobUrl = doc.output('bloburl');
-            window.open(blobUrl, '_blank');
+            pdfLayoutEngine.openPdf(doc, `preventivo_pc_${(customerName || 'Cliente').replace(/\s+/g, '_')}.pdf`);
         } else {
             doc.save(`Preventivo_PC_${customerName.replace(/\s+/g, '_') || 'Cliente'}.pdf`);
         }
