@@ -4,8 +4,8 @@ import logoReport from '../assets/logo_denis.jpg';
 import { dataManager } from './dataManager';
 
 // Hex to RGB helper
-const hexToRgb = (hex) => {
-    if (!hex || hex[0] !== '#') return { r: 40, g: 40, b: 40 };
+const hexToRgb = (hex, defaultColor = { r: 30, g: 41, b: 59 }) => {
+    if (!hex || hex[0] !== '#') return defaultColor;
     let c = hex.substring(1);
     if (c.length === 3) {
         c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
@@ -73,9 +73,9 @@ export const DEFAULT_LAYOUTS = {
         { id: 'store_address', type: 'text', x: 60, y: 27, fontSize: 8.5, textColor: '#64748b', content: 'Indirizzo: {{store.address}}' },
         { id: 'ticket_id_date', type: 'text', x: 60, y: 34, fontSize: 8.5, textColor: '#64748b', content: 'ID Ticket: {{ticket.id}} | Data: {{ticket.date}}' },
         { id: 'ticket_tech', type: 'text', x: 60, y: 39, fontSize: 8.5, textColor: '#64748b', content: 'Tecnico Preposto: {{ticket.technician}}' },
-        { id: 'table_customer', type: 'table', x: 14, y: 50, w: 182, tableType: 'customerInfo', headerBgColor: '#fdf8e1', headerTextColor: '#282828', altRowBgColor: '#f8fafc', fontSize: 10, cellPadding: 2.5 },
-        { id: 'table_checklist', type: 'table', x: 14, y: 80, w: 182, tableType: 'checklist', headerBgColor: '#fdf8e1', headerTextColor: '#282828', altRowBgColor: '#f8fafc', fontSize: 8, cellPadding: 1.5 },
-        { id: 'table_repair', type: 'table', x: 14, y: 140, w: 182, tableType: 'repairItems', headerBgColor: '#fdf8e1', headerTextColor: '#282828', altRowBgColor: '#f8fafc', fontSize: 9, cellPadding: 2 },
+        { id: 'table_customer', type: 'table', x: 14, y: 50, w: 182, tableType: 'customerInfo', headerBgColor: '#1e293b', headerTextColor: '#ffffff', altRowBgColor: '#f8fafc', fontSize: 9, cellPadding: 2.2 },
+        { id: 'table_checklist', type: 'table', x: 14, y: 80, w: 182, tableType: 'checklist', headerBgColor: '#334155', headerTextColor: '#ffffff', altRowBgColor: '#f8fafc', fontSize: 8, cellPadding: 1.5 },
+        { id: 'table_repair', type: 'table', x: 14, y: 140, w: 182, tableType: 'repairItems', headerBgColor: '#1e293b', headerTextColor: '#ffffff', altRowBgColor: '#f8fafc', fontSize: 9, cellPadding: 2 },
         { id: 'terms', type: 'text', x: 14, y: 215, w: 182, fontSize: 7, textColor: '#787878', content: '{{store.terms}}' },
         { id: 'tech_sig_line', type: 'line', x: 14, y: 265, w: 76, h: 0.5, textColor: '#969696' },
         { id: 'tech_sig_text', type: 'text', x: 14, y: 269, fontSize: 7, textColor: '#787878', content: 'Firma Tecnico' },
@@ -91,8 +91,8 @@ export const DEFAULT_LAYOUTS = {
         { id: 'doc_date', type: 'text', x: 145, y: 22, fontSize: 7.5, textColor: '#64748b', content: 'Data: {{current.date}}' },
         { id: 'ticket_id_date', type: 'text', x: 14, y: 45, fontSize: 11, fontWeight: 'bold', content: 'Ritiro Scheda Intervento: #{{ticket.id}}' },
         { id: 'client_device_summary', type: 'text', x: 14, y: 52, fontSize: 9.5, textColor: '#505050', content: 'Cliente: {{customer.name}} | Tel: {{customer.phone}}\nDispositivo: {{device.info}} | Serial/IMEI: {{device.imei}}' },
-        { id: 'table_checkout_checklist', type: 'table', x: 14, y: 68, w: 182, tableType: 'checkoutChecklist', headerBgColor: '#fdf8e1', headerTextColor: '#282828', altRowBgColor: '#f8fafc', fontSize: 8, cellPadding: 1.5 },
-        { id: 'table_prices', type: 'table', x: 14, y: 150, w: 182, tableType: 'pricesSummary', headerBgColor: '#fdf8e1', headerTextColor: '#282828', altRowBgColor: '#f8fafc', fontSize: 9, cellPadding: 2 },
+        { id: 'table_checkout_checklist', type: 'table', x: 14, y: 68, w: 182, tableType: 'checkoutChecklist', headerBgColor: '#334155', headerTextColor: '#ffffff', altRowBgColor: '#f8fafc', fontSize: 8, cellPadding: 1.5 },
+        { id: 'table_prices', type: 'table', x: 14, y: 150, w: 182, tableType: 'pricesSummary', headerBgColor: '#1e293b', headerTextColor: '#ffffff', altRowBgColor: '#f8fafc', fontSize: 9, cellPadding: 2 },
         { id: 'checkout_note', type: 'text', x: 14, y: 215, w: 182, fontSize: 8.5, textColor: '#969696', content: 'Documento generato dal software gestionale FixOrTrash Pro' },
         { id: 'terms', type: 'text', x: 14, y: 223, w: 182, fontSize: 6.2, textColor: '#787878', content: '{{store.terms}}' },
         { id: 'client_sig_line', type: 'line', x: 110, y: 265, w: 80, h: 0.5, textColor: '#969696' },
@@ -121,7 +121,7 @@ export const DEFAULT_LAYOUTS = {
         { id: 'doc_date', type: 'text', x: 145, y: 22, fontSize: 8.5, textColor: '#64748b', content: 'Data: {{current.date}}' },
         { id: 'client_details_header', type: 'text', x: 14, y: 45, fontSize: 11, fontWeight: 'bold', content: 'Dettagli Cliente & Dispositivo' },
         { id: 'client_details', type: 'text', x: 14, y: 52, fontSize: 9.5, textColor: '#505050', content: 'Cliente: {{customer.name}} | Tel: {{customer.phone}}\nDispositivo: {{device.info}} | IMEI/Seriale: {{device.imei}}\nDiagnosi: {{ticket.defect}}' },
-        { id: 'table_quote_details', type: 'table', x: 14, y: 70, w: 182, tableType: 'quoteDetails', headerBgColor: '#fdf8e1', headerTextColor: '#282828', altRowBgColor: '#f8fafc', fontSize: 9, cellPadding: 2 },
+        { id: 'table_quote_details', type: 'table', x: 14, y: 70, w: 182, tableType: 'quoteDetails', headerBgColor: '#3b82f6', headerTextColor: '#ffffff', altRowBgColor: '#f8fafc', fontSize: 9, cellPadding: 2 },
         { id: 'terms_header', type: 'text', x: 14, y: 180, fontSize: 9, fontWeight: 'bold', content: 'Note e Validità del Preventivo' },
         { id: 'terms', type: 'text', x: 14, y: 186, w: 182, fontSize: 7, textColor: '#787878', content: 'Il presente preventivo ha una validità di 30 giorni dalla data di emissione. I prezzi indicati sono comprensivi di ricambi e manodopera. In caso di complicazioni durante la riparazione, il cliente verrà tempestivamente contattato prima di procedere.\n\nOperazione effettuata ai sensi dell\'art. 1, commi da 54 a 89, della Legge n. 190/2014 - Regime forfettario. Prestazione non soggetta a ritenuta d\'acconto.' },
         { id: 'client_sig_line', type: 'line', x: 110, y: 255, w: 80, h: 0.5, textColor: '#969696' },
@@ -136,7 +136,7 @@ export const DEFAULT_LAYOUTS = {
         { id: 'doc_date', type: 'text', x: 140, y: 22, fontSize: 8.5, textColor: '#64748b', content: 'Data: {{current.date}}' },
         { id: 'config_details_header', type: 'text', x: 14, y: 45, fontSize: 11, fontWeight: 'bold', content: 'Dettagli Configurazione PC' },
         { id: 'config_details', type: 'text', x: 14, y: 52, fontSize: 9.5, textColor: '#505050', content: 'Destinazione d\'uso: {{config.useCase}} | Profilo: {{config.profile}}\nSoftware indicati: {{config.softwares}}\nNote: {{config.notes}}' },
-        { id: 'table_pc_components', type: 'table', x: 14, y: 68, w: 182, tableType: 'pcComponents', headerBgColor: '#fdf8e1', headerTextColor: '#282828', altRowBgColor: '#f8fafc', fontSize: 8.5, cellPadding: 1.8 },
+        { id: 'table_pc_components', type: 'table', x: 14, y: 68, w: 182, tableType: 'pcComponents', headerBgColor: '#10b981', headerTextColor: '#ffffff', altRowBgColor: '#f8fafc', fontSize: 8.5, cellPadding: 1.8 },
         { id: 'terms_header', type: 'text', x: 14, y: 195, fontSize: 9, fontWeight: 'bold', content: 'Termini di Garanzia e Consegna' },
         { id: 'terms', type: 'text', x: 14, y: 201, w: 182, fontSize: 7, textColor: '#787878', content: 'I singoli componenti godono della garanzia ufficiale del produttore (solitamente 24 mesi). Il servizio di assemblaggio e stress test comprende una garanzia di 12 mesi sul corretto assemblaggio. I tempi stimati di consegna sono di 5-7 giorni lavorativi dall\'approvazione e versamento dell\'acconto.' },
         { id: 'client_sig_line', type: 'line', x: 110, y: 255, w: 80, h: 0.5, textColor: '#969696' },
@@ -162,7 +162,7 @@ export const DEFAULT_LAYOUTS = {
         { id: 'doc_date', type: 'text', x: 145, y: 22, fontSize: 8.5, textColor: '#64748b', content: 'Data: {{current.date}}' },
         { id: 'purchase_id', type: 'text', x: 14, y: 45, fontSize: 11, fontWeight: 'bold', content: 'Riepilogo Acquisto' },
         { id: 'client_details', type: 'text', x: 14, y: 52, fontSize: 9.5, textColor: '#505050', content: 'Cliente: {{customer.name}} | Tel: {{customer.phone}} | Email: {{customer.email}}' },
-        { id: 'table_purchase_items', type: 'table', x: 14, y: 65, w: 182, tableType: 'purchaseItems', headerBgColor: '#fdf8e1', headerTextColor: '#282828', altRowBgColor: '#f8fafc', fontSize: 9, cellPadding: 2.5 },
+        { id: 'table_purchase_items', type: 'table', x: 14, y: 65, w: 182, tableType: 'purchaseItems', headerBgColor: '#0f172a', headerTextColor: '#ffffff', altRowBgColor: '#f8fafc', fontSize: 9, cellPadding: 2.5 },
         { id: 'table_purchase_totals', type: 'table', x: 120, y: 160, w: 76, tableType: 'purchaseTotals', headerBgColor: '#ffffff', headerTextColor: '#282828', altRowBgColor: '#ffffff', fontSize: 9, cellPadding: 1.8 },
         { id: 'terms', type: 'text', x: 14, y: 215, w: 182, fontSize: 7, textColor: '#787878', content: 'Grazie per il tuo acquisto! Per qualsiasi informazione o garanzia, presenta questa ricevuta in negozio.\n\nOperazione effettuata ai sensi dell\'art. 1, commi da 54 a 89, della Legge n. 190/2014 - Regime forfettario. Prestazione non soggetta a ritenuta.' }
     ]
@@ -172,19 +172,7 @@ export const DEFAULT_LAYOUTS = {
 export const getLayout = (templateId) => {
     const settings = dataManager.getSync('settings') || {};
     const layouts = settings.pdfLayouts || {};
-    const layout = layouts[templateId] || DEFAULT_LAYOUTS[templateId];
-
-    // Dynamic sanitization to remove receipt number suffix from the title
-    if (templateId === 'purchase' && Array.isArray(layout)) {
-        return layout.map(item => {
-            if (item.id === 'purchase_id' && item.content && item.content.includes('#{{purchase.id}}')) {
-                return { ...item, content: 'Riepilogo Acquisto' };
-            }
-            return item;
-        });
-    }
-
-    return layout;
+    return layouts[templateId] || DEFAULT_LAYOUTS[templateId];
 };
 
 // Render Table Logic
@@ -192,14 +180,30 @@ const renderTable = (doc, item, dataContext, pdfStyle) => {
     const tableType = item.tableType;
     let head = [];
     let body = [];
-    let styles = { fontSize: 8, cellPadding: 1.5 };
-    let columnStyles = {};
     let startY = item.y;
     
-    // Custom table styling based on global pdfStyle
+    // Extracted styling attributes with fallback to old global settings
+    const headerBgHex = item.headerBgColor || (pdfStyle === 'tech' ? '#0f172a' : (pdfStyle === 'emerald' ? '#064e3b' : '#fdf8e1'));
+    const headerTextHex = item.headerTextColor || (pdfStyle === 'classic' ? '#282828' : '#ffffff');
+    const altRowBgHex = item.altRowBgColor || '#f8fafc';
+    
+    const headerBg = hexToRgb(headerBgHex, { r: 30, g: 41, b: 59 });
+    const headerText = hexToRgb(headerTextHex, { r: 255, g: 255, b: 255 });
+    const altRowBg = hexToRgb(altRowBgHex, { r: 248, g: 250, b: 252 });
+
+    const fontSize = item.fontSize || 8.5;
+    const cellPadding = item.cellPadding || 1.8;
+
+    let styles = { fontSize: fontSize, cellPadding: cellPadding };
+    let columnStyles = {};
+    
     let headStyles = { 
-        fillColor: pdfStyle === 'tech' ? [15, 23, 42] : (pdfStyle === 'emerald' ? [6, 78, 59] : [253, 248, 225]), 
-        textColor: pdfStyle === 'classic' ? [40, 40, 40] : [255, 255, 255] 
+        fillColor: [headerBg.r, headerBg.g, headerBg.b], 
+        textColor: [headerText.r, headerText.g, headerText.b] 
+    };
+
+    let alternateRowStyles = {
+        fillColor: [altRowBg.r, altRowBg.g, altRowBg.b]
     };
 
     if (tableType === 'customerInfo') {
@@ -212,8 +216,8 @@ const renderTable = (doc, item, dataContext, pdfStyle) => {
             { content: `Cliente:\n${ticket.customer?.name || ''}\nTel: ${ticket.customer?.phone || ticket.customer?.contact || ''}\nEmail: ${ticket.customer?.email || ''}`, styles: { fontStyle: 'bold' } },
             { content: `Modello: ${ticket.device?.info || ''}\nIMEI/Seriale: ${ticket.device?.imei || 'N/A'}\nGuasto: ${ticket.device?.problem || ''}\nPriorità: ${(ticket.priority || 'medium').toUpperCase()}\nConsegna Prevista: ${ticket.dueDate || 'N/A'}${lockInfoStr}` }
         ]];
-        styles = { fontSize: 10, cellPadding: 2.5 };
-        headStyles.fillColor = pdfStyle === 'tech' ? [14, 165, 233] : (pdfStyle === 'emerald' ? [16, 185, 129] : [253, 248, 225]);
+        styles.fontSize = 10;
+        styles.cellPadding = 2.5;
     } 
     else if (tableType === 'checklist') {
         const ticket = dataContext.ticket || {};
@@ -242,8 +246,6 @@ const renderTable = (doc, item, dataContext, pdfStyle) => {
         }
         head = [['Componente', 'Stato (Ingresso)', 'Componente', 'Stato (Ingresso)']];
         body = checklistRows;
-        styles = { fontSize: 8, cellPadding: 1.5 };
-        headStyles.fillColor = pdfStyle === 'tech' ? [30, 41, 59] : (pdfStyle === 'emerald' ? [4, 120, 87] : [253, 248, 225]);
     }
     else if (tableType === 'checkoutChecklist') {
         const ticket = dataContext.ticket || {};
@@ -272,14 +274,12 @@ const renderTable = (doc, item, dataContext, pdfStyle) => {
         }
         head = [['Componente', 'Stato Collaudo', 'Componente', 'Stato Collaudo']];
         body = checklistRows;
-        styles = { fontSize: 8, cellPadding: 1.5 };
-        headStyles.fillColor = pdfStyle === 'tech' ? [30, 41, 59] : (pdfStyle === 'emerald' ? [4, 120, 87] : [253, 248, 225]);
     }
     else if (tableType === 'repairItems') {
         const ticket = dataContext.ticket || {};
         let partsListString = "Nessun Ricambio";
         if (ticket.repair?.parts && ticket.repair.parts.length > 0) {
-            partsListString = ticket.repair.parts.map(p => `- ${p.name} `).join('\n');
+            partsListString = ticket.repair.parts.map(p => `- ${p.name}`).join('\n');
         } else if (ticket.repair?.partId) { 
             partsListString = "Ricambio Standard";
         }
@@ -295,10 +295,11 @@ const renderTable = (doc, item, dataContext, pdfStyle) => {
         }
         head = [['Dettagli Ricambi', 'Preventivo Economico']];
         body = [[
-            `Elenco Ricambi: \n${partsListString} `,
+            `Elenco Ricambi: \n${partsListString}`,
             pricingText
         ]];
-        styles = { fontSize: 9, cellPadding: 2, valign: 'middle' };
+        styles.fontSize = 9;
+        styles.cellPadding = 2.5;
         columnStyles = {
             0: { cellWidth: 120 },
             1: { cellWidth: 62, halign: 'right', fontStyle: 'bold' }
@@ -322,7 +323,8 @@ const renderTable = (doc, item, dataContext, pdfStyle) => {
             `Tariffa Manodopera: € ${ticket.repair?.laborCost || 0}\nCosto Componenti: € ${(ticket.repair?.partsCost || 0)}`,
             summaryText
         ]];
-        styles = { fontSize: 9, cellPadding: 2, valign: 'middle' };
+        styles.fontSize = 9;
+        styles.cellPadding = 2.5;
         columnStyles = {
             0: { cellWidth: 110 },
             1: { cellWidth: 72, halign: 'right', fontStyle: 'bold' }
@@ -336,7 +338,6 @@ const renderTable = (doc, item, dataContext, pdfStyle) => {
             ...manualChecks.map(c => [c.label, c.status === 'ok' ? 'PASSATO' : c.status === 'fail' ? 'FALLITO' : 'NON TESTABILE']),
             ...customChecks.map(c => [`${c.label} (Custom)`, c.status === 'ok' ? 'PASSATO' : c.status === 'fail' ? 'FALLITO' : 'NON TESTABILE'])
         ];
-        styles = { fontSize: 8, cellPadding: 1.2 };
         columnStyles = {
             1: { fontStyle: 'bold' }
         };
@@ -355,7 +356,6 @@ const renderTable = (doc, item, dataContext, pdfStyle) => {
             { content: 'TOTALE PREVENTIVATO', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
             { content: `€ ${parseFloat(total).toFixed(2)}`, styles: { fontStyle: 'bold', halign: 'right' } }
         ]);
-        styles = { fontSize: 9, cellPadding: 2 };
         columnStyles = {
             0: { cellWidth: 110 },
             1: { cellWidth: 15, halign: 'center' },
@@ -369,10 +369,9 @@ const renderTable = (doc, item, dataContext, pdfStyle) => {
         head = [['Componente PC', 'Modello Selezionato / Descrizione', 'Prezzo']];
         body = components.map(c => [c.type, c.model || 'Non selezionato', c.price ? `€ ${parseFloat(c.price).toFixed(2)}` : '€ 0.00']);
         body.push([
-            { content: 'COSTO TOTALE CONFIGURAZIONE (IVA inclusa)', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: 'COSTO TOTALE CONFIGURAZIONE (Assemblato & Testato)', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold' } },
             { content: `€ ${parseFloat(total).toFixed(2)}`, styles: { fontStyle: 'bold', halign: 'right' } }
         ]);
-        styles = { fontSize: 8.5, cellPadding: 1.8 };
         columnStyles = {
             0: { cellWidth: 40, fontStyle: 'bold' },
             1: { cellWidth: 112 },
@@ -389,7 +388,6 @@ const renderTable = (doc, item, dataContext, pdfStyle) => {
             `${item.discount || 0}%`,
             `€ ${parseFloat(item.total || 0).toFixed(2)}`
         ]);
-        styles = { fontSize: 9, cellPadding: 2.5 };
         columnStyles = {
             0: { cellWidth: 100 },
             1: { cellWidth: 15, halign: 'center' },
@@ -417,33 +415,11 @@ const renderTable = (doc, item, dataContext, pdfStyle) => {
         } else {
             body.push(['TOTALE PAGATO:', `€ ${total.toFixed(2)}`]);
         }
-        styles = { fontSize: 9, cellPadding: 1.8 };
         columnStyles = {
             0: { fontStyle: 'bold', halign: 'right', cellWidth: 45 },
             1: { halign: 'right', fontStyle: 'bold', cellWidth: 31 }
         };
         headStyles = { fillColor: false }; // no header
-    }
-
-    // Apply item custom styling if specified in layouts
-    if (item.headerBgColor) {
-        const rgb = hexToRgb(item.headerBgColor, { r: 253, g: 248, b: 225 });
-        headStyles.fillColor = [rgb.r, rgb.g, rgb.b];
-    }
-    if (item.headerTextColor) {
-        const rgb = hexToRgb(item.headerTextColor, { r: 40, g: 40, b: 40 });
-        headStyles.textColor = [rgb.r, rgb.g, rgb.b];
-    }
-    let alternateRowStyles = undefined;
-    if (item.altRowBgColor) {
-        const rgb = hexToRgb(item.altRowBgColor, { r: 248, g: 250, b: 252 });
-        alternateRowStyles = { fillColor: [rgb.r, rgb.g, rgb.b] };
-    }
-    if (item.fontSize) {
-        styles.fontSize = item.fontSize;
-    }
-    if (item.cellPadding) {
-        styles.cellPadding = item.cellPadding;
     }
 
     doc.autoTable({
@@ -453,7 +429,7 @@ const renderTable = (doc, item, dataContext, pdfStyle) => {
         body: body,
         theme: head.length > 0 ? 'grid' : 'plain',
         headStyles: head.length > 0 ? headStyles : undefined,
-        alternateRowStyles: head.length > 0 ? alternateRowStyles : undefined,
+        alternateRowStyles: alternateRowStyles,
         styles: styles,
         columnStyles: columnStyles,
         didParseCell: (data) => {
@@ -533,21 +509,21 @@ export const pdfLayoutEngine = {
                 if (item.fontWeight === 'bold') style = 'bold';
                 doc.setFont('Helvetica', style);
 
-                const color = hexToRgb(item.textColor || '#282828');
+                const color = hexToRgb(item.textColor || '#282828', { r: 40, g: 40, b: 40 });
                 doc.setTextColor(color.r, color.g, color.b);
 
                 const splitText = doc.splitTextToSize(rawContent, item.w || 182);
                 doc.text(splitText, item.x, itemY, { align: item.align || 'left' });
             } 
             else if (item.type === 'line') {
-                const color = hexToRgb(item.textColor || '#282828');
+                const color = hexToRgb(item.textColor || '#282828', { r: 40, g: 40, b: 40 });
                 doc.setDrawColor(color.r, color.g, color.b);
                 doc.setLineWidth(item.h || 0.3); // h acts as thickness
                 doc.line(item.x, itemY, item.x + (item.w || 182), itemY);
             }
             else if (item.type === 'rect') {
-                const fillColor = hexToRgb(item.fillColor || '#ffffff');
-                const borderColor = hexToRgb(item.borderColor || '#cbd5e1');
+                const fillColor = hexToRgb(item.fillColor || '#ffffff', { r: 255, g: 255, b: 255 });
+                const borderColor = hexToRgb(item.borderColor || '#cbd5e1', { r: 203, g: 213, b: 225 });
                 doc.setFillColor(fillColor.r, fillColor.g, fillColor.b);
                 doc.setDrawColor(borderColor.r, borderColor.g, borderColor.b);
                 doc.setLineWidth(0.3);
