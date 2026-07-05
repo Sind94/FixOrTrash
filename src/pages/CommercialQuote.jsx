@@ -143,7 +143,7 @@ const CommercialQuote = () => {
         soundService.playClick();
         const doc = createPDF();
         if (doc) {
-            window.open(doc.output('bloburl'), '_blank');
+            pdfLayoutEngine.openPdf(doc, `preventivo_${quoteNumber}.pdf`);
             soundService.playSuccess();
         }
     };
