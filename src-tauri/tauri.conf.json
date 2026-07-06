@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "FixOrTrashPro",
-  "version": "18.13.0",
+  "version": "18.14.0",
   "identifier": "com.fixortrash.pro",
   "build": {
     "frontendDist": "../dist-react",
@@ -45,7 +45,7 @@
       "endpoints": [
         "https://raw.githubusercontent.com/Sind94/FixOrTrash/main/updater.json"
       ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1OUFBQUFENzVDMjkzMUMKUldUMW1xcXRkY0tUSFB1U1N3LzhUK1k2aHRPVVZLSCthbWJlM21kdko1WXFMMEV2aHdzS0NpWmsK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRGQUQ3NEIzMDkwN0ZEN0EKUldSNi9RY0pzM1N0VDliamNFVWdxV1NGRXlqR3IvSnYwaEE2WW15YTd6MGhrcHUzMVc1ZHB4bFcK"
     }
   }
 }
