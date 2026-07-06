@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Search, Clock, CheckCircle, Trash2, X, Smartphone, User, Wrench, Calendar, Euro, FileText, Upload, File, LayoutGrid, List, Tag, History, AlertCircle, ClipboardList, Activity, Receipt } from 'lucide-react';
+import { ArrowLeft, Search, Clock, CheckCircle, Trash2, X, Smartphone, User, Wrench, Calendar, Euro, FileText, Upload, File, LayoutGrid, List, Tag, History, AlertCircle, ClipboardList, Activity, Receipt, MessageCircle, Minimize2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import logoReport from '../assets/logo_denis.jpg';
@@ -204,7 +204,9 @@ const RepairList = () => {
     const [tickets, setTickets] = useState([]);
     const [selectedTicket, setSelectedTicket] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [quickFilter, setQuickFilter] = useState('all');
     const [viewMode, setViewMode] = useState('grid');
+    const [isCompact, setIsCompact] = useState(false);
     const [confirmDeleteId, setConfirmDeleteId] = useState(null);
     const [pdfTemplate, setPdfTemplate] = useState({});
     const [pdfStyle, setPdfStyle] = useState('classic');
@@ -231,7 +233,20 @@ const RepairList = () => {
                 setSelectedTicket(ticketToOpen);
             }
         }
+        // Apply quick filter from navigation state (e.g. from Dashboard bancone widget)
+        if (location.state && location.state.quickFilter) {
+            setQuickFilter(location.state.quickFilter);
+        }
     }, [location.state]);
+
+    // Store last opened ticket ID in localStorage for Dashboard resume widget
+    useEffect(() => {
+        if (selectedTicket && selectedTicket.id) {
+            try {
+                localStorage.setItem('lastOpenedTicketId', selectedTicket.id);
+            } catch (e) { /* silent */ }
+        }
+    }, [selectedTicket]);
 
     const handleStatusChange = async (id, newStatus, note = '') => {
         const ticket = tickets.find(t => t.id === id);
@@ -455,30 +470,66 @@ const RepairList = () => {
         soundService.playSuccess();
     };
 
-    const filteredTickets = tickets.filter(ticket =>
-        ticket.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ticket.device.info.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ticket.id.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const today = new Date().toDateString();
+
+    const filteredTickets = tickets.filter(ticket => {
+        const matchesSearch =
+            ticket.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            ticket.device.info.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            ticket.id.toLowerCase().includes(searchTerm.toLowerCase());
+
+        if (!matchesSearch) return false;
+
+        switch (quickFilter) {
+            case 'urgent':   return ticket.priority === 'urgent' && ticket.status !== 'completed';
+            case 'working':  return ['check_in','diagnostica','waiting_approval','waiting_parts','working','tested'].includes(ticket.status);
+            case 'ready':    return ticket.status === 'ready';
+            case 'today':    return ticket.date && new Date(ticket.date).toDateString() === today;
+            default:         return true;
+        }
+    });
 
     const workingTickets = filteredTickets.filter(t => t.status !== 'completed');
-    const completedTickets = filteredTickets.filter(t => t.status === 'completed');
+    const completedTickets = quickFilter === 'all' ? filteredTickets.filter(t => t.status === 'completed') : [];
 
     const renderTicketCards = (ticketsArray) => {
+        // Subtle background tint per status for instant visual scan
+        const getStatusBgTint = (status) => {
+            switch(status) {
+                case 'check_in':         return 'hover:bg-blue-500/[0.04]';
+                case 'diagnostica':      return 'hover:bg-purple-500/[0.04]';
+                case 'waiting_approval': return 'hover:bg-orange-500/[0.04]';
+                case 'waiting_parts':    return 'hover:bg-amber-500/[0.04]';
+                case 'working':          return 'hover:bg-yellow-500/[0.04]';
+                case 'tested':           return 'hover:bg-indigo-500/[0.04]';
+                case 'ready':            return 'bg-green-500/[0.04] hover:bg-green-500/[0.07] border-green-500/20';
+                case 'completed':        return 'hover:bg-gray-500/[0.04]';
+                default:                 return '';
+            }
+        };
+
         return ticketsArray.map(ticket => (
             <div
                 key={ticket.id}
                 onClick={() => setSelectedTicket(ticket)}
-                className={`glass-panel p-6 rounded-theme-panel cursor-pointer hover:border-theme-primary/50 transition-all hover:-translate-y-1 relative overflow-hidden group border border-theme-panelBorder ${ticket.status === 'completed' ? 'border-green-500/30' : ''}`}
+                className={`glass-panel p-6 rounded-theme-panel cursor-pointer transition-all hover:-translate-y-1 relative overflow-hidden group border border-theme-panelBorder ${ticket.status === 'completed' ? 'border-green-500/30' : ''} ${getStatusBgTint(ticket.status)}`}
             >
                 <div className={`status-strip-left ${getStatusSolidBg(ticket.status)}`} />
                 <div className="flex justify-between items-start mb-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${getStatusColor(ticket.status)}`}>
                         {getStatusLabel(ticket.status)}
                     </span>
-                    <span className="text-gray-500 text-xs flex items-center gap-1">
-                        <Calendar size={12} /> {ticket.date ? new Date(ticket.date).toLocaleDateString() : ''}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-gray-500 text-xs flex items-center gap-1">
+                            <Calendar size={12} /> {ticket.date ? new Date(ticket.date).toLocaleDateString() : ''}
+                        </span>
+                        {ticket.date && ticket.status !== 'completed' && (() => {
+                            const days = Math.floor((Date.now() - new Date(ticket.date).getTime()) / 86400000);
+                            if (days === 0) return <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">Oggi</span>;
+                            if (days <= 3) return <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">{days}gg</span>;
+                            return <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse">{days}gg</span>;
+                        })()}
+                    </div>
                 </div>
 
                 <div className="flex gap-2 mb-3 flex-wrap">
@@ -503,12 +554,47 @@ const RepairList = () => {
                 </p>
 
                 <div className="flex justify-between items-end mt-4 pt-4 border-t border-theme-panelBorder">
-                    <div className="text-2xl font-bold text-theme-text">€ {parseFloat(ticket.repair.totalCost).toFixed(2)}</div>
-                    <div className="text-xs text-gray-500">Clicca per dettagli</div>
+                    <div className={`font-bold text-theme-text ${isCompact ? 'text-lg' : 'text-2xl'}`}>€ {parseFloat(ticket.repair.totalCost).toFixed(2)}</div>
+                    {/* Quick Action Buttons — visible on hover */}
+                    <div className="flex items-center gap-2">
+                        {/* WhatsApp quick message */}
+                        {ticket.customer?.phone && (
+                            <a
+                                href={`https://wa.me/${ticket.customer.phone.replace(/\D/g,'')}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                title={`WhatsApp ${ticket.customer.name}`}
+                                className="opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 px-3 py-1.5 bg-[#25D366]/15 hover:bg-[#25D366]/30 text-[#25D366] border border-[#25D366]/30 rounded-lg text-[11px] font-bold whitespace-nowrap"
+                            >
+                                <MessageCircle size={13} /> WA
+                            </a>
+                        )}
+                        {ticket.status !== 'completed' && ticket.status !== 'ready' && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); handleStatusChange(ticket.id, 'ready'); }}
+                                title="Segna come Pronto per il Ritiro"
+                                className="opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 hover:bg-green-500/40 text-green-400 border border-green-500/40 rounded-lg text-[11px] font-bold whitespace-nowrap"
+                            >
+                                <CheckCircle size={13} /> Pronto
+                            </button>
+                        )}
+                        {ticket.status === 'ready' && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); handleStatusChange(ticket.id, 'completed'); }}
+                                title="Segna come Consegnato"
+                                className="opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 px-3 py-1.5 bg-gray-500/20 hover:bg-gray-500/40 text-gray-300 border border-gray-500/40 rounded-lg text-[11px] font-bold whitespace-nowrap"
+                            >
+                                <CheckCircle size={13} /> Consegnato
+                            </button>
+                        )}
+                        <div className="text-xs text-gray-500 group-hover:opacity-0 transition-opacity">Clicca per dettagli</div>
+                    </div>
                 </div>
             </div>
         ));
     };
+
 
     const renderTicketList = (ticketsArray) => {
         return (
@@ -563,7 +649,11 @@ const RepairList = () => {
                     {title} <span className="bg-theme-panel border border-theme-panelBorder text-theme-primary text-sm px-3 py-1 rounded-full">{ticketsArray.length}</span>
                 </h2>
                 {viewMode === 'grid' 
-                    ? <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{renderTicketCards(ticketsArray)}</div>
+                    ? <div className={`grid grid-cols-1 gap-4 ${
+                        isCompact
+                            ? 'md:grid-cols-3 lg:grid-cols-4'
+                            : 'md:grid-cols-2 lg:grid-cols-3 gap-6'
+                      }`}>{renderTicketCards(ticketsArray)}</div>
                     : renderTicketList(ticketsArray)
                 }
             </div>
@@ -607,6 +697,44 @@ const RepairList = () => {
                         </button>
                     </div>
 
+                    {/* Compact toggle — only for grid */}
+                    {viewMode === 'grid' && (
+                        <button
+                            onClick={() => setIsCompact(p => !p)}
+                            title={isCompact ? 'Vista Normale' : 'Vista Compatta (più ticket visibili)'}
+                            className={`p-2 rounded-lg border transition-colors ${
+                                isCompact
+                                    ? 'bg-[var(--color-primary)]/20 border-[var(--color-primary)]/40 text-[var(--color-primary)]'
+                                    : 'bg-theme-panel border-theme-panelBorder text-gray-400 hover:text-white'
+                            }`}
+                        >
+                            <Minimize2 size={18} />
+                        </button>
+                    )}
+
+                    {/* Quick Filters */}
+                    <div className="flex items-center gap-1.5">
+                        {[
+                            { id: 'all',     label: 'Tutti',           color: 'text-gray-400' },
+                            { id: 'urgent',  label: '⚡ Urgenti',       color: 'text-red-400' },
+                            { id: 'working', label: '🔧 In Lavorazione', color: 'text-amber-400' },
+                            { id: 'ready',   label: '✅ Pronti',         color: 'text-green-400' },
+                            { id: 'today',   label: '📅 Oggi',           color: 'text-blue-400' },
+                        ].map(f => (
+                            <button
+                                key={f.id}
+                                onClick={() => { setQuickFilter(f.id); }}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap border ${
+                                    quickFilter === f.id
+                                        ? 'bg-[var(--color-primary)] text-[var(--color-primary-content)] border-[var(--color-primary)] shadow-md'
+                                        : `bg-theme-panel border-theme-panelBorder ${f.color} hover:border-[var(--color-primary)]/40`
+                                }`}
+                            >
+                                {f.label}
+                            </button>
+                        ))}
+                    </div>
+
                     {/* Search Bar */}
                     <div className="relative">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -623,8 +751,13 @@ const RepairList = () => {
 
             {/* Content Sections */}
             {filteredTickets.length === 0 ? (
-                <div className="text-center py-20 text-gray-500">
-                    <p className="text-xl">Nessuna riparazione trovata.</p>
+                <div className="text-center py-20 text-gray-500 flex flex-col items-center gap-3">
+                    {quickFilter === 'urgent' && <><span className="text-4xl">🎉</span><p className="text-xl font-bold text-gray-400">Nessun ticket urgente!</p><p className="text-sm">Ottimo lavoro.</p></>}
+                    {quickFilter === 'ready'  && <><span className="text-4xl">📭</span><p className="text-xl font-bold text-gray-400">Nessun dispositivo pronto al ritiro</p><p className="text-sm">Tutti i lavori sono ancora in corso.</p></>}
+                    {quickFilter === 'working'&& <><span className="text-4xl">☕</span><p className="text-xl font-bold text-gray-400">Niente in lavorazione</p><p className="text-sm">Momento di pausa!</p></>}
+                    {quickFilter === 'today'  && <><span className="text-4xl">📅</span><p className="text-xl font-bold text-gray-400">Nessun check-in oggi</p><p className="text-sm">La giornata è ancora giovane.</p></>}
+                    {quickFilter === 'all' && searchTerm && <><span className="text-4xl">🔍</span><p className="text-xl font-bold text-gray-400">Nessun risultato per "{searchTerm}"</p><p className="text-sm">Prova con un altro termine.</p></>}
+                    {quickFilter === 'all' && !searchTerm && <><span className="text-4xl">📋</span><p className="text-xl font-bold text-gray-400">Nessuna riparazione registrata</p><p className="text-sm">Inizia con un nuovo Check-In.</p></>}
                 </div>
             ) : (
                 <>
