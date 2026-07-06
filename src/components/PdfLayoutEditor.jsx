@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { DEFAULT_LAYOUTS, getLayout } from '../services/pdfLayoutEngine';
+import { DEFAULT_LAYOUTS, getLayout, pdfLayoutEngine } from '../services/pdfLayoutEngine';
 import { 
   Trash2, Plus, RefreshCw, Eye, Save, Type, Square, Minus, Table, HelpCircle, 
   ChevronRight, CheckCircle, FileText, ZoomIn, ZoomOut, Copy, Clipboard, Image
@@ -353,10 +353,8 @@ const PdfLayoutEditor = ({ onSave }) => {
     };
 
     // Render local preview of PDF using the restored layout engine
-    const handlePreviewPdf = async () => {
+    const handlePreviewPdf = () => {
         soundService.playClick();
-        // Dynamically import the engine to prevent bundle loops
-        const { pdfLayoutEngine } = await import('../services/pdfLayoutEngine');
         
         // Temporarily override layout local storage for previewing
         const settings = dataManager.getSync('settings') || {};
@@ -381,11 +379,11 @@ const PdfLayoutEditor = ({ onSave }) => {
                 }
             });
             
-            await pdfLayoutEngine.openPdf(doc, `anteprima_${activeTemplate}.pdf`);
+            pdfLayoutEngine.openPdf(doc, `anteprima_${activeTemplate}.pdf`);
             soundService.playSuccess();
         } catch (err) {
             console.error("Errore di preview PDF:", err);
-            alert("Errore di generazione dell'anteprima PDF.");
+            alert("Errore di generazione dell'anteprima PDF: " + (err.message || err));
         } finally {
             // Restore actual layout settings
             dataManager.setSync('settings', settings);
