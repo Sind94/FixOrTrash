@@ -332,21 +332,18 @@ function App() {
     <div className="flex flex-col h-screen bg-[var(--color-bg)] overflow-hidden">
 
       {/* ── TOP BAR: Titlebar + Section Nav ───────────────────────────────── */}
-      <div className="topbar-outer shrink-0 z-40 titlebar" style={{ WebkitAppRegion: 'drag' }}>
-        <div className="topbar-inner flex items-center h-12 px-4 gap-6" style={{ WebkitAppRegion: 'no-drag' }}>
+      <div className="topbar-outer shrink-0 z-40 titlebar relative" style={{ WebkitAppRegion: 'drag' }}>
+        <div className="topbar-inner flex items-center h-12 px-4" style={{ WebkitAppRegion: 'no-drag' }}>
 
-          {/* Logo */}
+          {/* Logo — left side */}
           <div className="flex items-center gap-2.5 shrink-0 select-none">
             <img src={logoReport} className="w-7 h-7 rounded-full object-cover border border-[var(--color-primary)]/40" alt="Logo" />
             <span className="text-sm font-bold tracking-wide text-theme-text">FIX<span className="text-[var(--color-primary)]">OR</span>TRASH</span>
             <span className="text-[9px] text-gray-500 font-mono tracking-widest hidden sm:block">PRO</span>
           </div>
 
-          {/* Divider */}
-          <div className="h-5 w-px bg-theme-panelBorder/50" />
-
-          {/* Section Tabs */}
-          <div className="flex items-center gap-1">
+          {/* Section Tabs — absolutely centered */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5">
             {NAV_SECTIONS.map(section => {
               const SIcon = section.icon;
               const isActive = activeSection === section.id;
@@ -354,13 +351,13 @@ function App() {
                 <button
                   key={section.id}
                   onClick={() => { soundService.playClick(); setActiveSection(section.id); }}
-                  className={`topbar-section-btn flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 select-none
+                  className={`topbar-section-btn flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-bold transition-all duration-200 select-none
                     ${isActive
-                      ? 'bg-[var(--color-primary)] text-[var(--color-primary-content)] shadow-sm'
-                      : 'text-gray-400 hover:text-theme-text hover:bg-white/5'
+                      ? 'bg-[var(--color-primary)] text-[var(--color-primary-content)] shadow-md shadow-[var(--color-primary)]/20'
+                      : 'text-gray-400 hover:text-theme-text hover:bg-white/8'
                     }`}
                 >
-                  <SIcon size={13} />
+                  <SIcon size={15} />
                   {section.label}
                 </button>
               );
@@ -392,7 +389,7 @@ function App() {
       </div>
 
       {/* ── SUB-NAV: Commands of active section ───────────────────────────── */}
-      <div className="subnav-bar shrink-0 z-30 flex items-center px-4 gap-1 overflow-x-auto" style={{ WebkitAppRegion: 'no-drag' }}>
+      <div className="subnav-bar shrink-0 z-30 flex items-center justify-center px-4 gap-1 overflow-x-auto" style={{ WebkitAppRegion: 'no-drag' }}>
         {currentSection.items.map(item => {
           const IIcon = item.icon;
           const isActive = currentPath === item.path;
