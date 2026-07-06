@@ -225,6 +225,52 @@ const CheckIn = () => {
     const [customerName, setCustomerName] = useState('');
     const [customerPhone, setCustomerPhone] = useState('');
     const [customerEmail, setCustomerEmail] = useState('');
+    const [customerSuggestions, setCustomerSuggestions] = useState([]);
+    const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+    const allCustomers = React.useMemo(() => {
+        try {
+            const repairs = dataManager.getSync('repairs') || [];
+            const map = {};
+            repairs.forEach(r => {
+                const key = r.customer?.phone || r.customer?.name;
+                if (key && !map[key]) map[key] = r.customer;
+            });
+            return Object.values(map);
+        } catch { return []; }
+    }, []);
+
+    const handlePhoneChange = (val) => {
+        setCustomerPhone(val);
+        if (val.length >= 3) {
+            const matches = allCustomers.filter(c =>
+                c.phone?.includes(val) || c.name?.toLowerCase().includes(val.toLowerCase())
+            ).slice(0, 5);
+            setCustomerSuggestions(matches);
+            setShowCustomerDropdown(matches.length > 0);
+        } else {
+            setShowCustomerDropdown(false);
+        }
+    };
+
+    const handleNameChange = (val) => {
+        setCustomerName(val);
+        if (val.length >= 2) {
+            const matches = allCustomers.filter(c =>
+                c.name?.toLowerCase().includes(val.toLowerCase())
+            ).slice(0, 5);
+            setCustomerSuggestions(matches);
+            setShowCustomerDropdown(matches.length > 0);
+        } else {
+            setShowCustomerDropdown(false);
+        }
+    };
+
+    const applyCustomer = (c) => {
+        setCustomerName(c.name || '');
+        setCustomerPhone(c.phone || '');
+        setCustomerEmail(c.email || '');
+        setShowCustomerDropdown(false);
+    };
 
     // Device Data
     const [deviceInfo, setDeviceInfo] = useState(''); // e.g., "iPhone 13 Pro Max"
@@ -742,24 +788,73 @@ const CheckIn = () => {
                         <div className="space-y-4">
                             <div>
                                 <label className="text-sm text-gray-400 ml-1">Nome e Cognome</label>
-                                <input
-                                    type="text"
-                                    value={customerName}
-                                    onChange={(e) => setCustomerName(e.target.value)}
-                                    placeholder="Mario Rossi"
-                                    className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-4 text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                                />
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={customerName}
+                                        onChange={(e) => handleNameChange(e.target.value)}
+                                        onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 180)}
+                                        onFocus={() => customerName.length >= 2 && handleNameChange(customerName)}
+                                        placeholder="Mario Rossi"
+                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-4 text-theme-text focus:border-theme-primary/50 focus:outline-none"
+                                    />
+                                    {showCustomerDropdown && (
+                                        <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-[var(--color-surface)] border border-theme-panelBorder rounded-lg shadow-xl overflow-hidden">
+                                            <div className="px-3 py-1.5 text-[10px] text-gray-500 font-bold uppercase tracking-wider border-b border-theme-panelBorder bg-black/20">
+                                                👤 Clienti già registrati
+                                            </div>
+                                            {customerSuggestions.map((c, i) => (
+                                                <button
+                                                    key={i}
+                                                    type="button"
+                                                    onMouseDown={() => applyCustomer(c)}
+                                                    className="w-full text-left px-4 py-3 hover:bg-[var(--color-primary)]/10 transition-colors flex justify-between items-center border-b border-theme-panelBorder/50 last:border-0"
+                                                >
+                                                    <div>
+                                                        <div className="text-sm font-bold text-theme-text">{c.name}</div>
+                                                        <div className="text-xs text-gray-400">{c.phone}{c.email ? ` · ${c.email}` : ''}</div>
+                                                    </div>
+                                                    <span className="text-[10px] bg-[var(--color-primary)]/15 text-[var(--color-primary)] px-2 py-0.5 rounded font-bold">Autofill →</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-sm text-gray-400 ml-1">Telefono</label>
-                                    <input
-                                        type="tel"
-                                        value={customerPhone}
-                                        onChange={(e) => setCustomerPhone(e.target.value)}
-                                        placeholder="Num. Cellulare..."
-                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-4 text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                                    />
+                                    <div className="relative">
+                                        <input
+                                            type="tel"
+                                            value={customerPhone}
+                                            onChange={(e) => handlePhoneChange(e.target.value)}
+                                            onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 180)}
+                                            placeholder="Num. Cellulare..."
+                                            className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-4 text-theme-text focus:border-theme-primary/50 focus:outline-none"
+                                        />
+                                        {showCustomerDropdown && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-[var(--color-surface)] border border-theme-panelBorder rounded-lg shadow-xl overflow-hidden">
+                                                <div className="px-3 py-1.5 text-[10px] text-gray-500 font-bold uppercase tracking-wider border-b border-theme-panelBorder bg-black/20">
+                                                    👤 Clienti già registrati
+                                                </div>
+                                                {customerSuggestions.map((c, i) => (
+                                                    <button
+                                                        key={i}
+                                                        type="button"
+                                                        onMouseDown={() => applyCustomer(c)}
+                                                        className="w-full text-left px-4 py-3 hover:bg-[var(--color-primary)]/10 transition-colors flex justify-between items-center border-b border-theme-panelBorder/50 last:border-0"
+                                                    >
+                                                        <div>
+                                                            <div className="text-sm font-bold text-theme-text">{c.name}</div>
+                                                            <div className="text-xs text-gray-400">{c.phone}</div>
+                                                        </div>
+                                                        <span className="text-[10px] bg-[var(--color-primary)]/15 text-[var(--color-primary)] px-2 py-0.5 rounded font-bold">Autofill →</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="text-sm text-gray-400 ml-1">Email</label>
@@ -774,6 +869,7 @@ const CheckIn = () => {
                             </div>
                         </div>
                     </div>
+
 
                     {/* Device Info */}
                     <div className="glass-panel p-6 rounded-theme-panel">
