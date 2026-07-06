@@ -1,856 +1,936 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { DEFAULT_LAYOUTS, getLayout, pdfLayoutEngine } from '../services/pdfLayoutEngine';
-import { 
-  Trash2, Plus, RefreshCw, Eye, Save, Type, Square, Minus, Table, HelpCircle, 
-  ChevronRight, CheckCircle, FileText, ZoomIn, ZoomOut, Copy, Clipboard, Image
-} from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
+import { DEFAULT_LAYOUTS, pdfLayoutEngine } from '../services/pdfLayoutEngine';
+import { dataManager } from '../services/dataManager';
 import { soundService } from '../services/soundService';
+import {
+    Eye, Save, RotateCcw, ChevronDown, ChevronRight, Move, Download, Upload,
+    Loader2, CheckCircle, Palette, FileText, PenLine, ImageIcon, Sparkles
+} from 'lucide-react';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const TEMPLATES = [
+    { id: 'checkin',   label: 'Scheda Ingresso',  emoji: '📋' },
+    { id: 'checkout',  label: 'Ricevuta Ritiro',   emoji: '✅' },
+    { id: 'tester',    label: 'Report Collaudo',   emoji: '🔬' },
+    { id: 'quote',     label: 'Prev. Riparazione', emoji: '🔧' },
+    { id: 'pc_config', label: 'Preventivo PC',     emoji: '💻' },
+    { id: 'purchase',  label: 'Ricevuta Vendita',  emoji: '🧾' },
+    { id: 'label',     label: 'Etichetta Termica', emoji: '🏷️' },
+];
+
+const COLOR_PRESETS = [
+    { id: 'slate',   label: 'Slate Pro',    bg: '#1e293b', text: '#ffffff', alt: '#f8fafc' },
+    { id: 'classic', label: 'Classic Gold', bg: '#fdf8e1', text: '#2c2a22', alt: '#fffef5' },
+    { id: 'tech',    label: 'Cyber Dark',   bg: '#0f172a', text: '#38bdf8', alt: '#f0f9ff' },
+    { id: 'emerald', label: 'Emerald',      bg: '#064e3b', text: '#ffffff', alt: '#f0fdf4' },
+    { id: 'purple',  label: 'Royal Purple', bg: '#4c1d95', text: '#e9d5ff', alt: '#faf5ff' },
+    { id: 'warm',    label: 'Warm Coffee',  bg: '#78350f', text: '#fef3c7', alt: '#fffbeb' },
+    { id: 'rose',    label: 'Rose Red',     bg: '#881337', text: '#fce7f3', alt: '#fff1f2' },
+    { id: 'ocean',   label: 'Ocean Blue',   bg: '#0c4a6e', text: '#bae6fd', alt: '#f0f9ff' },
+];
 
 const MOCK_DATA = {
     ticket: {
-        id: "TKB-2026-987",
-        date: new Date().toISOString(),
-        technician: "Mario Rossi",
-        notes: "Urti presenti sulla scocca posteriore, graffi leggeri sullo schermo.",
-        priority: "high",
-        dueDate: "Entro domani ore 18:00",
-        customer: {
-            name: "Giuseppe Verdi",
-            phone: "+39 347 1234567",
-            email: "giuseppe.verdi@email.it"
-        },
-        device: {
-            info: "iPhone 14 Pro - Space Black",
-            imei: "358765432109876",
-            serial: "C39ZX890PLMZ",
-            lockType: "pin",
-            lockCode: "123456",
-            problem: "Sostituzione Schermo LCD e batteria deteriorata",
-            defect: "Sostituzione Schermo LCD e batteria deteriorata"
-        },
-        checklist: {
-            power: 'ok', screen: 'ko', touch: 'ko',
-            charging: 'ok', cameras: 'ok', wifi: 'ok',
-            audio: 'ok', buttons: 'ok', proximity: 'nt',
-            sim: 'ok', biometrics: 'ok'
-        },
-        testChecklist: {
-            power: 'ok', screen: 'ok', touch: 'ok',
-            charging: 'ok', cameras: 'ok', wifi: 'ok',
-            audio: 'ok', buttons: 'ok', proximity: 'ok',
-            sim: 'ok', biometrics: 'ok'
-        },
-        repair: {
-            parts: [{ name: "Schermo OLED iPhone 14 Pro" }, { name: "Batteria 3200mAh" }],
-            laborCost: 45,
-            partsCost: 110,
-            totalCost: 155,
-            deposit: 30,
-            discount: 0
-        }
+        id: 'TKB-2026-987', date: new Date().toISOString(),
+        technician: 'Mario Rossi',
+        notes: 'Urti presenti sulla scocca, graffi leggeri sullo schermo.',
+        priority: 'high',
+        dueDate: new Date(Date.now() + 86400000 * 3).toLocaleDateString('it-IT'),
+        customer: { name: 'Luca Bianchi', phone: '347 1234567', email: 'luca@email.it' },
+        device: { info: 'iPhone 15 Pro / 256GB', imei: '357698109834567', problem: 'Schermo rotto', lockType: 'pin', lockCode: '1234' },
     },
-    manualChecks: [
-        { label: "Schermo LCD", status: "ok" },
-        { label: "Vetro Touch Screen", status: "ok" },
-        { label: "Fotocamera Posteriore", status: "ok" },
-        { label: "Fotocamera Frontale", status: "ok" },
-        { label: "Connettore Ricarica", status: "ok" },
-        { label: "Altoparlante Vivavoce", status: "ok" }
-    ],
-    customChecks: [
-        { label: "Tasto Accensione", status: "ok" },
-        { label: "Flash Led", status: "ok" }
-    ],
-    quoteItems: [
-        { description: "Schermo OLED Compatibile iPhone 14 Pro", quantity: 1, price: 95.00 },
-        { description: "Batteria Qualità A+ iPhone 14 Pro", quantity: 1, price: 35.00 },
-        { description: "Manodopera Specializzata Collaudo", quantity: 1, price: 45.00 }
-    ],
-    config: {
-        useCase: "Gaming / Produttività Video",
-        profile: "Fascia Alta (Intel i7 + RTX 4070)",
-        softwares: "Premiere Pro, Blender, Cyberpunk 2077",
-        notes: "Configurazione con raffreddamento a liquido AIO 240mm e case ARGB vetrato."
-    },
-    components: [
-        { type: "CPU", model: "Intel Core i7-13700K", price: 380.00 },
-        { type: "GPU", model: "NVIDIA RTX 4070 12GB Dual", price: 620.00 },
-        { type: "RAM", model: "32GB DDR5 6000MHz Kingston", price: 125.00 },
-        { type: "SSD", model: "1TB NVMe Samsung", price: 85.00 }
-    ],
-    items: [
-        { name: "Cavo Ricarica USB-C 1.5m Maglia Nylon", price: 14.90, quantity: 1, discount: 0, total: 14.90 },
-        { name: "Alimentatore USB-C 20W PD Carica Rapida", price: 19.90, quantity: 1, discount: 10, total: 17.91 }
-    ],
-    subtotal: 34.80,
-    totalDiscount: 1.99,
-    tax: 0.00,
-    total: 32.81,
-    purchase: {
-        id: "REC-2026-0842"
+    customer: { name: 'Luca Bianchi', phone: '347 1234567', email: 'luca@email.it' },
+    device: { info: 'iPhone 15 Pro', imei: '357698109834567', problem: 'Schermo rotto' },
+    checklistItems: {
+        power: 'Tasto Accensione', screen: 'Schermo LCD', touch: 'Touch Screen',
+        charging: 'Ricarica', cameras: 'Fotocamere', wifi: 'Wi-Fi',
+        audio: 'Altoparlanti', buttons: 'Tasti Volume',
+        proximity: 'Prossimità', sim: 'Lettura SIM', biometrics: 'FaceID',
     }
 };
 
-const TEMPLATE_OPTIONS = [
-    { id: 'checkin', label: 'Scheda Ingresso (A4)' },
-    { id: 'checkout', label: 'Scheda Consegna (A4)' },
-    { id: 'tester', label: 'Report Diagnostico (A4)' },
-    { id: 'quote', label: 'Preventivo Riparazione (A4)' },
-    { id: 'pc_config', label: 'Preventivo Assemblaggio PC (A4)' },
-    { id: 'label', label: 'Etichetta Termica (80x50mm)' },
-    { id: 'purchase', label: 'Ricevuta Acquisto / Vendita (A4)' }
-];
-
-const PLACEHOLDERS = [
-  { group: "Negozio", tags: ["{{store.name}}", "{{store.phone}}", "{{store.email}}", "{{store.address}}", "{{store.technician}}", "{{store.terms}}"] },
-  { group: "Scheda Riparazione", tags: ["{{ticket.id}}", "{{ticket.date}}", "{{ticket.defect}}", "{{ticket.notes}}", "{{ticket.dueDate}}", "{{ticket.technician}}"] },
-  { group: "Cliente & Dispositivo", tags: ["{{customer.name}}", "{{customer.phone}}", "{{customer.email}}", "{{device.info}}", "{{device.imei}}", "{{device.serial}}"] }
-];
-
-const PdfLayoutEditor = ({ onSave }) => {
-    const [activeTemplate, setActiveTemplate] = useState('checkin');
-    const [layoutItems, setLayoutItems] = useState([]);
-    const [selectedId, setSelectedId] = useState(null);
-    const [clipboard, setClipboard] = useState(null);
-    const [zoom, setZoom] = useState(1); // Zoom multiplier
+const replacePlaceholders = (text, context) => {
+    if (!text) return '';
+    let result = text;
     
-    const canvasRef = useRef(null);
-    const draggingRef = useRef(null); // { id, startX, startY, origX, origY }
+    const settings = dataManager.getSync('settings') || {};
+    const pdfTemplate = settings.pdfTemplate || {};
+    const activeTemplate = context.activeTemplate || 'checkin';
+    
+    // Read showVat from context.overrides (live React state) first, then fallback
+    const liveOverrides = context.overrides || {};
+    const showVat = liveOverrides.showVat !== undefined 
+        ? liveOverrides.showVat 
+        : (settings.pdfOverrides?.[activeTemplate]?.showVat !== false);
+    
+    const store = {
+        name: pdfTemplate.storeName || 'FIX OR TRASH',
+        email: pdfTemplate.storeEmail || 'info@negozio.it',
+        phone: pdfTemplate.storePhone || '+39 347 1234567',
+        address: pdfTemplate.storeAddress || 'Via Roma 123, Torino',
+        vat: pdfTemplate.storeVat || '',
+        showVat: showVat
+    };
+    
+    const ticket = context.ticket || {};
+    const customer = ticket.customer || context.customer || {};
+    const device = ticket.device || context.device || {};
 
-    // Constants for scaling mm to px
-    const mmToPx = activeTemplate === 'label' ? 6 : 3;
-    const sheetWidth = activeTemplate === 'label' ? 80 : 210;
-    const sheetHeight = activeTemplate === 'label' ? 50 : 297;
+    const replacements = {
+        '{{store.name}}': store.name || 'FIX OR TRASH',
+        '{{store.phone}}': store.phone || '',
+        '{{store.email}}': store.email || '',
+        '{{store.address}}': store.address + (store.vat && store.showVat ? ` | P.IVA: ${store.vat}` : ''),
+        '{{store.vat}}': store.vat || '',
+        '{{store.piva}}': store.vat || '',
+        '{{ticket.id}}': ticket.id || '',
+        '{{ticket.date}}': ticket.date ? new Date(ticket.date).toLocaleDateString('it-IT') : '',
+        '{{customer.name}}': customer.name || '',
+        '{{customer.phone}}': customer.phone || '',
+        '{{customer.email}}': customer.email || '',
+        '{{device.info}}': device.info || '',
+        '{{device.imei}}': device.imei || '',
+        '{{device.defect}}': device.problem || '',
+        '{{current.date}}': new Date().toLocaleDateString('it-IT'),
+    };
 
-    // Load template configuration on change
-    useEffect(() => {
-        const layout = getLayout(activeTemplate);
-        // Ensure every table has default styling fields if missing
-        const normalized = layout.map(item => {
-            if (item.type === 'table') {
-                return {
-                    headerBgColor: '#1e293b',
-                    headerTextColor: '#ffffff',
-                    altRowBgColor: '#f8fafc',
-                    fontSize: item.tableType === 'checklist' || item.tableType === 'checkoutChecklist' ? 8 : 9,
-                    cellPadding: item.tableType === 'checklist' || item.tableType === 'checkoutChecklist' ? 1.5 : 2,
-                    ...item
-                };
-            }
-            return item;
-        });
-        setLayoutItems(normalized);
-        setSelectedId(null);
-    }, [activeTemplate]);
+    Object.keys(replacements).forEach(key => {
+        result = result.split(key).join(replacements[key]);
+    });
+    return result;
+};
 
-    // Handle Keyboard precision arrow nudges
-    useEffect(() => {
-        const handleKeyDown = (e) => {
-            if (!selectedId) return;
-            const step = e.shiftKey ? 5 : 1; // 5mm or 1mm steps
+const TEMPLATE_DEFAULT_TITLES = {
+    checkin: 'SCHEDA INGRESSO',
+    checkout: 'RICEVUTA DI RITIRO',
+    tester: 'REPORT COLLAUDO',
+    quote: 'PREVENTIVO RIPARAZIONE',
+    pc_config: 'PREVENTIVO PC',
+    purchase: 'RICEVUTA DI VENDITA',
+    label: 'ETICHETTA TERMICA',
+};
 
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                e.preventDefault();
-                setLayoutItems(prev => prev.map(item => {
-                    if (item.id !== selectedId) return item;
-                    let nextX = item.x;
-                    let nextY = item.y;
-                    if (e.key === 'ArrowLeft') nextX = Math.max(0, item.x - step);
-                    if (e.key === 'ArrowRight') nextX = Math.min(sheetWidth - (item.w || 10), item.x + step);
-                    if (e.key === 'ArrowUp') nextY = Math.max(0, item.y - step);
-                    if (e.key === 'ArrowDown') nextY = Math.min(sheetHeight - (item.h || 5), item.y + step);
-                    return { ...item, x: nextX, y: nextY };
-                }));
-            }
+// ─── Default Overrides ────────────────────────────────────────────────────────
 
-            // Copy-Paste shortcuts
-            if (e.ctrlKey && e.key === 'c') {
-                e.preventDefault();
-                handleCopy();
-            }
-            if (e.ctrlKey && e.key === 'v') {
-                e.preventDefault();
-                handlePaste();
-            }
-        };
+const getDefaultOverrides = (templateId) => ({
+    headerBgColor:      '#1e293b',
+    headerTextColor:    '#ffffff',
+    altRowBgColor:      '#f8fafc',
+    tableFontSize:      9,
+    tableCellPadding:   2.2,
+    showLogo:           true,
+    showContacts:       true,
+    showAddress:        true,
+    showVat:            true,
+    showTechSignature:  templateId === 'checkin',
+    showClientSignature: !['tester', 'label'].includes(templateId),
+    techSignatureText:   'Firma Tecnico',
+    clientSignatureText: templateId === 'checkout'
+        ? 'Firma Cliente per Ritiro & Accettazione Collaudo'
+        : 'Firma per Accettazione',
+    docTitleOverride:   '',
+    termsOverride:      '',
+    items:              {}, // custom positions mapping { [itemId]: { x, y, w, h, fontSize } }
+});
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [selectedId, sheetWidth, sheetHeight]);
+// ─── Build Layout from Overrides ──────────────────────────────────────────────
 
-    // Drag-and-Drop Handlers
-    const handleMouseDown = (e, item, isTableBorder = false) => {
-        e.stopPropagation();
-        setSelectedId(item.id);
+const buildLayoutFromOverrides = (templateId, overrides) => {
+    const base = DEFAULT_LAYOUTS[templateId];
+    if (!base) return [];
+    const itemsOverride = (overrides && overrides.items) || {};
+    
+    return base.map(item => {
+        const u = { ...item };
         
-        const canvasRect = canvasRef.current.getBoundingClientRect();
-        const clientX = e.clientX;
-        const clientY = e.clientY;
+        // Apply custom X/Y/W/H/fontSize overrides if defined
+        if (itemsOverride[item.id]) {
+            const itemOver = itemsOverride[item.id];
+            if (itemOver.x !== undefined) u.x = itemOver.x;
+            if (itemOver.y !== undefined) u.y = itemOver.y;
+            if (itemOver.w !== undefined) u.w = itemOver.w;
+            if (itemOver.h !== undefined) u.h = itemOver.h;
+            if (itemOver.fontSize !== undefined) u.fontSize = itemOver.fontSize;
+        }
+
+        if (u.type === 'table') {
+            u.headerBgColor   = overrides.headerBgColor || '#1e293b';
+            u.headerTextColor = overrides.headerTextColor || '#ffffff';
+            u.altRowBgColor   = overrides.altRowBgColor || '#f8fafc';
+            u.fontSize        = overrides.tableFontSize || 9;
+            u.cellPadding     = overrides.tableCellPadding || 2.2;
+        }
+        if (item.type === 'image' && item.content === 'logo' && overrides && !overrides.showLogo) return null;
+        if (item.id === 'store_contact' && overrides && !overrides.showContacts) return null;
+        if (item.id === 'store_address' && overrides && !overrides.showAddress) return null;
+        if ((item.id === 'tech_sig_line' || item.id === 'tech_sig_text') && overrides && !overrides.showTechSignature) return null;
+        if ((item.id === 'client_sig_line' || item.id === 'client_sig_text') && overrides && !overrides.showClientSignature) return null;
+        if (item.id === 'tech_sig_text' && overrides && overrides.techSignatureText) u.content = overrides.techSignatureText;
+        if (item.id === 'client_sig_text' && overrides && overrides.clientSignatureText) u.content = overrides.clientSignatureText;
+        if (item.id === 'doc_title' && overrides && overrides.docTitleOverride) u.content = overrides.docTitleOverride;
+        if (item.id === 'terms'    && overrides && overrides.termsOverride)      u.content = overrides.termsOverride;
+        return u;
+    }).filter(Boolean);
+};
+
+// ─── Live HTML Preview (Absolute Position Render) ──────────────────────────────
+
+const LivePreview = ({ templateId, overrides, storeName, selectedItemId, onSelectItem }) => {
+    const isLabel = templateId === 'label';
+    const layout = buildLayoutFromOverrides(templateId, overrides);
+    const sortedItems = [...layout].sort((a, b) => a.y - b.y);
+
+    let yOffset = 0;
+    let lastTableBottomOriginal = 0;
+    let lastTableBottomShifted = 0;
+
+    const scale = isLabel ? 4.0 : 2.8346;
+
+    const itemsWithPositions = sortedItems.map(item => {
+        let itemY = item.y;
+        if (item.y > lastTableBottomOriginal && lastTableBottomOriginal > 0) {
+            itemY = item.y + yOffset;
+        }
         
-        draggingRef.current = {
-            id: item.id,
-            startX: clientX,
-            startY: clientY,
-            origX: item.x,
-            origY: item.y
-        };
-
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-    };
-
-    const handleMouseMove = (e) => {
-        if (!draggingRef.current) return;
-        const { id, startX, startY, origX, origY } = draggingRef.current;
-        
-        const deltaX = (e.clientX - startX) / (mmToPx * zoom);
-        const deltaY = (e.clientY - startY) / (mmToPx * zoom);
-
-        setLayoutItems(prev => prev.map(item => {
-            if (item.id !== id) return item;
-            let targetX = Math.round((origX + deltaX) * 2) / 2; // Snap to 0.5mm
-            let targetY = Math.round((origY + deltaY) * 2) / 2;
-
-            // Restrict boundaries
-            targetX = Math.max(0, Math.min(sheetWidth - (item.w || 10), targetX));
-            targetY = Math.max(0, Math.min(sheetHeight - (item.h || 5), targetY));
-
-            return { ...item, x: targetX, y: targetY };
-        }));
-    };
-
-    const handleMouseUp = () => {
-        draggingRef.current = null;
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    // Properties Modifiers
-    const updateSelectedProperty = (key, val) => {
-        setLayoutItems(prev => prev.map(item => {
-            if (item.id !== selectedId) return item;
-            return { ...item, [key]: val };
-        }));
-    };
-
-    const handleCopy = () => {
-        const item = layoutItems.find(i => i.id === selectedId);
-        if (item) {
-            setClipboard(JSON.parse(JSON.stringify(item)));
-            soundService.playClick();
+        let height = 0;
+        if (item.type === 'table') {
+            height = item.tableType === 'checklist' ? 24 : 28;
+            const approxOriginalHeight = 25;
+            lastTableBottomOriginal = item.y + approxOriginalHeight;
+            lastTableBottomShifted = itemY + height;
+            yOffset = lastTableBottomShifted - lastTableBottomOriginal;
         }
+        return { ...item, renderedY: itemY };
+    });
+
+    const containerStyle = isLabel ? {
+        width: '320px',
+        height: '200px',
+        background: '#ffffff',
+        border: '2px solid #9ca3af',
+        borderRadius: '8px',
+        position: 'relative',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        overflow: 'hidden',
+    } : {
+        width: '595px',
+        height: '842px',
+        background: '#ffffff',
+        position: 'relative',
+        boxShadow: '0 12px 60px rgba(0,0,0,0.4)',
+        overflow: 'hidden',
     };
-
-    const handlePaste = () => {
-        if (!clipboard) return;
-        soundService.playClick();
-        const newItem = {
-            ...clipboard,
-            id: `${clipboard.id}_copy_${Date.now().toString().slice(-4)}`,
-            x: Math.min(sheetWidth - 20, clipboard.x + 5),
-            y: Math.min(sheetHeight - 20, clipboard.y + 5)
-        };
-        setLayoutItems(prev => [...prev, newItem]);
-        setSelectedId(newItem.id);
-    };
-
-    const handleAddBlock = (type) => {
-        soundService.playClick();
-        const newId = `${type}_${Date.now().toString().slice(-4)}`;
-        let block = {
-            id: newId,
-            type: type,
-            x: 20,
-            y: 30,
-            w: type === 'table' || type === 'line' ? 180 : 50,
-            h: type === 'line' ? 1 : 15,
-            fontSize: type === 'text' ? 10 : undefined,
-            content: type === 'text' ? 'Nuovo Blocco Testo' : type === 'image' ? 'logo' : undefined,
-            align: type === 'text' ? 'left' : undefined,
-            textColor: type === 'text' || type === 'line' ? '#282828' : undefined,
-        };
-
-        if (type === 'table') {
-            block = {
-                ...block,
-                tableType: 'customerInfo',
-                headerBgColor: '#1e293b',
-                headerTextColor: '#ffffff',
-                altRowBgColor: '#f8fafc',
-                fontSize: 8.5,
-                cellPadding: 1.8
-            };
-        }
-        else if (type === 'rect') {
-            block.fillColor = '#e2e8f0';
-            block.borderColor = '#cbd5e1';
-        }
-
-        setLayoutItems(prev => [...prev, block]);
-        setSelectedId(newId);
-    };
-
-    const handleDeleteBlock = () => {
-        if (!selectedId) return;
-        soundService.playClick();
-        setLayoutItems(prev => prev.filter(i => i.id !== selectedId));
-        setSelectedId(null);
-    };
-
-    // Save configurations
-    const handleSave = () => {
-        soundService.playClick();
-        onSave(activeTemplate, layoutItems);
-        soundService.playSuccess();
-    };
-
-    const handleReset = () => {
-        soundService.playClick();
-        if (window.confirm("Sei sicuro di ripristinare il modello grafico alle impostazioni predefinite?")) {
-            const defaults = DEFAULT_LAYOUTS[activeTemplate];
-            setLayoutItems(defaults);
-            setSelectedId(null);
-        }
-    };
-
-    // Export JSON
-    const handleExportJson = () => {
-        soundService.playClick();
-        const fileData = {
-            templateId: activeTemplate,
-            layout: layoutItems
-        };
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fileData, null, 2));
-        const anchor = document.createElement('a');
-        anchor.setAttribute("href", dataStr);
-        anchor.setAttribute("download", `FixOrTrash_Layout_${activeTemplate}.json`);
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-    };
-
-    // Import JSON
-    const handleImportJson = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        soundService.playClick();
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const parsed = JSON.parse(event.target.result);
-                if (parsed.layout && Array.isArray(parsed.layout)) {
-                    setLayoutItems(parsed.layout);
-                    setSelectedId(null);
-                    soundService.playSuccess();
-                } else {
-                    alert("File non valido!");
-                }
-            } catch (err) {
-                alert("Errore nel parsing JSON.");
-            }
-        };
-        reader.readAsText(file);
-    };
-
-    // Render local preview of PDF using the restored layout engine
-    const handlePreviewPdf = () => {
-        soundService.playClick();
-        
-        // Temporarily override layout local storage for previewing
-        const settings = dataManager.getSync('settings') || {};
-        const oldLayouts = settings.pdfLayouts || {};
-        const tempSettings = {
-            ...settings,
-            pdfLayouts: {
-                ...oldLayouts,
-                [activeTemplate]: layoutItems
-            }
-        };
-        dataManager.setSync('settings', tempSettings);
-
-        try {
-            const doc = pdfLayoutEngine.generate(activeTemplate, {
-                ...MOCK_DATA,
-                checklistItems: {
-                    power: 'Tasto Accensione', screen: 'Schermo LCD', touch: 'Touch Screen',
-                    charging: 'Ricarica', cameras: 'Fotocamere', wifi: 'Wi-Fi / Connessione',
-                    audio: 'Audio / Altoparlanti', buttons: 'Tasti Volume', proximity: 'Sensore Prossimità',
-                    sim: 'Lettura SIM', biometrics: 'FaceID / Impronta'
-                }
-            });
-            
-            pdfLayoutEngine.openPdf(doc, `anteprima_${activeTemplate}.pdf`);
-            soundService.playSuccess();
-        } catch (err) {
-            console.error("Errore di preview PDF:", err);
-            alert("Errore di generazione dell'anteprima PDF: " + (err.message || err));
-        } finally {
-            // Restore actual layout settings
-            dataManager.setSync('settings', settings);
-        }
-    };
-
-    const selectedItem = layoutItems.find(i => i.id === selectedId);
 
     return (
-        <div className="flex flex-col gap-6 text-theme-text h-full">
-            {/* Control bar */}
-            <div className="flex flex-wrap items-center justify-between gap-4 bg-theme-panel/40 border border-theme-panelBorder/30 p-4 rounded-2xl backdrop-blur-md">
-                <div className="flex items-center gap-3">
-                    <label className="text-sm font-bold text-gray-400">Layout documento:</label>
-                    <select
-                        value={activeTemplate}
-                        onChange={(e) => setActiveTemplate(e.target.value)}
-                        className="bg-theme-panel border border-theme-panelBorder rounded-xl px-4 py-2 text-sm font-semibold text-theme-text focus:outline-none"
-                    >
-                        {TEMPLATE_OPTIONS.map(opt => (
-                            <option key={opt.id} value={opt.id}>{opt.label}</option>
-                        ))}
-                    </select>
-                </div>
+        <div style={{ width: '100%', height: '100%', background: '#c8c8c8', overflowY: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '24px 16px 32px' }}>
+            <div style={containerStyle}>
+                {itemsWithPositions.map(item => {
+                    const isSelected = selectedItemId === item.id;
+                    const left = item.x * scale;
+                    const top = item.renderedY * scale;
+                    const width = item.w ? (item.w * scale) : undefined;
+                    const height = item.h ? (item.h * scale) : undefined;
 
-                <div className="flex items-center gap-2">
-                    <button onClick={() => handleAddBlock('text')} className="flex items-center gap-1.5 p-2 bg-theme-panel border border-theme-panelBorder hover:bg-white/5 rounded-xl text-xs font-medium"><Type size={14}/>Testo</button>
-                    <button onClick={() => handleAddBlock('line')} className="flex items-center gap-1.5 p-2 bg-theme-panel border border-theme-panelBorder hover:bg-white/5 rounded-xl text-xs font-medium"><Minus size={14}/>Linea</button>
-                    <button onClick={() => handleAddBlock('rect')} className="flex items-center gap-1.5 p-2 bg-theme-panel border border-theme-panelBorder hover:bg-white/5 rounded-xl text-xs font-medium"><Square size={14}/>Rettangolo</button>
-                    <button onClick={() => handleAddBlock('table')} className="flex items-center gap-1.5 p-2 bg-theme-panel border border-theme-panelBorder hover:bg-white/5 rounded-xl text-xs font-medium"><Table size={14}/>Tabella</button>
-                    
-                    <div className="h-6 w-px bg-theme-panelBorder/50 mx-1" />
-                    
-                    <button onClick={handlePreviewPdf} className="flex items-center gap-1.5 p-2 bg-theme-panel border border-theme-panelBorder hover:bg-white/5 rounded-xl text-xs font-bold text-theme-primary"><Eye size={14}/>Anteprima PDF</button>
-                    <button onClick={handleReset} className="flex items-center gap-1.5 p-2 bg-theme-panel border border-theme-panelBorder hover:bg-white/5 rounded-xl text-xs font-medium text-yellow-500"><RefreshCw size={14}/>Ripristina</button>
-                    <button onClick={handleSave} className="flex items-center gap-2 px-5 py-2 bg-theme-primary text-black rounded-xl text-sm font-extrabold hover:brightness-110 shadow-lg shadow-theme-primary/10 ml-2"><Save size={16}/>Salva Layout</button>
-                </div>
-            </div>
+                    const itemStyle = {
+                        position: 'absolute',
+                        left: left + 'px',
+                        top: top + 'px',
+                        width: width ? (width + 'px') : 'auto',
+                        height: height ? (height + 'px') : 'auto',
+                        fontSize: (item.fontSize || 9) * (isLabel ? 1.25 : 0.94) + 'pt',
+                        fontWeight: item.fontWeight || 'normal',
+                        color: item.textColor || '#282828',
+                        fontFamily: 'Helvetica, Arial, sans-serif',
+                        cursor: 'pointer',
+                        borderRadius: '4px',
+                        padding: '1px 2px',
+                        transition: 'outline 0.15s ease',
+                        outline: isSelected 
+                            ? '2px solid var(--color-primary)' 
+                            : '1px dashed transparent',
+                        backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                        zIndex: isSelected ? 20 : 10,
+                    };
 
-            {/* Split Panel: Canvas and Sidebar properties */}
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-stretch min-h-[650px]">
-                
-                {/* Large Sheet Canvas Area (Occupies 3/4 on large screens, scrollable & zoomable) */}
-                <div className="xl:col-span-3 flex flex-col gap-3 bg-theme-panel/10 border border-theme-panelBorder/20 p-4 rounded-3xl items-center overflow-auto max-h-[750px] relative">
-                    
-                    {/* Floating Zoom & copy toolbar inside canvas */}
-                    <div className="absolute top-4 left-4 z-20 flex items-center gap-1.5 bg-black/60 p-1.5 rounded-xl border border-white/5 backdrop-blur-md">
-                        <button onClick={() => setZoom(prev => Math.max(0.5, prev - 0.1))} className="p-1.5 hover:bg-white/10 rounded-lg text-gray-300" title="Zoom Out"><ZoomOut size={14}/></button>
-                        <span className="text-[10px] font-mono font-bold text-gray-400 px-1">{Math.round(zoom * 100)}%</span>
-                        <button onClick={() => setZoom(prev => Math.min(2.0, prev + 0.1))} className="p-1.5 hover:bg-white/10 rounded-lg text-gray-300" title="Zoom In"><ZoomIn size={14}/></button>
-                        <button onClick={() => setZoom(1.0)} className="text-[9px] hover:bg-white/10 rounded-lg text-gray-300 px-2 py-1" title="Zoom 100%">Reset</button>
-                        
-                        <div className="w-px h-4 bg-white/20 mx-1" />
-                        
-                        <button onClick={handleCopy} disabled={!selectedId} className="p-1.5 hover:bg-white/10 rounded-lg text-gray-300 disabled:opacity-30" title="Copia Blocco"><Copy size={14}/></button>
-                        <button onClick={handlePaste} disabled={!clipboard} className="p-1.5 hover:bg-white/10 rounded-lg text-gray-300 disabled:opacity-30" title="Incolla Blocco"><Clipboard size={14}/></button>
-                    </div>
+                    const handleClick = (e) => {
+                        e.stopPropagation();
+                        onSelectItem(item.id);
+                    };
 
-                    {/* Responsive Scaling Canvas Container */}
-                    <div className="w-full flex justify-center py-6 bg-black/20 rounded-2xl border border-theme-panelBorder/30">
-                        <div 
-                            ref={canvasRef}
-                            style={{
-                                width: `${sheetWidth * mmToPx * zoom}px`,
-                                height: `${sheetHeight * mmToPx * zoom}px`,
-                                transition: 'width 0.1s, height 0.1s'
-                            }}
-                            className="bg-white text-black shadow-2xl relative select-none rounded-sm border border-gray-300 box-content"
-                            onClick={() => setSelectedId(null)}
-                        >
-                            {/* Render elements */}
-                            {layoutItems.map(item => {
-                                const elX = item.x * mmToPx * zoom;
-                                const elY = item.y * mmToPx * zoom;
-                                const elW = (item.w || 20) * mmToPx * zoom;
-                                const elH = (item.h || 8) * mmToPx * zoom;
-                                const isSelected = selectedId === item.id;
-
-                                return (
-                                    <div
-                                        key={item.id}
-                                        style={{
-                                            position: 'absolute',
-                                            left: `${elX}px`,
-                                            top: `${elY}px`,
-                                            width: `${elW}px`,
-                                            height: `${elH}px`,
-                                            cursor: 'move',
-                                        }}
-                                        className={`group border ${isSelected ? 'border-theme-primary bg-theme-primary/10 shadow-[0_0_8px_var(--color-primary)] z-10' : 'border-transparent hover:border-gray-400 bg-gray-100/50'}`}
-                                        onMouseDown={(e) => handleMouseDown(e, item)}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedId(item.id);
-                                        }}
-                                    >
-                                        {/* Block Contents based on type */}
-                                        {item.type === 'text' && (
-                                            <div 
-                                                style={{ 
-                                                    fontSize: `${(item.fontSize || 10) * 1.15 * zoom}px`,
-                                                    textAlign: item.align || 'left',
-                                                    color: item.textColor || '#282828',
-                                                    fontWeight: item.fontWeight || 'normal',
-                                                    lineHeight: 1.2
-                                                }}
-                                                className="w-full h-full p-1 overflow-hidden font-sans whitespace-pre-wrap"
-                                            >
-                                                {item.content}
-                                            </div>
-                                        )}
-
-                                        {item.type === 'line' && (
-                                            <div 
-                                                style={{ 
-                                                    height: `${Math.max(1, (item.h || 0.5) * mmToPx * zoom)}px`,
-                                                    backgroundColor: item.textColor || '#282828'
-                                                }}
-                                                className="w-full mt-1"
-                                            />
-                                        )}
-
-                                        {item.type === 'rect' && (
-                                            <div 
-                                                style={{ 
-                                                    width: '100%',
-                                                    height: '100%',
-                                                    backgroundColor: item.fillColor || '#ffffff',
-                                                    borderColor: item.borderColor || '#cbd5e1',
-                                                    borderWidth: '1px',
-                                                    borderStyle: 'solid'
-                                                }}
-                                            />
-                                        )}
-
-                                        {item.type === 'image' && (
-                                            <div className="w-full h-full bg-slate-200 border border-slate-300 flex items-center justify-center font-bold text-[9px] text-slate-500 gap-1 select-none">
-                                                <Image size={12}/> {item.content.toUpperCase()}
-                                            </div>
-                                        )}
-
-                                        {item.type === 'table' && (
-                                            <div className="w-full h-full border border-slate-300 text-[8px] font-sans flex flex-col select-none overflow-hidden">
-                                                <div 
-                                                    style={{ 
-                                                        backgroundColor: item.headerBgColor || '#1e293b', 
-                                                        color: item.headerTextColor || '#ffffff',
-                                                        padding: `${2 * zoom}px`
-                                                    }} 
-                                                    className="font-bold border-b border-slate-300 flex justify-between"
-                                                >
-                                                    <span>TABELLA: {item.tableType.toUpperCase()}</span>
-                                                    <span>INTESTAZIONE</span>
-                                                </div>
-                                                <div style={{ padding: `${3 * zoom}px` }} className="bg-white text-slate-400 italic flex-1 flex items-center justify-center text-[7px]">
-                                                    [Dati autogenerati dal database del ticket]
-                                                </div>
-                                                <div style={{ backgroundColor: item.altRowBgColor || '#f8fafc', padding: `${2 * zoom}px` }} className="border-t border-slate-300 text-[6px] text-slate-500 text-right font-bold">
-                                                    Carattere: {item.fontSize || 8.5}pt | Padding: {item.cellPadding || 1.8}mm
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Right Panel: Selected element properties */}
-                <div className="xl:col-span-1 flex flex-col gap-4 bg-theme-panel/20 border border-theme-panelBorder/30 p-5 rounded-3xl h-[750px] overflow-y-auto">
-                    {selectedItem ? (
-                        <div className="flex flex-col gap-4">
-                            <div className="border-b border-theme-panelBorder/50 pb-2 mb-1 flex justify-between items-center">
-                                <h4 className="font-bold text-sm text-theme-primary flex items-center gap-1.5">
-                                    <Type size={16} />
-                                    Proprietà Blocco
-                                </h4>
-                                <button
-                                    onClick={handleDeleteBlock}
-                                    className="p-1 hover:bg-red-500/10 text-red-400 rounded-lg transition-colors"
-                                    title="Elimina blocco selezionato"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+                    if (item.type === 'text') {
+                        return (
+                            <div key={item.id} style={itemStyle} onClick={handleClick}
+                                className="hover:outline hover:outline-dashed hover:outline-sky-500/50 hover:bg-sky-500/5">
+                                {replacePlaceholders(item.content, { ...MOCK_DATA, activeTemplate: templateId, overrides })}
                             </div>
-
-                            {/* Position & coordinates inputs */}
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div>
-                                    <label className="text-[10px] text-gray-400 font-bold block mb-1">X (mm)</label>
-                                    <input 
-                                        type="number"
-                                        value={selectedItem.x}
-                                        onChange={(e) => updateSelectedProperty('x', parseFloat(e.target.value) || 0)}
-                                        className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-theme-text"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] text-gray-400 font-bold block mb-1">Y (mm)</label>
-                                    <input 
-                                        type="number"
-                                        value={selectedItem.y}
-                                        onChange={(e) => updateSelectedProperty('y', parseFloat(e.target.value) || 0)}
-                                        className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-theme-text"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] text-gray-400 font-bold block mb-1">Largh. (mm)</label>
-                                    <input 
-                                        type="number"
-                                        value={selectedItem.w || 10}
-                                        onChange={(e) => updateSelectedProperty('w', parseFloat(e.target.value) || 10)}
-                                        className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-theme-text"
-                                    />
-                                </div>
-                                {selectedItem.type !== 'line' && (
-                                    <div>
-                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Altezza (mm)</label>
-                                        <input 
-                                            type="number"
-                                            value={selectedItem.h || 5}
-                                            onChange={(e) => updateSelectedProperty('h', parseFloat(e.target.value) || 5)}
-                                            className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-theme-text"
-                                        />
-                                    </div>
-                                )}
+                        );
+                    }
+                    else if (item.type === 'line') {
+                        return (
+                            <div key={item.id} onClick={handleClick}
+                                style={{
+                                    ...itemStyle,
+                                    borderBottom: `${(item.h || 0.3) * scale}px solid ${item.textColor || '#282828'}`,
+                                    height: '0px',
+                                }}
+                                className="hover:outline hover:outline-dashed hover:outline-sky-500/50"
+                            />
+                        );
+                    }
+                    else if (item.type === 'rect') {
+                        return (
+                            <div key={item.id} onClick={handleClick}
+                                style={{
+                                    ...itemStyle,
+                                    backgroundColor: item.fillColor || '#ffffff',
+                                    border: `1.5px solid ${item.borderColor || '#cbd5e1'}`,
+                                }}
+                                className="hover:outline hover:outline-dashed hover:outline-sky-500/50"
+                            />
+                        );
+                    }
+                    else if (item.type === 'image') {
+                        return (
+                            <div key={item.id} onClick={handleClick}
+                                style={{
+                                    ...itemStyle,
+                                    background: '#f1f5f9',
+                                    border: '1px solid #cbd5e1',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '24px',
+                                }}
+                                className="hover:outline hover:outline-dashed hover:outline-sky-500/50"
+                            >
+                                🏪
                             </div>
+                        );
+                    }
+                    else if (item.type === 'table') {
+                        const hBg = item.headerBgColor || '#1e293b';
+                        const hTxt = item.headerTextColor || '#ffffff';
+                        const aBg = item.altRowBgColor || '#f8fafc';
+                        const fSz = item.fontSize || 8.5;
 
-                            {/* Text specific controls */}
-                            {selectedItem.type === 'text' && (
-                                <div className="flex flex-col gap-3">
-                                    <div>
-                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Contenuto Testo</label>
-                                        <textarea
-                                            value={selectedItem.content}
-                                            onChange={(e) => updateSelectedProperty('content', e.target.value)}
-                                            rows={4}
-                                            className="w-full bg-black/20 border border-theme-panelBorder rounded-lg p-2 text-xs text-theme-text focus:outline-none focus:border-theme-primary/50 font-sans"
-                                        />
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                        <div className="flex-1">
-                                            <label className="text-[10px] text-gray-400 font-bold block mb-1">Dimensione</label>
-                                            <input 
-                                                type="number"
-                                                value={selectedItem.fontSize || 10}
-                                                onChange={(e) => updateSelectedProperty('fontSize', parseInt(e.target.value) || 8)}
-                                                className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-xs text-theme-text"
-                                            />
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="text-[10px] text-gray-400 font-bold block mb-1">Stile</label>
-                                            <select
-                                                value={selectedItem.fontWeight || 'normal'}
-                                                onChange={(e) => updateSelectedProperty('fontWeight', e.target.value)}
-                                                className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-xs text-theme-text"
-                                            >
-                                                <option value="normal">Normale</option>
-                                                <option value="bold">Grassetto</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                        <div className="flex-1">
-                                            <label className="text-[10px] text-gray-400 font-bold block mb-1">Allinea</label>
-                                            <select
-                                                value={selectedItem.align || 'left'}
-                                                onChange={(e) => updateSelectedProperty('align', e.target.value)}
-                                                className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-xs text-theme-text"
-                                            >
-                                                <option value="left">Sinistra</option>
-                                                <option value="center">Centro</option>
-                                                <option value="right">Destra</option>
-                                            </select>
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="text-[10px] text-gray-400 font-bold block mb-1">Colore Testo</label>
-                                            <input 
-                                                type="color"
-                                                value={selectedItem.textColor || '#282828'}
-                                                onChange={(e) => updateSelectedProperty('textColor', e.target.value)}
-                                                className="w-full h-8 bg-black/20 border border-theme-panelBorder rounded-lg cursor-pointer"
-                                            />
-                                        </div>
-                                    </div>
+                        return (
+                            <div key={item.id} onClick={handleClick}
+                                style={{
+                                    ...itemStyle,
+                                    border: '1.5px solid #cbd5e1',
+                                    background: '#ffffff',
+                                }}
+                                className="hover:outline hover:outline-dashed hover:outline-sky-500/50"
+                            >
+                                <div style={{ background: hBg, color: hTxt, padding: '4px 8px', fontWeight: 'bold', fontSize: `${fSz}px` }}>
+                                    {item.tableType === 'customerInfo' ? 'Informazioni Cliente & Dispositivo' : item.tableType === 'checklist' ? 'Checklist Esempio' : 'Tabella Dati'}
                                 </div>
-                            )}
-
-                            {/* Line specific controls */}
-                            {selectedItem.type === 'line' && (
-                                <div>
-                                    <label className="text-[10px] text-gray-400 font-bold block mb-1">Spessore Linea (mm)</label>
-                                    <input 
-                                        type="number"
-                                        step="0.1"
-                                        value={selectedItem.h || 0.5}
-                                        onChange={(e) => updateSelectedProperty('h', parseFloat(e.target.value) || 0.1)}
-                                        className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-xs text-theme-text"
-                                    />
-                                    <label className="text-[10px] text-gray-400 font-bold block mt-3 mb-1">Colore Linea</label>
-                                    <input 
-                                        type="color"
-                                        value={selectedItem.textColor || '#282828'}
-                                        onChange={(e) => updateSelectedProperty('textColor', e.target.value)}
-                                        className="w-full h-8 bg-black/20 border border-theme-panelBorder rounded-lg cursor-pointer"
-                                    />
+                                <div style={{ display: 'flex', padding: '3px 8px', background: '#ffffff', fontSize: `${fSz - 1}px`, color: '#4b5563' }}>
+                                    <div style={{ flex: 1 }}>Voce esempio layout</div>
+                                    <div style={{ fontWeight: 'bold', color: '#111827' }}>€ 50.00</div>
                                 </div>
-                            )}
-
-                            {/* Rectangle specific controls */}
-                            {selectedItem.type === 'rect' && (
-                                <div className="flex gap-2">
-                                    <div className="flex-1">
-                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Colore Sfondo</label>
-                                        <input 
-                                            type="color"
-                                            value={selectedItem.fillColor || '#ffffff'}
-                                            onChange={(e) => updateSelectedProperty('fillColor', e.target.value)}
-                                            className="w-full h-8 bg-black/20 border border-theme-panelBorder rounded-lg cursor-pointer"
-                                        />
-                                    </div>
-                                    <div className="flex-1">
-                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Colore Bordo</label>
-                                        <input 
-                                            type="color"
-                                            value={selectedItem.borderColor || '#cbd5e1'}
-                                            onChange={(e) => updateSelectedProperty('borderColor', e.target.value)}
-                                            className="w-full h-8 bg-black/20 border border-theme-panelBorder rounded-lg cursor-pointer"
-                                        />
-                                    </div>
+                                <div style={{ display: 'flex', padding: '3px 8px', background: aBg, borderTop: '0.5px solid #e2e8f0', fontSize: `${fSz - 1}px`, color: '#4b5563' }}>
+                                    <div style={{ flex: 1 }}>Seconda riga colore alternativo</div>
+                                    <div style={{ fontWeight: 'bold', color: '#111827' }}>€ 25.00</div>
                                 </div>
-                            )}
-
-                            {/* TABLE specific design controls (New Feature!) */}
-                            {selectedItem.type === 'table' && (
-                                <div className="flex flex-col gap-3">
-                                    <div>
-                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Tipo di Tabella Dinamica</label>
-                                        <select
-                                            value={selectedItem.tableType || 'customerInfo'}
-                                            onChange={(e) => updateSelectedProperty('tableType', e.target.value)}
-                                            className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-xs text-theme-text"
-                                        >
-                                            <option value="customerInfo">Dettagli Cliente & Device</option>
-                                            <option value="checklist">Collaudo Ingresso (Checklist)</option>
-                                            <option value="checkoutChecklist">Collaudo Uscita (Checklist)</option>
-                                            <option value="repairItems">Preventivo Ricambi (Ticket)</option>
-                                            <option value="pricesSummary">Dettagli Riparazione & Saldo</option>
-                                            <option value="testerResults">Report Tester Diagnostico</option>
-                                            <option value="quoteDetails">Articoli Preventivo Commerciale</option>
-                                            <option value="pcComponents">Componenti Assemblaggio PC</option>
-                                            <option value="purchaseItems">Articoli Carrello Vendita</option>
-                                            <option value="purchaseTotals">Riepilogo Totale Cassa</option>
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Colore Intestazione</label>
-                                        <input 
-                                            type="color"
-                                            value={selectedItem.headerBgColor || '#1e293b'}
-                                            onChange={(e) => updateSelectedProperty('headerBgColor', e.target.value)}
-                                            className="w-full h-8 bg-black/20 border border-theme-panelBorder rounded-lg cursor-pointer"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Colore Testo Intestazione</label>
-                                        <input 
-                                            type="color"
-                                            value={selectedItem.headerTextColor || '#ffffff'}
-                                            onChange={(e) => updateSelectedProperty('headerTextColor', e.target.value)}
-                                            className="w-full h-8 bg-black/20 border border-theme-panelBorder rounded-lg cursor-pointer"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="text-[10px] text-gray-400 font-bold block mb-1">Colore Righe Alternate</label>
-                                        <input 
-                                            type="color"
-                                            value={selectedItem.altRowBgColor || '#f8fafc'}
-                                            onChange={(e) => updateSelectedProperty('altRowBgColor', e.target.value)}
-                                            className="w-full h-8 bg-black/20 border border-theme-panelBorder rounded-lg cursor-pointer"
-                                        />
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                        <div className="flex-1">
-                                            <label className="text-[10px] text-gray-400 font-bold block mb-1">Dim. Carattere</label>
-                                            <input 
-                                                type="number"
-                                                step="0.5"
-                                                value={selectedItem.fontSize || 8.5}
-                                                onChange={(e) => updateSelectedProperty('fontSize', parseFloat(e.target.value) || 8)}
-                                                className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-xs text-theme-text"
-                                            />
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="text-[10px] text-gray-400 font-bold block mb-1">Padding Celle (mm)</label>
-                                            <input 
-                                                type="number"
-                                                step="0.1"
-                                                value={selectedItem.cellPadding || 1.8}
-                                                onChange={(e) => updateSelectedProperty('cellPadding', parseFloat(e.target.value) || 1)}
-                                                className="w-full bg-black/20 border border-theme-panelBorder rounded-lg px-2 py-1.5 text-xs text-theme-text"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Side panel placeholder helpers */}
-                            {selectedItem.type === 'text' && (
-                                <div className="border-t border-theme-panelBorder/30 pt-3 mt-2 flex flex-col gap-2">
-                                    <label className="text-[10px] text-gray-400 font-bold block">Segnaposto Disponibili</label>
-                                    <p className="text-[10px] text-gray-500">Scrivi o copia questi codici nel testo per visualizzare i dati dinamici:</p>
-                                    {PLACEHOLDERS.map((group, idx) => (
-                                        <div key={idx} className="bg-black/10 rounded-xl p-2.5 border border-theme-panelBorder/20">
-                                            <strong className="text-[10px] text-gray-400 block mb-1">{group.group}</strong>
-                                            <div className="flex flex-wrap gap-1">
-                                                {group.tags.map(t => (
-                                                    <span 
-                                                        key={t}
-                                                        onClick={() => {
-                                                            const orig = selectedItem.content;
-                                                            updateSelectedProperty('content', orig + ' ' + t);
-                                                        }}
-                                                        className="font-mono text-[9px] bg-theme-panel hover:bg-white/5 border border-theme-panelBorder hover:text-theme-primary px-1.5 py-0.5 rounded cursor-pointer transition-colors"
-                                                    >
-                                                        {t}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="h-full flex flex-col items-center justify-center text-center text-gray-500 gap-2">
-                            <FileText size={48} className="opacity-25" />
-                            <p className="text-xs">Seleziona un elemento sul foglio A4 per modificarne le coordinate e le proprietà grafiche.</p>
-                        </div>
-                    )}
-                </div>
-
-            </div>
-
-            {/* Import / Export JSON bar */}
-            <div className="flex items-center justify-between gap-4 bg-theme-panel/20 border border-theme-panelBorder/20 px-5 py-3 rounded-2xl">
-                <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <HelpCircle size={16}/>
-                    <span>Usa le frecce della tastiera per spostare gli elementi con precisione millimetrica (+Shift per 5mm). Copia con Ctrl+C e incolla con Ctrl+V.</span>
-                </div>
-                <div className="flex gap-2">
-                    <button onClick={handleExportJson} className="p-2 bg-theme-panel border border-theme-panelBorder/60 hover:bg-white/5 rounded-xl text-xs font-semibold">Esporta Preset JSON</button>
-                    <label className="p-2 bg-theme-panel border border-theme-panelBorder/60 hover:bg-white/5 rounded-xl text-xs font-semibold cursor-pointer">
-                        Importa Preset JSON
-                        <input type="file" accept=".json" onChange={handleImportJson} className="hidden"/>
-                    </label>
-                </div>
+                            </div>
+                        );
+                    }
+                    return null;
+                })}
             </div>
         </div>
     );
+};
+
+// ─── UI Sub-components ────────────────────────────────────────────────────────
+
+const Section = ({ title, icon: Icon, isOpen, onToggle, children }) => (
+    <div className="rounded-2xl overflow-hidden border border-white/10 mb-3">
+        <button onClick={onToggle}
+            className="w-full flex items-center justify-between px-4 py-3 bg-white/5 hover:bg-white/[0.08] transition-colors text-left group">
+            <div className="flex items-center gap-2.5">
+                {Icon && <Icon size={14} className="text-[var(--color-primary)] shrink-0" />}
+                <span className="text-[13px] font-bold text-theme-text">{title}</span>
+            </div>
+            {isOpen
+                ? <ChevronDown  size={13} className="text-gray-500 group-hover:text-gray-300 transition-colors shrink-0" />
+                : <ChevronRight size={13} className="text-gray-500 group-hover:text-gray-300 transition-colors shrink-0" />}
+        </button>
+        {isOpen && <div className="px-4 pb-4 pt-3 space-y-3 bg-black/15">{children}</div>}
+    </div>
+);
+
+const ColorRow = ({ label, value, onChange }) => (
+    <div className="flex items-center justify-between gap-3 py-0.5">
+        <label className="text-[11px] text-gray-400 flex-1 leading-tight">{label}</label>
+        <div className="flex items-center gap-2.5 shrink-0">
+            <div className="relative w-8 h-8 rounded-xl border border-white/20 overflow-hidden shadow-inner cursor-pointer"
+                style={{ background: value || '#000000' }}>
+                <input type="color" value={value || '#000000'} onChange={e => onChange(e.target.value)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+            </div>
+            <span className="text-[10px] font-mono text-gray-500 w-[54px]">{value}</span>
+        </div>
+    </div>
+);
+
+const Toggle = ({ label, subtext, value, onChange }) => (
+    <div className="flex items-center justify-between gap-3 py-0.5">
+        <div className="flex-1 min-w-0">
+            <div className="text-[11px] text-gray-300">{label}</div>
+            {subtext && <div className="text-[10px] text-gray-600 mt-0.5">{subtext}</div>}
+        </div>
+        <button onClick={() => onChange(!value)}
+            className={`relative flex-shrink-0 w-10 h-[22px] rounded-full transition-all duration-200 focus:outline-none
+                ${value ? 'bg-[var(--color-primary)]' : 'bg-white/15'}`}>
+            <div className={`absolute top-[3px] w-4 h-4 bg-white rounded-full shadow-md transition-all duration-200
+                ${value ? 'left-[22px]' : 'left-[3px]'}`} />
+        </button>
+    </div>
+);
+
+const Slider = ({ label, value, min, max, step = 0.5, onChange, unit = '' }) => {
+    const pct = ((value - min) / (max - min)) * 100;
+    const [inputValue, setInputValue] = useState(value);
+
+    useEffect(() => {
+        setInputValue(value);
+    }, [value]);
+
+    const handleInputChange = (e) => {
+        const val = e.target.value;
+        setInputValue(val);
+        const parsed = parseFloat(val);
+        if (!isNaN(parsed) && parsed >= min && parsed <= max) {
+            onChange(parsed);
+        }
+    };
+
+    const handleBlur = () => {
+        const parsed = parseFloat(inputValue);
+        if (isNaN(parsed) || parsed < min) {
+            onChange(min);
+            setInputValue(min);
+        } else if (parsed > max) {
+            onChange(max);
+            setInputValue(max);
+        } else {
+            onChange(parsed);
+            setInputValue(parsed);
+        }
+    };
+
+    return (
+        <div className="space-y-1.5 py-0.5">
+            <div className="flex items-center justify-between">
+                <label className="text-[11px] text-gray-400">{label}</label>
+                <div className="flex items-center gap-1 shrink-0">
+                    <input 
+                        type="number" 
+                        min={min} 
+                        max={max} 
+                        step={step} 
+                        value={inputValue}
+                        onChange={handleInputChange}
+                        onBlur={handleBlur}
+                        className="w-14 bg-white/5 border border-white/10 rounded px-1 py-0.5 text-[10px] text-right font-mono font-bold text-[var(--color-primary)] focus:outline-none focus:border-[var(--color-primary)]/50"
+                        style={{ MozAppearance: 'textfield' }}
+                    />
+                    <span className="text-[10px] text-gray-500 font-mono select-none">{unit}</span>
+                </div>
+            </div>
+            <input type="range" min={min} max={max} step={step} value={value}
+                onChange={e => onChange(parseFloat(e.target.value))}
+                className="w-full h-1.5 appearance-none rounded-full cursor-pointer accent-[var(--color-primary)]"
+                style={{ background: `linear-gradient(to right, var(--color-primary) ${pct}%, rgba(255,255,255,0.15) 0%)` }}
+            />
+        </div>
+    );
+};
+
+const TextInput = React.forwardRef(({ label, value, onChange, placeholder }, ref) => (
+    <div className="space-y-1.5">
+        {label && <label className="text-[11px] text-gray-400 block">{label}</label>}
+        <input ref={ref} type="text" value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[11px] text-theme-text placeholder-gray-600 focus:outline-none focus:border-[var(--color-primary)]/50 transition-colors" />
+    </div>
+));
+
+const TextArea = React.forwardRef(({ label, value, onChange, placeholder, rows = 4 }, ref) => (
+    <div className="space-y-1.5">
+        {label && <label className="text-[11px] text-gray-400 block">{label}</label>}
+        <textarea ref={ref} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[11px] text-theme-text placeholder-gray-600 focus:outline-none focus:border-[var(--color-primary)]/50 transition-colors resize-none" />
+    </div>
+));
+
+// ─── Main PdfLayoutEditor ─────────────────────────────────────────────────────
+
+const PdfLayoutEditor = ({ onSave }) => {
+    try {
+        const [activeTemplate, setActiveTemplate] = useState('checkin');
+        const [overrides, setOverrides]           = useState(() => getDefaultOverrides('checkin'));
+        const [selectedItemId, setSelectedItemId] = useState(null);
+        const [isGenerating, setIsGenerating]     = useState(false);
+        const [isSaving,     setIsSaving]         = useState(false);
+        const [savedOk,      setSavedOk]          = useState(false);
+        const [storeName,    setStoreName]         = useState('FIX OR TRASH');
+
+        const [sectionsOpen, setSectionsOpen] = useState({
+            position: true,
+            presets: false,
+            tables: false,
+            header: false,
+            texts: false,
+            signatures: false,
+            backup: true
+        });
+
+        const docTitleRef  = useRef(null);
+        const termsRef     = useRef(null);
+        const fileInputRef = useRef(null);
+
+        useEffect(() => {
+            const settings     = dataManager.getSync('settings') || {};
+            const allOverrides = settings.pdfOverrides || {};
+            const saved        = allOverrides[activeTemplate];
+            setOverrides(saved ? { ...getDefaultOverrides(activeTemplate), ...saved } : getDefaultOverrides(activeTemplate));
+            setStoreName(settings.pdfTemplate?.storeName || 'FIX OR TRASH');
+            setSelectedItemId(null);
+        }, [activeTemplate]);
+
+        const set = (key, val) => setOverrides(prev => ({ ...prev, [key]: val }));
+
+        const handleItemOverrideChange = (prop, value) => {
+            if (!selectedItemId) return;
+            setOverrides(prev => {
+                const items = { ...(prev.items || {}) };
+                items[selectedItemId] = { ...(items[selectedItemId] || {}), [prop]: value };
+                return { ...prev, items };
+            });
+        };
+
+        const getSelectedItemValue = (prop) => {
+            if (!selectedItemId) return 0;
+            if (overrides && overrides.items && overrides.items[selectedItemId] && overrides.items[selectedItemId][prop] !== undefined) {
+                return overrides.items[selectedItemId][prop];
+            }
+            const baseItem = DEFAULT_LAYOUTS[activeTemplate]?.find(i => i.id === selectedItemId);
+            return baseItem ? (baseItem[prop] || 0) : 0;
+        };
+
+        const handleSelectItem = (itemId) => {
+            setSelectedItemId(itemId);
+            setSectionsOpen(prev => ({
+                ...prev,
+                position: true
+            }));
+
+            if (itemId === 'doc_title') {
+                setSectionsOpen(prev => ({ ...prev, texts: true }));
+                setTimeout(() => docTitleRef.current?.focus(), 80);
+            } else if (itemId === 'terms') {
+                setSectionsOpen(prev => ({ ...prev, texts: true }));
+                setTimeout(() => termsRef.current?.focus(), 80);
+            }
+        };
+
+        const toggleSection = (sectionKey) => {
+            setSectionsOpen(prev => ({
+                ...prev,
+                [sectionKey]: !prev[sectionKey]
+            }));
+        };
+
+        const handleSave = async () => {
+            setIsSaving(true);
+            try {
+                const settings   = dataManager.getSync('settings') || {};
+                const pdfOverrides = { ...(settings.pdfOverrides || {}), [activeTemplate]: overrides };
+                const newLayout    = buildLayoutFromOverrides(activeTemplate, overrides);
+                const pdfLayouts   = { ...(settings.pdfLayouts   || {}), [activeTemplate]: newLayout };
+                
+                const updated = { ...settings, pdfOverrides, pdfLayouts };
+                await dataManager.updateSlice('settings', updated);
+                
+                soundService.playSuccess();
+                setSavedOk(true);
+                setTimeout(() => setSavedOk(false), 2800);
+                if (onSave) onSave(activeTemplate, newLayout);
+            } finally {
+                setIsSaving(false);
+            }
+        };
+
+        const handleOpenPdf = async () => {
+            setIsGenerating(true);
+            const settings       = dataManager.getSync('settings') || {};
+            const modifiedLayout = buildLayoutFromOverrides(activeTemplate, overrides);
+            const tempSettings   = {
+                ...settings,
+                pdfOverrides: { ...(settings.pdfOverrides || {}), [activeTemplate]: overrides },
+                pdfLayouts: { ...(settings.pdfLayouts || {}), [activeTemplate]: modifiedLayout }
+            };
+            
+            if (dataManager._cache) {
+                dataManager._cache.settings = tempSettings;
+            }
+            
+            try {
+                const doc        = pdfLayoutEngine.generate(activeTemplate, MOCK_DATA);
+                const dataUri    = doc.output('datauristring');
+                const base64Data = dataUri.split(',')[1];
+                await invoke('open_pdf_data', { base64Data, filename: `preview_${activeTemplate}.pdf` });
+                soundService.playSuccess();
+            } catch (err) {
+                console.error('[PdfLayoutEditor] PDF error:', err);
+                alert('Errore apertura PDF: ' + (err.message || String(err)));
+            } finally {
+                if (dataManager._cache) {
+                    dataManager._cache.settings = settings;
+                }
+                setIsGenerating(false);
+            }
+        };
+
+        const handleReset = () => {
+            if (window.confirm('Ripristinare le impostazioni di default per questo template?')) {
+                setOverrides(getDefaultOverrides(activeTemplate));
+                setSelectedItemId(null);
+            }
+        };
+
+        const handleExport = () => {
+            try {
+                const settings = dataManager.getSync('settings') || {};
+                const exportData = {
+                    pdfOverrides: settings.pdfOverrides || {},
+                    pdfLayouts: settings.pdfLayouts || {}
+                };
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute("href",     dataStr);
+                downloadAnchor.setAttribute("download", `fixortrash_pdf_backup.json`);
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+                soundService.playSuccess();
+            } catch (err) {
+                alert("Errore durante l'esportazione: " + err.message);
+            }
+        };
+
+        const triggerImport = () => {
+            fileInputRef.current?.click();
+        };
+
+        const handleImport = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (!imported.pdfOverrides && !imported.pdfLayouts) {
+                        alert("File non valido! Deve contenere i dati di configurazione del layout.");
+                        return;
+                    }
+                    const settings = dataManager.getSync('settings') || {};
+                    const pdfOverrides = { ...(settings.pdfOverrides || {}), ...(imported.pdfOverrides || {}) };
+                    const pdfLayouts = { ...(settings.pdfLayouts || {}), ...(imported.pdfLayouts || {}) };
+                    
+                    const updated = { ...settings, pdfOverrides, pdfLayouts };
+                    await dataManager.updateSlice('settings', updated);
+                    
+                    // Reload active template overrides
+                    const saved = pdfOverrides[activeTemplate];
+                    setOverrides(saved ? { ...getDefaultOverrides(activeTemplate), ...saved } : getDefaultOverrides(activeTemplate));
+                    soundService.playSuccess();
+                    alert("Backup dei layout importato con successo! Tutti i modelli sono stati aggiornati.");
+                } catch (err) {
+                    alert("Errore di importazione: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        };
+
+        const selectedItemInfo = selectedItemId 
+            ? DEFAULT_LAYOUTS[activeTemplate]?.find(i => i.id === selectedItemId) 
+            : null;
+
+        return (
+            <div className="flex flex-col gap-4" style={{ minHeight: '700px' }}>
+                {/* Input hidden file per importazione */}
+                <input 
+                    ref={fileInputRef} 
+                    type="file" 
+                    accept=".json" 
+                    onChange={handleImport} 
+                    style={{ display: 'none' }} 
+                />
+
+                {/* ── Template Tabs ── */}
+                <div className="flex flex-wrap gap-2">
+                    {TEMPLATES.map(t => (
+                        <button key={t.id} onClick={() => setActiveTemplate(t.id)}
+                            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-200 border
+                                ${activeTemplate === t.id
+                                    ? 'bg-[var(--color-primary)] text-[var(--color-primary-content)] border-transparent shadow-lg shadow-[var(--color-primary)]/20'
+                                    : 'bg-white/5 hover:bg-white/10 text-gray-400 border-white/8 hover:border-white/20'}`}>
+                            <span className="text-base leading-none">{t.emoji}</span>
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* ── Split Panel ── */}
+                <div className="flex gap-5" style={{ flex: 1 }}>
+
+                    {/* Left: Live Preview */}
+                    <div className="flex flex-col" style={{ flex: 1, minWidth: 0 }}>
+                        <div className="flex items-center gap-2 mb-2">
+                            <Eye size={12} className="text-[var(--color-primary)]" />
+                            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Anteprima Live Interattiva</span>
+                            <span className="text-[10px] text-gray-600 font-normal">· clicca su qualsiasi elemento del foglio per selezionarlo e spostarlo</span>
+                        </div>
+                        <div className="rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-slate-500/10"
+                            style={{ minHeight: '680px', maxHeight: '860px', display: 'flex', flexDirection: 'column' }}>
+                            <LivePreview 
+                                templateId={activeTemplate} 
+                                overrides={overrides} 
+                                storeName={storeName}
+                                selectedItemId={selectedItemId}
+                                onSelectItem={handleSelectItem}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Right: Controls */}
+                    <div className="flex flex-col" style={{ width: '318px', flexShrink: 0 }}>
+
+                        {/* Action buttons */}
+                        <div className="flex gap-2 mb-2">
+                            <button onClick={handleOpenPdf} disabled={isGenerating}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black transition-all disabled:opacity-50 bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-900/30 active:scale-95">
+                                {isGenerating
+                                    ? <><Loader2 size={13} className="animate-spin" /> Generando...</>
+                                    : <><Eye size={13} /> Apri PDF Reale</>}
+                            </button>
+                            <button onClick={handleSave} disabled={isSaving}
+                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black transition-all active:scale-95
+                                    ${savedOk
+                                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-900/30'
+                                        : 'bg-[var(--color-primary)] text-[var(--color-primary-content)] shadow-lg shadow-[var(--color-primary)]/25'}`}>
+                                {savedOk
+                                    ? <><CheckCircle size={13} /> Salvato!</>
+                                    : <><Save size={13} /> Salva Layout</>}
+                            </button>
+                        </div>
+
+                        <button onClick={handleReset}
+                            className="flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-600 hover:text-gray-400 transition-colors mb-3">
+                            <RotateCcw size={10} /> Ripristina Default Template
+                        </button>
+
+                        {/* Scrollable Controls */}
+                        <div className="overflow-y-auto" style={{ maxHeight: '660px', paddingRight: '2px' }}>
+
+                            {/* ── SPOSTAMENTO ELEMENTO SELEZIONATO ── */}
+                            {selectedItemId && selectedItemInfo && (
+                                <Section title="Posizione Elemento" icon={Move} isOpen={sectionsOpen.position} onToggle={() => toggleSection('position')}>
+                                    <div className="p-2.5 bg-sky-500/10 border border-sky-500/20 rounded-xl mb-2">
+                                        <div className="text-[10px] text-sky-400 font-bold uppercase tracking-wider">Elemento Selezionato</div>
+                                        <div className="text-xs font-bold text-white mt-0.5">{selectedItemId}</div>
+                                        <div className="text-[10px] text-gray-500 mt-0.5">Tipo: {selectedItemInfo.type}</div>
+                                    </div>
+                                    
+                                    <div className="space-y-3 pt-1">
+                                        <Slider 
+                                            label="Posizione Orizzontale (X)" 
+                                            value={getSelectedItemValue('x')} 
+                                            min={0} 
+                                            max={activeTemplate === 'label' ? 80 : 210} 
+                                            step={1} 
+                                            onChange={v => handleItemOverrideChange('x', v)} 
+                                            unit=" mm" 
+                                        />
+                                        <Slider 
+                                            label="Posizione Verticale (Y)" 
+                                            value={getSelectedItemValue('y')} 
+                                            min={0} 
+                                            max={activeTemplate === 'label' ? 50 : 297} 
+                                            step={1} 
+                                            onChange={v => handleItemOverrideChange('y', v)} 
+                                            unit=" mm" 
+                                        />
+                                        {selectedItemInfo.w !== undefined && (
+                                            <Slider 
+                                                label="Larghezza (W)" 
+                                                value={getSelectedItemValue('w')} 
+                                                min={5} 
+                                                max={210} 
+                                                step={1} 
+                                                onChange={v => handleItemOverrideChange('w', v)} 
+                                                unit=" mm" 
+                                            />
+                                        )}
+                                        {selectedItemInfo.h !== undefined && selectedItemInfo.type !== 'line' && (
+                                            <Slider 
+                                                label="Altezza (H)" 
+                                                value={getSelectedItemValue('h')} 
+                                                min={2} 
+                                                max={150} 
+                                                step={1} 
+                                                onChange={v => handleItemOverrideChange('h', v)} 
+                                                unit=" mm" 
+                                            />
+                                        )}
+                                        {selectedItemInfo.fontSize !== undefined && (
+                                            <Slider 
+                                                label="Dimensione Testo" 
+                                                value={getSelectedItemValue('fontSize')} 
+                                                min={5} 
+                                                max={28} 
+                                                step={0.5} 
+                                                onChange={v => handleItemOverrideChange('fontSize', v)} 
+                                                unit=" pt" 
+                                            />
+                                        )}
+                                    </div>
+                                    <button 
+                                        onClick={() => setSelectedItemId(null)}
+                                        className="w-full text-center text-[10px] text-gray-500 hover:text-gray-300 py-1 border border-white/5 hover:border-white/10 rounded-lg transition-colors mt-2"
+                                    >
+                                        Deseleziona
+                                    </button>
+                                </Section>
+                            )}
+
+                            {/* Preset Colori */}
+                            <Section title="Preset Colori Rapidi" icon={Sparkles} isOpen={sectionsOpen.presets} onToggle={() => toggleSection('presets')}>
+                                <div className="grid grid-cols-4 gap-2 mb-1">
+                                    {COLOR_PRESETS.map(p => (
+                                        <button key={p.id} onClick={() => applyPreset(p)} title={p.label}
+                                            className="flex flex-col items-center gap-1.5 p-2 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/8 transition-all hover:scale-105 active:scale-95">
+                                            <div className="w-8 h-5 rounded-md border border-white/20 overflow-hidden flex shadow-sm" style={{ flexShrink: 0 }}>
+                                                <div style={{ flex: 1, background: p.bg }} />
+                                                <div style={{ width: '8px', background: p.text, opacity: 0.75 }} />
+                                            </div>
+                                            <span className="text-[9px] text-gray-500 text-center leading-tight">{p.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-[10px] text-gray-600 mt-2 leading-relaxed">Clicca un preset per applicarlo rapidamente. Puoi personalizzare ulteriormente i colori nella sezione sotto.</p>
+                            </Section>
+
+                            {/* Stile Tabelle */}
+                            <Section title="Stile Tabelle" icon={Palette} isOpen={sectionsOpen.tables} onToggle={() => toggleSection('tables')}>
+                                <ColorRow label="Sfondo Intestazione"   value={overrides.headerBgColor}   onChange={v => set('headerBgColor',   v)} />
+                                <ColorRow label="Testo Intestazione"    value={overrides.headerTextColor}  onChange={v => set('headerTextColor',  v)} />
+                                <ColorRow label="Sfondo Righe Alternate" value={overrides.altRowBgColor}   onChange={v => set('altRowBgColor',   v)} />
+                                <div className="border-t border-white/8 pt-3 space-y-3">
+                                    <Slider label="Dimensione Testo Celle" value={overrides.tableFontSize}    min={6}   max={13}  step={0.5} onChange={v => set('tableFontSize',    v)} unit=" pt" />
+                                    <Slider label="Spaziatura Interna Celle" value={overrides.tableCellPadding} min={1} max={5}  step={0.2} onChange={v => set('tableCellPadding', v)} unit=" mm" />
+                                </div>
+                            </Section>
+
+                            {/* Intestazione */}
+                            <Section title="Intestazione Documento" icon={ImageIcon} isOpen={sectionsOpen.header} onToggle={() => toggleSection('header')}>
+                                <Toggle label="Mostra Logo Negozio"       value={overrides.showLogo}     onChange={v => set('showLogo',     v)} />
+                                <Toggle label="Mostra Email / Telefono"   value={overrides.showContacts} onChange={v => set('showContacts', v)} />
+                                <Toggle label="Mostra Indirizzo Negozio"  value={overrides.showAddress}  onChange={v => set('showAddress',  v)} />
+                                <Toggle label="Mostra P.IVA Negozio"      value={overrides.showVat !== false} onChange={v => set('showVat',  v)} />
+                            </Section>
+
+                            {/* Testi */}
+                            <Section title="Testi Personalizzati" icon={FileText} isOpen={sectionsOpen.texts} onToggle={() => toggleSection('texts')}>
+                                <TextInput
+                                    ref={docTitleRef}
+                                    label="Titolo Documento (vuoto = automatico dal tipo)"
+                                    value={overrides.docTitleOverride}
+                                    onChange={v => set('docTitleOverride', v)}
+                                    placeholder={TEMPLATE_DEFAULT_TITLES[activeTemplate] || ''}
+                                />
+                                <TextArea
+                                    ref={termsRef}
+                                    label="Termini & Condizioni (vuoto = usa testo da Impostazioni)"
+                                    value={overrides.termsOverride}
+                                    onChange={v => set('termsOverride', v)}
+                                    placeholder="Testo termini personalizzato solo per questo template..."
+                                    rows={5}
+                                />
+                            </Section>
+
+                            {/* Firme */}
+                            <Section title="Linee Firma" icon={PenLine} isOpen={sectionsOpen.signatures} onToggle={() => toggleSection('signatures')}>
+                                <Toggle
+                                    label="Linea Firma Tecnico"
+                                    subtext="In basso a sinistra del documento"
+                                    value={overrides.showTechSignature}
+                                    onChange={v => set('showTechSignature', v)}
+                                />
+                                {overrides.showTechSignature && (
+                                    <TextInput value={overrides.techSignatureText} onChange={v => set('techSignatureText', v)} placeholder="Firma Tecnico" />
+                                )}
+                                <div className="border-t border-white/8 pt-2">
+                                    <Toggle
+                                        label="Linea Firma Cliente"
+                                        subtext="In basso a destra del documento"
+                                        value={overrides.showClientSignature}
+                                        onChange={v => set('showClientSignature', v)}
+                                    />
+                                    {overrides.showClientSignature && (
+                                        <TextInput value={overrides.clientSignatureText} onChange={v => set('clientSignatureText', v)} placeholder="Firma Cliente" />
+                                    )}
+                                </div>
+                            </Section>
+
+                            {/* Backup & Condivisione */}
+                            <Section title="Backup & Condivisione" icon={FileText} isOpen={sectionsOpen.backup} onToggle={() => toggleSection('backup')}>
+                                <div className="flex gap-2.5">
+                                    <button onClick={handleExport}
+                                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-bold bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors active:scale-95">
+                                        <Download size={12} className="text-[var(--color-primary)]" /> Esporta Backup
+                                    </button>
+                                    <button onClick={triggerImport}
+                                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-bold bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors active:scale-95">
+                                        <Upload size={12} className="text-emerald-500" /> Importa Backup
+                                    </button>
+                                </div>
+                                <p className="text-[10px] text-gray-600 mt-2 leading-relaxed">
+                                    Esporta la configurazione di tutti i layout personalizzati in un file JSON per trasferirla su un altro PC.
+                                </p>
+                            </Section>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    } catch (err) {
+        return (
+            <div style={{ color: '#ef4444', background: '#fee2e2', border: '1px solid #fca5a5', padding: '24px', borderRadius: '16px', margin: '20px', fontFamily: 'monospace' }}>
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '16px', fontWeight: 'bold' }}>⚠️ Errore di Renderizzazione React</h3>
+                <p style={{ margin: '0 0 10px 0', fontSize: '13px' }}>Un errore ha bloccato il componente dell'editor:</p>
+                <pre style={{ whiteSpace: 'pre-wrap', fontSize: '11px', background: '#0f172a', color: '#f8fafc', padding: '14px', borderRadius: '8px', overflowX: 'auto' }}>
+                    {err.stack || err.message || String(err)}
+                </pre>
+                <button 
+                    onClick={() => {
+                        localStorage.removeItem('settings');
+                        window.location.reload();
+                    }}
+                    style={{ marginTop: '14px', padding: '8px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                    Reset & Ricarica Pagina
+                </button>
+            </div>
+        );
+    }
 };
 
 export default PdfLayoutEditor;
