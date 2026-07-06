@@ -130,6 +130,7 @@ const Home = () => {
     });
     const [recentTickets, setRecentTickets] = useState([]);
     const [deviceTypeCounts, setDeviceTypeCounts] = useState({});
+    const [lastOpenedTicket, setLastOpenedTicket] = useState(null);
     
     // Low stock state
     const [lowStockItems, setLowStockItems] = useState([]);
@@ -467,6 +468,15 @@ const Home = () => {
             .slice(0, 5);
         setRecentTickets(activeTickets);
 
+        // 4. Load last opened ticket from localStorage
+        try {
+            const lastId = localStorage.getItem('lastOpenedTicketId');
+            if (lastId) {
+                const found = repairs.find(r => r.id === lastId);
+                if (found && found.status !== 'completed') setLastOpenedTicket(found);
+            }
+        } catch (e) { /* silent */ }
+
     }, []);
 
     const handleRestock = async (itemId) => {
@@ -554,6 +564,113 @@ const maxTypeCount = Math.max(...Object.values(deviceTypeCounts), 1);
                     Panoramica in tempo reale del laboratorio e dell'andamento economico.
                 </p>
             </div>
+
+            {/* ── WIDGET BANCONE ─────────────────────────────────────────────── */}
+            <div className="grid grid-cols-3 gap-3 mb-6">
+                {/* Urgenti */}
+                <button
+                    onClick={() => navigate('/repairs', { state: { quickFilter: 'urgent' } })}
+                    className="group glass-panel border border-red-500/20 rounded-xl p-4 flex items-center gap-4 hover:border-red-500/50 hover:bg-red-500/5 transition-all text-left"
+                >
+                    <div className="w-10 h-10 rounded-lg bg-red-500/15 flex items-center justify-center shrink-0 group-hover:bg-red-500/25 transition-colors">
+                        <span className="text-xl">🔴</span>
+                    </div>
+                    <div>
+                        <div className="text-2xl font-black text-red-400">{(dataManager.getSync('repairs') || []).filter(r => r.priority === 'urgent' && r.status !== 'completed').length}</div>
+                        <div className="text-[11px] text-gray-400 font-medium">Urgenti</div>
+                    </div>
+                </button>
+
+                {/* In Lavorazione */}
+                <button
+                    onClick={() => navigate('/repairs', { state: { quickFilter: 'working' } })}
+                    className="group glass-panel border border-amber-500/20 rounded-xl p-4 flex items-center gap-4 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all text-left"
+                >
+                    <div className="w-10 h-10 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0 group-hover:bg-amber-500/25 transition-colors">
+                        <span className="text-xl">🔧</span>
+                    </div>
+                    <div>
+                        <div className="text-2xl font-black text-amber-400">{stats.inProgress}</div>
+                        <div className="text-[11px] text-gray-400 font-medium">In Lavorazione</div>
+                    </div>
+                </button>
+
+                {/* Pronti al Ritiro */}
+                <button
+                    onClick={() => navigate('/repairs', { state: { quickFilter: 'ready' } })}
+                    className="group glass-panel border border-green-500/20 rounded-xl p-4 flex items-center gap-4 hover:border-green-500/50 hover:bg-green-500/5 transition-all text-left"
+                >
+                    <div className="w-10 h-10 rounded-lg bg-green-500/15 flex items-center justify-center shrink-0 group-hover:bg-green-500/25 transition-colors">
+                        <span className="text-xl">✅</span>
+                    </div>
+                    <div>
+                        <div className="text-2xl font-black text-green-400">{stats.ready}</div>
+                        <div className="text-[11px] text-gray-400 font-medium">Pronti al Ritiro</div>
+                    </div>
+                </button>
+            </div>
+
+            {/* ── RIEPILOGO OGGI ─────────────────────────────────────────────── */}
+            {(() => {
+                const repairs = dataManager.getSync('repairs') || [];
+                const todayStr = new Date().toDateString();
+                const todayCheckins = repairs.filter(r => r.date && new Date(r.date).toDateString() === todayStr).length;
+                const todayDelivered = repairs.filter(r => r.status === 'completed' && r.statusHistory?.some(h => new Date(h.date).toDateString() === todayStr)).length;
+                const todayRevenue = repairs
+                    .filter(r => r.status === 'completed' && r.statusHistory?.some(h => new Date(h.date).toDateString() === todayStr))
+                    .reduce((sum, r) => sum + (parseFloat(r.repair?.totalCost) || 0), 0);
+                return (
+                    <div className="flex items-center gap-4 mb-5 px-4 py-2.5 rounded-xl bg-white/[0.025] border border-white/[0.05] text-xs text-gray-400 select-none">
+                        <span className="font-bold text-gray-300 text-[11px] uppercase tracking-wider shrink-0">Oggi</span>
+                        <div className="w-px h-3.5 bg-white/10 shrink-0" />
+                        <span className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                            <span className="font-semibold text-theme-text">{todayCheckins}</span> check-in
+                        </span>
+                        <div className="w-px h-3.5 bg-white/10 shrink-0" />
+                        <span className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                            <span className="font-semibold text-theme-text">{stats.completedToday}</span> consegne
+                        </span>
+                        <div className="w-px h-3.5 bg-white/10 shrink-0" />
+                        <span className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                            <span className="font-semibold text-emerald-400">\u20ac {stats.monthlyRevenue > 0 ? (todayRevenue || stats.monthlyRevenue).toFixed(2) : '0.00'}</span> ricavi mese
+                        </span>
+                        <div className="flex-1" />
+                        <span className="text-gray-600 text-[10px] font-mono">{new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                    </div>
+                );
+            })()}
+
+            {/* ── LAST OPENED TICKET RESUME BANNER ──────────────────────────────── */}
+            {lastOpenedTicket && (
+                <div className="mb-6 p-4 rounded-xl bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/20 flex items-center justify-between gap-4 animate-fade-in select-none">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-[var(--color-primary)]/20 flex items-center justify-center text-lg text-[var(--color-primary)]">
+                            🔄
+                        </div>
+                        <div>
+                            <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Riprendi Lavoro Recente</div>
+                            <div className="text-sm font-bold text-theme-text flex items-center gap-2">
+                                <span>{lastOpenedTicket.device.info}</span>
+                                <span className="text-xs text-gray-500 font-normal">({lastOpenedTicket.customer.name})</span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                <span className="text-[10px] text-amber-500 font-bold uppercase tracking-wider">{lastOpenedTicket.status}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => {
+                            soundService.playClick();
+                            navigate('/repairs', { state: { highlightTicketId: lastOpenedTicket.id } });
+                        }}
+                        className="px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90 text-[var(--color-primary-content)] rounded-lg text-xs font-bold transition-all shadow-md shadow-[var(--color-primary)]/20"
+                    >
+                        Riprendi →
+                    </button>
+                </div>
+            )}
 
             {/* Dashboard Tab Switcher */}
             <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 mb-8 w-fit shrink-0 select-none">
