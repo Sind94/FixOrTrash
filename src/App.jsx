@@ -89,6 +89,13 @@ function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeSection, setActiveSection] = useState(() => getSectionForPath(location.pathname));
   const [badges, setBadges] = useState({ workingTickets: 0, lowStock: 0 });
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+
+  // ── Live Clock ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const tick = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(tick);
+  }, []);
 
   // Auto Updater State
   const [updateStatus, setUpdateStatus] = useState({
@@ -333,17 +340,17 @@ function App() {
 
       {/* ── TOP BAR: Titlebar + Section Nav ───────────────────────────────── */}
       <div className="topbar-outer shrink-0 z-40 titlebar relative" style={{ WebkitAppRegion: 'drag' }}>
-        <div className="topbar-inner flex items-center h-12 px-4" style={{ WebkitAppRegion: 'no-drag' }}>
+        <div className="topbar-inner flex items-center h-14 px-5" style={{ WebkitAppRegion: 'no-drag' }}>
 
           {/* Logo — left side */}
-          <div className="flex items-center gap-2.5 shrink-0 select-none">
-            <img src={logoReport} className="w-7 h-7 rounded-full object-cover border border-[var(--color-primary)]/40" alt="Logo" />
-            <span className="text-sm font-bold tracking-wide text-theme-text">FIX<span className="text-[var(--color-primary)]">OR</span>TRASH</span>
-            <span className="text-[9px] text-gray-500 font-mono tracking-widest hidden sm:block">PRO</span>
+          <div className="flex items-center gap-3 shrink-0 select-none">
+            <img src={logoReport} className="w-8 h-8 rounded-full object-cover border border-[var(--color-primary)]/40" alt="Logo" />
+            <span className="text-base font-bold tracking-wide text-theme-text">FIX<span className="text-[var(--color-primary)]">OR</span>TRASH</span>
+            <span className="text-[10px] text-gray-500 font-mono tracking-widest hidden sm:block">PRO</span>
           </div>
 
           {/* Section Tabs — absolutely centered */}
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
             {NAV_SECTIONS.map(section => {
               const SIcon = section.icon;
               const isActive = activeSection === section.id;
@@ -351,13 +358,13 @@ function App() {
                 <button
                   key={section.id}
                   onClick={() => { soundService.playClick(); setActiveSection(section.id); }}
-                  className={`topbar-section-btn flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-bold transition-all duration-200 select-none
+                  className={`topbar-section-btn flex items-center gap-2.5 px-5 py-2.5 rounded-lg text-[15px] font-bold transition-all duration-200 select-none
                     ${isActive
                       ? 'bg-[var(--color-primary)] text-[var(--color-primary-content)] shadow-md shadow-[var(--color-primary)]/20'
                       : 'text-gray-400 hover:text-theme-text hover:bg-white/8'
                     }`}
                 >
-                  <SIcon size={15} />
+                  <SIcon size={17} />
                   {section.label}
                 </button>
               );
@@ -368,18 +375,30 @@ function App() {
           <div className="flex-1" />
 
           {/* Right tools */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
+            {/* Live Clock */}
+            <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white/[0.03] border border-white/[0.06] select-none">
+              <span className="text-[13px] font-mono font-bold text-theme-text tabular-nums tracking-wide">
+                {currentTime.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
+              <span className="text-[10px] text-gray-500 font-medium">
+                {currentTime.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
+              </span>
+            </div>
+
+            <div className="w-px h-5 bg-white/10" />
+
             <button
               onClick={() => { soundService.playClick(); setShowCommandPalette(true); }}
-              className="topbar-icon-btn flex items-center gap-1 px-2.5 py-1.5 rounded-md text-gray-400 hover:text-theme-text hover:bg-white/5 transition-colors text-xs"
+              className="topbar-icon-btn flex items-center gap-1.5 px-3 py-2 rounded-md text-gray-400 hover:text-theme-text hover:bg-white/5 transition-colors text-xs"
               title="Ricerca Globale (Ctrl+K)"
             >
-              <Command size={13} />
-              <span className="text-[10px] font-mono hidden md:block text-gray-500">⌘K</span>
+              <Command size={15} />
+              <span className="text-[11px] font-mono hidden md:block text-gray-500">⌘K</span>
             </button>
             <button
               onClick={() => { soundService.playClick(); setShowShortcutsGuide(true); }}
-              className="topbar-icon-btn w-7 h-7 flex items-center justify-center rounded-md text-gray-500 hover:text-theme-text hover:bg-white/5 transition-colors text-xs font-bold"
+              className="topbar-icon-btn w-9 h-9 flex items-center justify-center rounded-md text-gray-500 hover:text-theme-text hover:bg-white/5 transition-colors text-sm font-bold"
               title="Scorciatoie (?)"
             >
               ?
@@ -389,7 +408,7 @@ function App() {
       </div>
 
       {/* ── SUB-NAV: Commands of active section ───────────────────────────── */}
-      <div className="subnav-bar shrink-0 z-30 flex items-center justify-center px-4 gap-1 overflow-x-auto" style={{ WebkitAppRegion: 'no-drag' }}>
+      <div className="subnav-bar shrink-0 z-30 flex items-center justify-center px-5 gap-1.5 overflow-x-auto" style={{ WebkitAppRegion: 'no-drag' }}>
         {currentSection.items.map(item => {
           const IIcon = item.icon;
           const isActive = currentPath === item.path;
@@ -397,29 +416,29 @@ function App() {
             <button
               key={item.path}
               onClick={() => handleNavItem(item.path)}
-              className={`subnav-item flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap relative
+              className={`subnav-item flex items-center gap-2 px-4 py-2 rounded-md text-[13px] font-medium transition-all duration-200 whitespace-nowrap relative
                 ${isActive
                   ? 'text-[var(--color-primary)] bg-[var(--color-primary)]/10 font-semibold'
                   : 'text-gray-400 hover:text-theme-text hover:bg-white/5'
                 }`}
             >
-              <IIcon size={13} className="shrink-0" />
+              <IIcon size={15} className="shrink-0" />
               {item.label}
               {/* Badge for Lista Riparazioni */}
               {item.path === '/repairs' && badges.workingTickets > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 text-[9px] font-black bg-amber-500 text-black rounded-full leading-none">
+                <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-black bg-amber-500 text-black rounded-full leading-none">
                   {badges.workingTickets}
                 </span>
               )}
               {/* Badge for Magazzino */}
               {item.path === '/warehouse' && badges.lowStock > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 text-[9px] font-black bg-red-500 text-white rounded-full leading-none">
+                <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-black bg-red-500 text-white rounded-full leading-none">
                   {badges.lowStock}
                 </span>
               )}
               {/* Active underline */}
               {isActive && (
-                <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-[var(--color-primary)] rounded-full" />
+                <span className="absolute bottom-0 left-3.5 right-3.5 h-0.5 bg-[var(--color-primary)] rounded-full" />
               )}
             </button>
           );
