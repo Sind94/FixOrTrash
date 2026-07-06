@@ -35,7 +35,9 @@ const replacePlaceholders = (text, context) => {
         '{{store.name}}': store.name || 'FIX OR TRASH',
         '{{store.phone}}': store.phone || '',
         '{{store.email}}': store.email || '',
-        '{{store.address}}': store.address || '',
+        '{{store.address}}': store.address + (store.vat && store.showVat !== false ? ` | P.IVA: ${store.vat}` : ''),
+        '{{store.vat}}': store.vat || '',
+        '{{store.piva}}': store.vat || '',
         '{{store.technician}}': store.technician || '',
         '{{store.terms}}': store.terms || '',
         '{{ticket.id}}': ticket.id || '',
@@ -477,6 +479,8 @@ export const pdfLayoutEngine = {
                 email: store.storeEmail || 'fixortrash@gmail.com',
                 phone: store.storePhone || '3755417618',
                 address: store.storeAddress || 'Via Roma 123, Torino',
+                vat: store.storeVat || '',
+                showVat: settings.pdfOverrides?.[templateId]?.showVat !== false,
                 technician: store.technician || 'Tecnico',
                 terms: store.terms || ''
             }
