@@ -43,6 +43,7 @@ const Settings = () => {
         storeEmail: 'fixortrash@gmail.com',
         storePhone: '3755417618',
         storeAddress: 'Via Roma 123, Torino',
+        storeVat: '',
         terms: "AUTORIZZAZIONE AL TRATTAMENTO DEI DATI E ALLA RIPARAZIONE:\nIl cliente autorizza l'intervento tecnico sul dispositivo sopra indicato accettando i rischi connessi alla riparazione. Il negozio non risponde per eventuali perdite di dati; si consiglia sempre di effettuare un backup prima della consegna. La garanzia copre solo il componente sostituito per un periodo di 3 mesi.\n\nOperazione effettuata ai sensi dell'art. 1, commi da 54 a 89, della Legge n. 190/2014 - Regime forfettario. Prestazione non soggetta a ritenuta d'acconto ai sensi dell'art. 14 del Provvedimento dell'Agenzia delle Entrate n. 50036/2015."
     });
     
@@ -197,6 +198,7 @@ const Settings = () => {
                 storeEmail: parsed.pdfTemplate.storeEmail || 'fixortrash@gmail.com',
                 storePhone: parsed.pdfTemplate.storePhone || '3755417618',
                 storeAddress: parsed.pdfTemplate.storeAddress || 'Via Roma 123, Torino',
+                storeVat: parsed.pdfTemplate.storeVat || '',
                 terms: parsed.pdfTemplate.terms || ''
             });
         }
@@ -237,7 +239,9 @@ const Settings = () => {
     };
 
     const saveToStorage = async (cost, sites, th = theme, sh = shape, markup = markupPercent, iva = ivaPercent, pdf = pdfTemplate, webhook = googleSheetsWebhook, pStyle = pdfStyle, testMode = googleSheetsTestMode) => {
+        const oldSettings = dataManager.getSync('settings') || {};
         const settings = {
+            ...oldSettings,
             laborCost: parseFloat(cost) || 0,
             markupPercent: parseFloat(markup) || 0,
             ivaPercent: parseFloat(iva) || 0,
@@ -965,6 +969,16 @@ const Settings = () => {
                             />
                         </div>
                         <div>
+                            <label className="text-gray-400 block mb-1">Partita IVA Negozio (Mostrata nei PDF)</label>
+                            <input
+                                type="text"
+                                value={pdfTemplate.storeVat || ''}
+                                onChange={(e) => setPdfTemplate({...pdfTemplate, storeVat: e.target.value})}
+                                placeholder="es. IT01234567890..."
+                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none"
+                            />
+                        </div>
+                        <div>
                             <label className="text-gray-400 block mb-1">Termini e Condizioni Garanzia</label>
                             <textarea
                                 value={pdfTemplate.terms}
@@ -1029,7 +1043,7 @@ const Settings = () => {
                                 <div>
                                     <div className="font-bold text-base uppercase tracking-wider">{pdfTemplate.storeName || 'Intestazione Non Inserita'}</div>
                                     <div className="text-[9px] opacity-75 mt-0.5">
-                                        {pdfTemplate.storeAddress} | {pdfTemplate.storePhone} | {pdfTemplate.storeEmail}
+                                        {pdfTemplate.storeAddress} | {pdfTemplate.storePhone} | {pdfTemplate.storeEmail}{pdfTemplate.storeVat ? ` | P.IVA: ${pdfTemplate.storeVat}` : ''}
                                     </div>
                                 </div>
                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${previewStyle.accentColor} ${previewStyle.border}`}>
