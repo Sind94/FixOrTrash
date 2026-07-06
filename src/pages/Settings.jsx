@@ -109,6 +109,7 @@ const Settings = () => {
         noUpdate: false,
         updateRef: null
     });
+    const [updaterLogs, setUpdaterLogs] = useState([]);
 
     useEffect(() => {
         const fetchVersion = async () => {
@@ -125,21 +126,49 @@ const Settings = () => {
     }, []);
 
     const handleCheckUpdate = async () => {
+        const logs = [];
+        const addLog = (msg) => {
+            logs.push(`[${new Date().toLocaleTimeString()}] ${msg}`);
+            setUpdaterLogs([...logs]);
+        };
+
         try {
             setUpdaterState({ checking: true, error: null, noUpdate: false, updateRef: null });
+            addLog("Avvio controllo aggiornamenti...");
+            
+            // Check internet connectivity & raw json version bypassing browser cache
+            try {
+                addLog("Test connessione a GitHub updater.json (senza cache)...");
+                const res = await fetch(`https://raw.githubusercontent.com/Sind94/FixOrTrash/main/updater.json?t=${Date.now()}`, { cache: 'no-store' });
+                if (res.ok) {
+                    const data = await res.json();
+                    addLog(`updater.json letto con successo. Versione su GitHub: v${data.version}`);
+                } else {
+                    addLog(`Errore HTTP test fetch: ${res.status} ${res.statusText}`);
+                }
+            } catch (e) {
+                addLog(`Errore nel test fetch: ${e.message}`);
+            }
+
             if (!window.__TAURI_INTERNALS__) {
+                addLog("Tauri internals non rilevate. Controllo terminato.");
                 setUpdaterState({ checking: false, error: 'Tauri internals non rilevate (l\'updater funziona solo dentro l\'app compilata).', noUpdate: false, updateRef: null });
                 return;
             }
+
+            addLog("Chiamata a Tauri check()...");
             const update = await check();
             if (update) {
+                addLog(`Tauri check() ha rilevato una nuova versione: v${update.version}!`);
                 setUpdaterState({ checking: false, error: null, noUpdate: false, updateRef: update });
                 const event = new CustomEvent('trigger-app-update', { detail: { update } });
                 window.dispatchEvent(event);
             } else {
+                addLog("Tauri check() ha restituito null (nessun aggiornamento rilevato).");
                 setUpdaterState({ checking: false, error: null, noUpdate: true, updateRef: null });
             }
         } catch (err) {
+            addLog(`Errore durante il controllo: ${err.message}`);
             setUpdaterState({ checking: false, error: `Errore: ${err.message}`, noUpdate: false, updateRef: null });
         }
     };
@@ -1361,6 +1390,18 @@ const Settings = () => {
                         <RefreshCw size={20} className={updaterState.checking ? 'animate-spin' : ''} />
                         {updaterState.checking ? 'Verifica in corso...' : 'Verifica Aggiornamenti'}
                     </button>
+
+                    {updaterLogs.length > 0 && (
+                        <div className="mt-4 p-3 bg-black/45 border border-theme-panelBorder rounded-lg font-mono text-xs text-gray-300 max-h-40 overflow-y-auto space-y-1">
+                            <div className="font-bold text-theme-primary mb-1 border-b border-white/5 pb-1 flex justify-between items-center">
+                                <span>LOG DIAGNOSTICA AGGIORNAMENTI:</span>
+                                <button onClick={() => setUpdaterLogs([])} className="text-gray-500 hover:text-gray-300">Pulisci</button>
+                            </div>
+                            {updaterLogs.map((log, idx) => (
+                                <div key={idx} className="break-all">{log}</div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 
