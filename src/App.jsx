@@ -20,8 +20,9 @@ import TotaleAcquisto from './pages/TotaleAcquisto';
 import { dataManager } from './services/dataManager';
 import { soundService } from './services/soundService';
 import logoReport from './assets/logo_denis.jpg';
-import { check } from '@tauri-apps/plugin-updater';
+import { Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { invoke } from '@tauri-apps/api/core';
 
 // ─── Navigation Structure ────────────────────────────────────────────────────
 const NAV_SECTIONS = [
@@ -120,7 +121,14 @@ function App() {
       try {
         if (!window.__TAURI_INTERNALS__ && !window.__TAURI__) return;
         setUpdateStatus(prev => ({ ...prev, checking: true }));
-        const update = await check();
+        const safeCheck = async (options) => {
+          const meta = await invoke('plugin:updater|check', { ...options });
+          if (meta && meta.available) {
+            return new Update(meta);
+          }
+          return null;
+        };
+        const update = await safeCheck();
         if (update) {
           setUpdateStatus({
             checking: false, available: true, version: update.version,
