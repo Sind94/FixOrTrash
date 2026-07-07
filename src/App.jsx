@@ -128,7 +128,12 @@ function App() {
           }
           return null;
         };
-        const update = await safeCheck();
+        const update = await safeCheck({
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
         if (update) {
           setUpdateStatus({
             checking: false, available: true, version: update.version,
