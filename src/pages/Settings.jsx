@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { dataManager } from '../services/dataManager';
 import { libraryService } from '../services/libraryService';
 import PdfLayoutEditor from '../components/PdfLayoutEditor';
-import { check } from '@tauri-apps/plugin-updater';
+import { Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { getVersion } from '@tauri-apps/api/app';
+import { invoke } from '@tauri-apps/api/core';
 
 const Settings = () => {
     const navigate = useNavigate();
@@ -156,8 +157,15 @@ const Settings = () => {
                 return;
             }
 
-            addLog("Chiamata a Tauri check()...");
-            const update = await check();
+            addLog("Chiamata a Tauri plugin:updater|check via invoke (safeCheck)...");
+            const safeCheck = async (options) => {
+                const meta = await invoke('plugin:updater|check', { ...options });
+                if (meta && meta.available) {
+                    return new Update(meta);
+                }
+                return null;
+            };
+            const update = await safeCheck();
             if (update) {
                 addLog(`Tauri check() ha rilevato una nuova versione: v${update.version}!`);
                 setUpdaterState({ checking: false, error: null, noUpdate: false, updateRef: update });
