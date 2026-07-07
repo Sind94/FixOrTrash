@@ -165,7 +165,12 @@ const Settings = () => {
                 }
                 return null;
             };
-            const update = await safeCheck();
+            const update = await safeCheck({
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            });
             if (update) {
                 addLog(`Tauri check() ha rilevato una nuova versione: v${update.version}!`);
                 setUpdaterState({ checking: false, error: null, noUpdate: false, updateRef: update });
