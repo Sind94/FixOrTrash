@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, Settings as SettingsIcon, GripVertical, Folder, X, CheckCircle, Database, RefreshCw, Activity } from 'lucide-react';
+import { ArrowLeft, Save, Settings as SettingsIcon, GripVertical, Folder, X, CheckCircle, Database, RefreshCw, Activity, Palette, FileText, Search, HardDrive, Smartphone, Download, Globe, Volume2, Layout, Cloud, Tag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { dataManager } from '../services/dataManager';
 import { libraryService } from '../services/libraryService';
@@ -75,6 +75,9 @@ const Settings = () => {
     const [confirmDeleteSiteId, setConfirmDeleteSiteId] = useState(null);
     const [savePath, setSavePath] = useState(dataManager.getPath());
     const [showPdfEditor, setShowPdfEditor] = useState(false);
+
+    // Sidebar active tab
+    const [activeTab, setActiveTab] = useState('generale');
 
     const handleSaveCustomPdfLayout = async (templateId, layoutItems) => {
         const savedSettings = dataManager.getSync('settings') || {};
@@ -600,6 +603,17 @@ const Settings = () => {
     
     const previewStyle = getPreviewStyle();
 
+    // ── Sidebar Navigation Definition ──────────────────────────────────────────
+    const SIDEBAR_TABS = [
+        { id: 'generale', label: 'Generale', icon: Palette, description: 'Tema, aspetto e prezzi' },
+        { id: 'pdf', label: 'PDF & Documenti', icon: FileText, description: 'Template, stili ed etichette' },
+        { id: 'ricerca', label: 'Siti Ricerca', icon: Globe, description: 'Gestisci siti ricambi' },
+        { id: 'dati', label: 'Dati & Backup', icon: HardDrive, description: 'Salvataggio e cloud' },
+        { id: 'libreria', label: 'Libreria Dispositivi', icon: Smartphone, description: 'Database componenti' },
+        { id: 'aggiornamenti', label: 'Aggiornamenti', icon: Download, description: 'Versione e update' },
+    ];
+
+    // ── PDF Editor sub-view ────────────────────────────────────────────────────
     if (showPdfEditor) {
         return (
             <div className="min-h-screen p-8 animate-fade-in relative z-10 pb-24">
@@ -614,7 +628,7 @@ const Settings = () => {
                 <div className="flex items-center gap-4 mb-8">
                     <button
                         onClick={() => setShowPdfEditor(false)}
-                        className="p-3 bg-theme-panel border border-theme-panelBorder rounded-theme-btn hover:bg-theme-panel brightness-110 border border-theme-panelBorder transition-colors text-theme-text"
+                        className="p-3 bg-theme-panel border border-theme-panelBorder rounded-theme-btn hover:brightness-110 transition-colors text-theme-text"
                     >
                         <ArrowLeft size={24} />
                     </button>
@@ -631,416 +645,264 @@ const Settings = () => {
         );
     }
 
-    return (
-        <div className="min-h-screen p-8 animate-fade-in relative z-10 pb-24">
+    // ── Render Section Content ──────────────────────────────────────────────────
+    const renderTabContent = () => {
+        switch (activeTab) {
 
-            {/* Notification Toast */}
-            {notification.show && (
-                <div className={`fixed top-8 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-theme-btn shadow-2xl flex items-center gap-3 animate-fade-in ${notification.type === 'error' ? 'bg-red-500/90 text-white' : 'bg-green-500/90 text-white font-bold'}`}>
-                    {notification.type === 'error' ? <X size={20} /> : <CheckCircle size={20} />}
-                    <span className="whitespace-pre-line text-sm">{notification.message}</span>
-                </div>
-            )}
-
-            {/* Header */}
-            <div className="flex items-center gap-4 mb-8">
-                <button
-                    onClick={() => navigate('/')}
-                    className="p-3 bg-theme-panel border border-theme-panelBorder border border-theme-panelBorder rounded-theme-btn hover:bg-theme-panel brightness-110 border border-theme-panelBorder transition-colors text-theme-text"
-                >
-                    <ArrowLeft size={24} />
-                </button>
-                <h1 className="text-2xl font-bold text-theme-text flex items-center gap-2">
-                    <SettingsIcon className="text-[var(--color-primary)]" size={24} />
-                    Impostazioni
-                </h1>
-            </div>
-
-            <div className="max-w-2xl">
-                {/* SALVATAGGIO DATI */}
-                <div className="glass-panel p-8 rounded-theme-panel mb-8" style={{ marginBottom: '2rem' }}>
-                    <h2 className="text-2xl font-bold text-theme-text mb-6">Persistenza Dati</h2>
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <label className="text-gray-400">Cartella di Salvataggio (Database Locale)</label>
-                            <div className="flex items-center gap-3">
-                                <div className="flex-1 bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-4 text-theme-text font-mono text-sm break-all">
-                                    {savePath}
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // GENERALE — Tema, Forma, Glass, Suoni, Densità, Prezzi
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            case 'generale':
+                return (
+                    <div className="space-y-8">
+                        {/* Prezzi */}
+                        <div>
+                            <h3 className="text-lg font-bold text-theme-text mb-4 flex items-center gap-2">
+                                <Tag size={18} className="text-[var(--color-primary)]" />
+                                Configurazione Prezzi
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-gray-400 text-sm">Manodopera Base (€)</label>
+                                    <div className="relative">
+                                        <input
+                                            type="number" min="0" step="0.01"
+                                            value={laborCost}
+                                            onChange={(e) => setLaborCost(e.target.value)}
+                                            className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 pl-8 text-theme-text focus:border-theme-primary/50 focus:outline-none"
+                                        />
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">€</span>
+                                    </div>
                                 </div>
-                                <button
-                                    onClick={handleSelectFolder}
-                                    className="p-4 bg-theme-panel border border-theme-panelBorder rounded-theme-btn hover:bg-theme-panel brightness-110 border border-theme-panelBorder transition-colors text-theme-primary flex items-center gap-2"
-                                    title="Modifica cartella"
-                                >
-                                    <Folder size={20} /> Sfoglia...
-                                </button>
+                                <div className="space-y-2">
+                                    <label className="text-gray-400 text-sm">Ricarico Componenti (%)</label>
+                                    <div className="relative">
+                                        <input
+                                            type="number" min="0" step="1"
+                                            value={markupPercent}
+                                            onChange={(e) => setMarkupPercent(e.target.value)}
+                                            className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 pr-8 text-theme-text focus:border-theme-primary/50 focus:outline-none"
+                                        />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
+                                    </div>
+                                </div>
                             </div>
-                            <p className="text-xs text-gray-500 mt-2">I dati (magazzino, riparazioni ecc.) vengono salvati in formato JSON all'interno di questa cartella. Modificando la cartella, i dati attuali verranno esportati nel nuovo percorso.</p>
+                            <p className="text-xs text-gray-500 mt-2">I prezzi base dei componenti aggiunti alle riparazioni verranno ricaricati in base alla percentuale impostata e sommati alla manodopera base.</p>
                         </div>
-                    </div>
-                </div>
 
-                {/* BACKUP E SICUREZZA DATI */}
-                <div className="glass-panel p-8 rounded-theme-panel mb-8" style={{ marginBottom: '2rem' }}>
-                    <h2 className="text-2xl font-bold text-theme-text mb-2 flex items-center gap-2">
-                        <Database className="text-theme-primary" size={24} />
-                        Backup e Sicurezza Dati
-                    </h2>
-                    <p className="text-gray-400 text-sm mb-6">
-                        Esporta una copia di sicurezza del database completo o ripristina un backup precedentemente salvato.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <button
-                            onClick={handleCreateBackup}
-                            className="bg-theme-panel border border-theme-panelBorder hover:bg-theme-primary hover:text-black py-4 rounded-theme-btn font-bold transition-all flex items-center justify-center gap-2 text-theme-text"
-                        >
-                            <Save size={20} />
-                            Esporta Backup
-                        </button>
-                        <button
-                            onClick={handleRestoreBackup}
-                            className="bg-theme-panel border border-theme-panelBorder hover:bg-red-500/20 hover:border-red-500/30 text-theme-text py-4 rounded-theme-btn font-bold transition-all flex items-center justify-center gap-2"
-                        >
-                            <RefreshCw size={20} />
-                            Ripristina Backup
-                        </button>
-                    </div>
-
-                    <div className="mt-6 pt-4 border-t border-theme-panelBorder">
-                        <label className="text-gray-400 text-sm block mb-2 font-medium">Frequenza Backup Automatico (Avvio)</label>
-                        <select
-                            value={backupFrequency}
-                            onChange={(e) => setBackupFrequency(e.target.value)}
-                            className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none text-sm"
-                        >
-                            <option value="none">Disabilitato (Manuale)</option>
-                            <option value="daily">Giornaliero (Ogni 24 ore)</option>
-                            <option value="weekly">Settimanale (Ogni 7 giorni)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div className="glass-panel p-8 rounded-theme-panel mb-8" style={{ marginBottom: '2rem' }}>
-                    <h2 className="text-2xl font-bold text-theme-text mb-6">Configurazione Prezzi e Stili</h2>
-
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-gray-400">Manodopera Base (€)</label>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={laborCost}
-                                        onChange={(e) => setLaborCost(e.target.value)}
-                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 pl-8 text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                                    />
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">€</span>
-                                </div>
-                            </div>
-                            
-                            <div className="space-y-2">
-                                <label className="text-gray-400">Ricarico Componenti (%)</label>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="1"
-                                        value={markupPercent}
-                                        onChange={(e) => setMarkupPercent(e.target.value)}
-                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 pr-8 text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                                    />
-                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
-                                </div>
-                            </div>
-                        </div>
-                        <p className="text-xs text-gray-500">I prezzi base dei componenti aggiunti alle riparazioni verranno ricaricati in base alla percentuale impostata e sommati alla manodopera base.</p>
-
-                        {/* THEME SELECTION */}
-                        <div className="space-y-4 pt-4 border-t border-theme-panelBorder">
-                            <div className="space-y-3">
-                                <label className="text-gray-400 block text-sm font-medium">Tema Visivo (Colori)</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {THEMES.map(t => (
-                                        <button
-                                            key={t.id}
-                                            type="button"
-                                            onClick={() => {
-                                                setTheme(t.id);
-                                                document.documentElement.setAttribute('data-theme', t.id);
-                                            }}
-                                            className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
-                                                theme === t.id
-                                                    ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 shadow-sm'
-                                                    : 'border-theme-panelBorder bg-theme-panel/50 hover:border-[var(--color-primary)]/40'
-                                            }`}
-                                        >
-                                            {/* Color swatch preview */}
-                                            <div className="flex shrink-0 rounded overflow-hidden border border-white/10" style={{ width: 36, height: 24 }}>
-                                                <div style={{ backgroundColor: t.preview[0], flex: 2 }} />
-                                                <div style={{ backgroundColor: t.preview[1], flex: 1 }} />
-                                                <div style={{ backgroundColor: t.preview[2], flex: 1 }} />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <div className="text-xs font-semibold text-theme-text truncate">{t.label.split(' — ')[0]}</div>
-                                                {t.label.includes(' — ') && (
-                                                    <div className="text-[10px] text-gray-500 truncate">{t.label.split(' — ')[1]}</div>
-                                                )}
-                                            </div>
-                                            {theme === t.id && (
-                                                <div className="ml-auto w-2 h-2 rounded-full bg-[var(--color-primary)] shrink-0" />
+                        {/* Tema Visivo */}
+                        <div className="border-t border-white/5 pt-6">
+                            <h3 className="text-lg font-bold text-theme-text mb-4 flex items-center gap-2">
+                                <Palette size={18} className="text-[var(--color-primary)]" />
+                                Tema Visivo
+                            </h3>
+                            <label className="text-gray-400 block text-sm font-medium mb-3">Colori</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {THEMES.map(t => (
+                                    <button
+                                        key={t.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setTheme(t.id);
+                                            document.documentElement.setAttribute('data-theme', t.id);
+                                        }}
+                                        className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
+                                            theme === t.id
+                                                ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 shadow-sm'
+                                                : 'border-theme-panelBorder bg-theme-panel/50 hover:border-[var(--color-primary)]/40'
+                                        }`}
+                                    >
+                                        <div className="flex shrink-0 rounded overflow-hidden border border-white/10" style={{ width: 36, height: 24 }}>
+                                            <div style={{ backgroundColor: t.preview[0], flex: 2 }} />
+                                            <div style={{ backgroundColor: t.preview[1], flex: 1 }} />
+                                            <div style={{ backgroundColor: t.preview[2], flex: 1 }} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="text-xs font-semibold text-theme-text truncate">{t.label.split(' — ')[0]}</div>
+                                            {t.label.includes(' — ') && (
+                                                <div className="text-[10px] text-gray-500 truncate">{t.label.split(' — ')[1]}</div>
                                             )}
-                                        </button>
-                                    ))}
+                                        </div>
+                                        {theme === t.id && (
+                                            <div className="ml-auto w-2 h-2 rounded-full bg-[var(--color-primary)] shrink-0" />
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <label className="text-gray-400 block text-sm font-medium mt-4 mb-2">Forma Finestre e Pulsanti</label>
+                            <select
+                                value={shape}
+                                onChange={(e) => {
+                                    setShape(e.target.value);
+                                    document.documentElement.setAttribute('data-shape', e.target.value);
+                                }}
+                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none"
+                            >
+                                {SHAPES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                            </select>
+                        </div>
+
+                        {/* Regolazioni Interfaccia & Suoni */}
+                        <div className="border-t border-white/5 pt-6">
+                            <h3 className="text-lg font-bold text-theme-text mb-4 flex items-center gap-2">
+                                <Volume2 size={18} className="text-[var(--color-primary)]" />
+                                Interfaccia & Suoni
+                            </h3>
+                            
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-gray-400 text-sm flex justify-between">
+                                        <span>Intensità Sfocatura Vetro (Glass Blur)</span>
+                                        <span className="font-mono text-theme-primary font-bold">{glassBlur}px</span>
+                                    </label>
+                                    <input
+                                        type="range" min="0" max="24"
+                                        value={glassBlur}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value);
+                                            setGlassBlur(val);
+                                            document.documentElement.style.setProperty('--glass-blur', `${val}px`);
+                                        }}
+                                        className="w-full accent-[var(--color-primary)] bg-theme-panel border border-theme-panelBorder rounded-lg h-2"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-gray-400 text-sm flex justify-between">
+                                        <span>Opacità Pannelli Vetro (Glass Opacity)</span>
+                                        <span className="font-mono text-theme-primary font-bold">{glassOpacity}%</span>
+                                    </label>
+                                    <input
+                                        type="range" min="10" max="90"
+                                        value={glassOpacity}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value);
+                                            setGlassOpacity(val);
+                                            document.documentElement.style.setProperty('--glass-opacity', val / 100);
+                                        }}
+                                        className="w-full accent-[var(--color-primary)] bg-theme-panel border border-theme-panelBorder rounded-lg h-2"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-gray-400 text-sm flex justify-between">
+                                        <span>Volume Feedback Sonori</span>
+                                        <span className="font-mono text-theme-primary font-bold">{soundVolume}%</span>
+                                    </label>
+                                    <input
+                                        type="range" min="0" max="100"
+                                        value={soundVolume}
+                                        onChange={(e) => setSoundVolume(parseInt(e.target.value))}
+                                        className="w-full accent-[var(--color-primary)] bg-theme-panel border border-theme-panelBorder rounded-lg h-2"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-gray-400 text-sm block">Densità Visualizzazione Tabelle</label>
+                                    <select
+                                        value={density}
+                                        onChange={(e) => setDensity(e.target.value)}
+                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none text-sm"
+                                    >
+                                        <option value="comfort">Comfort (Spazioso)</option>
+                                        <option value="compact">Compact (Compatto)</option>
+                                    </select>
                                 </div>
                             </div>
-
-                            <div className="space-y-2">
-                                <label className="text-gray-400 block text-sm font-medium">Forma Finestre e Pulsanti</label>
-                                <select
-                                    value={shape}
-                                    onChange={(e) => {
-                                        setShape(e.target.value);
-                                        // Auto-apply preview
-                                        document.documentElement.setAttribute('data-shape', e.target.value);
-                                    }}
-                                    className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                                >
-                                    {SHAPES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                                </select>
-                            </div>
                         </div>
-
-
-                        {/* PERSONALIZZAZIONE GLASSMOPHISM & VOLUME SUONI */}
-                        <div className="space-y-4 pt-4 border-t border-theme-panelBorder">
-                            <h3 className="text-lg font-bold text-gray-300">Regolazioni Interfaccia & Suoni</h3>
-                            
-                            <div className="space-y-2">
-                                <label className="text-gray-400 text-sm flex justify-between">
-                                    <span>Intensità Sfocatura Vetro (Glass Blur)</span>
-                                    <span className="font-mono text-theme-primary font-bold">{glassBlur}px</span>
-                                </label>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="24"
-                                    value={glassBlur}
-                                    onChange={(e) => {
-                                        const val = parseInt(e.target.value);
-                                        setGlassBlur(val);
-                                        document.documentElement.style.setProperty('--glass-blur', `${val}px`);
-                                    }}
-                                    className="w-full accent-[var(--color-primary)] bg-theme-panel border border-theme-panelBorder rounded-lg h-2"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-gray-400 text-sm flex justify-between">
-                                    <span>Opacità Pannelli Vetro (Glass Opacity)</span>
-                                    <span className="font-mono text-theme-primary font-bold">{glassOpacity}%</span>
-                                </label>
-                                <input
-                                    type="range"
-                                    min="10"
-                                    max="90"
-                                    value={glassOpacity}
-                                    onChange={(e) => {
-                                        const val = parseInt(e.target.value);
-                                        setGlassOpacity(val);
-                                        document.documentElement.style.setProperty('--glass-opacity', val / 100);
-                                    }}
-                                    className="w-full accent-[var(--color-primary)] bg-theme-panel border border-theme-panelBorder rounded-lg h-2"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-gray-400 text-sm flex justify-between">
-                                    <span>Volume Feedback Sonori</span>
-                                    <span className="font-mono text-theme-primary font-bold">{soundVolume}%</span>
-                                </label>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="100"
-                                    value={soundVolume}
-                                    onChange={(e) => {
-                                        const val = parseInt(e.target.value);
-                                        setSoundVolume(val);
-                                    }}
-                                    className="w-full accent-[var(--color-primary)] bg-theme-panel border border-theme-panelBorder rounded-lg h-2"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-gray-400 text-sm block">
-                                    Densità Visualizzazione Tabelle
-                                </label>
-                                <select
-                                    value={density}
-                                    onChange={(e) => setDensity(e.target.value)}
-                                    className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none text-sm"
-                                >
-                                    <option value="comfort">Comfort (Spazioso)</option>
-                                    <option value="compact">Compact (Compatto)</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={handleSave}
-                            className="w-full bg-theme-primary hover:bg-theme-primary text-theme-primaryContent font-bold py-4 rounded-theme-btn transition-all active:scale-95 flex items-center justify-center gap-2"
-                        >
-                            <Save size={20} />
-                            Salva Impostazioni CSS e Prezzi
-                        </button>
                     </div>
-                </div>
+                );
 
-                {/* SINCRONIZZAZIONE CLOUD */}
-                <div className="glass-panel p-8 rounded-theme-panel mb-8 border border-green-500/20" style={{ marginBottom: '2rem' }}>
-                    <h2 className="text-2xl font-bold text-theme-text mb-2 flex items-center gap-2">Sincronizzazione Cloud</h2>
-                    <p className="text-gray-400 text-sm mb-6">
-                        Collega Google Fogli per salvare automaticamente i dati dei tuoi clienti nel cloud nel pieno rispetto della privacy.
-                    </p>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-gray-400 block mb-1">Google Sheets Webhook URL</label>
-                            <input
-                                type="text"
-                                value={googleSheetsWebhook}
-                                onChange={(e) => setGoogleSheetsWebhook(e.target.value)}
-                                placeholder="https://script.google.com/macros/s/.../exec"
-                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-green-500/50 focus:outline-none"
-                            />
-                            <p className="text-xs text-gray-500 mt-2">
-                                Incolla qui il link generato da Google Apps Script. Lascia vuoto per disabilitare.
-                            </p>
-                        </div>
-                        <div className="flex items-center gap-3 bg-theme-panel/20 p-3 rounded-lg border border-theme-panelBorder">
-                            <label className="flex items-center gap-3 cursor-pointer text-sm text-theme-text">
-                                <input
-                                    type="checkbox"
-                                    checked={googleSheetsTestMode}
-                                    onChange={(e) => setGoogleSheetsTestMode(e.target.checked)}
-                                    className="rounded border-theme-panelBorder bg-theme-surface accent-green-500 w-4 h-4"
-                                />
-                                🧪 Modalità Test (Disabilita l'invio dati a Google Sheets)
-                            </label>
-                        </div>
-                        <button
-                            onClick={handleSave}
-                            className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 mt-4 rounded-theme-btn transition-all active:scale-95 flex items-center justify-center gap-2"
-                        >
-                            <Save size={20} />
-                            Salva Impostazione Cloud
-                        </button>
-                    </div>
-                </div>
-
-                {/* MODELLI PDF */}
-                <div className="glass-panel p-8 rounded-theme-panel mb-8" style={{ marginBottom: '2rem' }}>
-                    <h2 className="text-2xl font-bold text-theme-text mb-6">Generatore Modelli PDF</h2>
-                    
-                    {/* Visual PDF Editor CTA Button */}
-                    <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <h3 className="text-sm font-bold text-amber-400">Editor Layout PDF Visivo (Consigliato)</h3>
-                            <p className="text-xs text-gray-400 mt-1">Trascina gli elementi, sposta tabelle e testi, cambia colori e scritte di tutti i PDF generati dal software.</p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setShowPdfEditor(true)}
-                            className="bg-amber-500 hover:bg-amber-400 text-black font-bold py-2.5 px-4 text-xs rounded-lg shadow-lg flex items-center gap-2 whitespace-nowrap transition-all active:scale-95 self-start md:self-center"
-                        >
-                            <SettingsIcon size={16} />
-                            Apri Editor Visivo
-                        </button>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-gray-400 block mb-1">Intestazione Negozio</label>
-                            <input
-                                type="text"
-                                value={pdfTemplate.storeName}
-                                onChange={(e) => setPdfTemplate({...pdfTemplate, storeName: e.target.value})}
-                                placeholder="Nome o Ragione Sociale..."
-                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-gray-400 block mb-1">Nome Tecnico Predefinito</label>
-                            <input
-                                type="text"
-                                value={pdfTemplate.technician}
-                                onChange={(e) => setPdfTemplate({...pdfTemplate, technician: e.target.value})}
-                                placeholder="Nome e Cognome..."
-                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-gray-400 block mb-1">Email Negozio (Mostrata nei PDF)</label>
-                            <input
-                                type="email"
-                                value={pdfTemplate.storeEmail || ''}
-                                onChange={(e) => setPdfTemplate({...pdfTemplate, storeEmail: e.target.value})}
-                                placeholder="es. info@negozio.it..."
-                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-gray-400 block mb-1">Telefono Negozio (Mostrato nei PDF)</label>
-                            <input
-                                type="text"
-                                value={pdfTemplate.storePhone || ''}
-                                onChange={(e) => setPdfTemplate({...pdfTemplate, storePhone: e.target.value})}
-                                placeholder="es. +39 0123 456789..."
-                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-gray-400 block mb-1">Indirizzo Negozio (Mostrato nei PDF)</label>
-                            <input
-                                type="text"
-                                value={pdfTemplate.storeAddress || ''}
-                                onChange={(e) => setPdfTemplate({...pdfTemplate, storeAddress: e.target.value})}
-                                placeholder="es. Via Roma 12, Milano..."
-                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-gray-400 block mb-1">Partita IVA Negozio (Mostrata nei PDF)</label>
-                            <input
-                                type="text"
-                                value={pdfTemplate.storeVat || ''}
-                                onChange={(e) => setPdfTemplate({...pdfTemplate, storeVat: e.target.value})}
-                                placeholder="es. IT01234567890..."
-                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-gray-400 block mb-1">Termini e Condizioni Garanzia</label>
-                            <textarea
-                                value={pdfTemplate.terms}
-                                onChange={(e) => setPdfTemplate({...pdfTemplate, terms: e.target.value})}
-                                placeholder="Testo da mostrare a fine PDF prima delle firme..."
-                                rows="5"
-                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none resize-none"
-                            />
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // PDF & DOCUMENTI — Template, Stili, Etichette
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            case 'pdf':
+                return (
+                    <div className="space-y-8">
+                        {/* Visual PDF Editor CTA */}
+                        <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                                <h3 className="text-sm font-bold text-amber-400">Editor Layout PDF Visivo (Consigliato)</h3>
+                                <p className="text-xs text-gray-400 mt-1">Trascina gli elementi, sposta tabelle e testi, cambia colori e scritte di tutti i PDF generati dal software.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowPdfEditor(true)}
+                                className="bg-amber-500 hover:bg-amber-400 text-black font-bold py-2.5 px-4 text-xs rounded-lg shadow-lg flex items-center gap-2 whitespace-nowrap transition-all active:scale-95 self-start md:self-center"
+                            >
+                                <SettingsIcon size={16} />
+                                Apri Editor Visivo
+                            </button>
                         </div>
 
-                        {/* Stili Preventivo PDF */}
-                        <div className="space-y-3 pt-4 border-t border-theme-panelBorder">
-                            <label className="text-gray-400 block mb-1">Stile Grafico Preventivi / Ricevute PDF</label>
+                        {/* Dati Intestazione */}
+                        <div>
+                            <h3 className="text-lg font-bold text-theme-text mb-4">Dati Negozio (Intestazione PDF)</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-gray-400 block mb-1 text-sm">Intestazione Negozio</label>
+                                    <input type="text" value={pdfTemplate.storeName}
+                                        onChange={(e) => setPdfTemplate({...pdfTemplate, storeName: e.target.value})}
+                                        placeholder="Nome o Ragione Sociale..."
+                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none" />
+                                </div>
+                                <div>
+                                    <label className="text-gray-400 block mb-1 text-sm">Nome Tecnico Predefinito</label>
+                                    <input type="text" value={pdfTemplate.technician}
+                                        onChange={(e) => setPdfTemplate({...pdfTemplate, technician: e.target.value})}
+                                        placeholder="Nome e Cognome..."
+                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none" />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-gray-400 block mb-1 text-sm">Email Negozio</label>
+                                        <input type="email" value={pdfTemplate.storeEmail || ''}
+                                            onChange={(e) => setPdfTemplate({...pdfTemplate, storeEmail: e.target.value})}
+                                            placeholder="es. info@negozio.it..."
+                                            className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="text-gray-400 block mb-1 text-sm">Telefono Negozio</label>
+                                        <input type="text" value={pdfTemplate.storePhone || ''}
+                                            onChange={(e) => setPdfTemplate({...pdfTemplate, storePhone: e.target.value})}
+                                            placeholder="es. +39 0123 456789..."
+                                            className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none" />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-gray-400 block mb-1 text-sm">Indirizzo Negozio</label>
+                                        <input type="text" value={pdfTemplate.storeAddress || ''}
+                                            onChange={(e) => setPdfTemplate({...pdfTemplate, storeAddress: e.target.value})}
+                                            placeholder="es. Via Roma 12, Milano..."
+                                            className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="text-gray-400 block mb-1 text-sm">Partita IVA</label>
+                                        <input type="text" value={pdfTemplate.storeVat || ''}
+                                            onChange={(e) => setPdfTemplate({...pdfTemplate, storeVat: e.target.value})}
+                                            placeholder="es. IT01234567890..."
+                                            className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-gray-400 block mb-1 text-sm">Termini e Condizioni Garanzia</label>
+                                    <textarea value={pdfTemplate.terms}
+                                        onChange={(e) => setPdfTemplate({...pdfTemplate, terms: e.target.value})}
+                                        placeholder="Testo da mostrare a fine PDF prima delle firme..."
+                                        rows="5"
+                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none resize-none" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Stile Grafico PDF */}
+                        <div className="border-t border-white/5 pt-6">
+                            <h3 className="text-lg font-bold text-theme-text mb-4">Stile Grafico PDF</h3>
                             <div className="grid grid-cols-3 gap-4">
-                                {/* Classic Gold Card */}
-                                <button
-                                    type="button"
-                                    onClick={() => setPdfStyle('classic')}
-                                    className={`flex flex-col items-center p-3 rounded-lg border-2 text-center transition-all bg-theme-panel/40 hover:bg-theme-panel ${pdfStyle === 'classic' ? 'border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.25)]' : 'border-theme-panelBorder'}`}
-                                >
+                                <button type="button" onClick={() => setPdfStyle('classic')}
+                                    className={`flex flex-col items-center p-3 rounded-lg border-2 text-center transition-all bg-theme-panel/40 hover:bg-theme-panel ${pdfStyle === 'classic' ? 'border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.25)]' : 'border-theme-panelBorder'}`}>
                                     <div className="w-full h-8 rounded bg-white flex flex-col justify-between p-1 mb-1.5 border border-gray-200">
                                         <div className="h-1 w-6 bg-amber-500 rounded-sm"></div>
                                         <div className="h-1.5 w-full bg-gray-200 rounded-sm"></div>
@@ -1048,13 +910,8 @@ const Settings = () => {
                                     </div>
                                     <span className="text-[11px] font-bold text-theme-text">Classic Gold</span>
                                 </button>
-
-                                {/* Cyber Dark Card */}
-                                <button
-                                    type="button"
-                                    onClick={() => setPdfStyle('tech')}
-                                    className={`flex flex-col items-center p-3 rounded-lg border-2 text-center transition-all bg-theme-panel/40 hover:bg-theme-panel ${pdfStyle === 'tech' ? 'border-sky-500 shadow-[0_0_15px_rgba(14,165,233,0.25)]' : 'border-theme-panelBorder'}`}
-                                >
+                                <button type="button" onClick={() => setPdfStyle('tech')}
+                                    className={`flex flex-col items-center p-3 rounded-lg border-2 text-center transition-all bg-theme-panel/40 hover:bg-theme-panel ${pdfStyle === 'tech' ? 'border-sky-500 shadow-[0_0_15px_rgba(14,165,233,0.25)]' : 'border-theme-panelBorder'}`}>
                                     <div className="w-full h-8 rounded bg-slate-950 flex flex-col justify-between p-1 mb-1.5 border border-slate-900">
                                         <div className="h-1 w-6 bg-sky-500 rounded-sm"></div>
                                         <div className="h-1.5 w-full bg-slate-800 rounded-sm"></div>
@@ -1062,13 +919,8 @@ const Settings = () => {
                                     </div>
                                     <span className="text-[11px] font-bold text-theme-text">Cyber Dark</span>
                                 </button>
-
-                                {/* Elegant Emerald Card */}
-                                <button
-                                    type="button"
-                                    onClick={() => setPdfStyle('emerald')}
-                                    className={`flex flex-col items-center p-3 rounded-lg border-2 text-center transition-all bg-theme-panel/40 hover:bg-theme-panel ${pdfStyle === 'emerald' ? 'border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.25)]' : 'border-theme-panelBorder'}`}
-                                >
+                                <button type="button" onClick={() => setPdfStyle('emerald')}
+                                    className={`flex flex-col items-center p-3 rounded-lg border-2 text-center transition-all bg-theme-panel/40 hover:bg-theme-panel ${pdfStyle === 'emerald' ? 'border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.25)]' : 'border-theme-panelBorder'}`}>
                                     <div className="w-full h-8 rounded bg-[#fafaf9] flex flex-col justify-between p-1 mb-1.5 border border-stone-200">
                                         <div className="h-1 w-6 bg-emerald-500 rounded-sm"></div>
                                         <div className="h-1.5 w-full bg-emerald-800/20 rounded-sm"></div>
@@ -1080,7 +932,7 @@ const Settings = () => {
                         </div>
 
                         {/* Anteprima Mockup Dinamico */}
-                        <div className={`mt-6 p-5 rounded-lg text-sm select-none border transition-all duration-300 ${previewStyle.bg} flex flex-col gap-3 shadow-md`}>
+                        <div className={`p-5 rounded-lg text-sm select-none border transition-all duration-300 ${previewStyle.bg} flex flex-col gap-3 shadow-md`}>
                             <div className={`flex justify-between items-start border-b pb-2 ${previewStyle.border}`}>
                                 <div>
                                     <div className="font-bold text-base uppercase tracking-wider">{pdfTemplate.storeName || 'Intestazione Non Inserita'}</div>
@@ -1093,36 +945,22 @@ const Settings = () => {
                                 </span>
                             </div>
                             <h2 className={`text-center text-lg font-bold uppercase tracking-wider ${previewStyle.accentColor}`}>Ricevuta Ingressi</h2>
-                            
                             <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div>
-                                    <span className={previewStyle.labelColor}>ID Ticket:</span> <span className="font-mono">#2026053102</span>
-                                </div>
-                                <div className="text-right">
-                                    <span className={previewStyle.labelColor}>Tecnico:</span> <b>{pdfTemplate.technician || '...'}</b>
-                                </div>
+                                <div><span className={previewStyle.labelColor}>ID Ticket:</span> <span className="font-mono">#2026053102</span></div>
+                                <div className="text-right"><span className={previewStyle.labelColor}>Tecnico:</span> <b>{pdfTemplate.technician || '...'}</b></div>
                             </div>
-                            
-                            {/* Mock Table */}
                             <div className={`border rounded overflow-hidden ${previewStyle.border}`}>
                                 <div className={`grid grid-cols-3 p-2 font-bold text-xs ${previewStyle.headerBg}`}>
-                                    <div>Componente</div>
-                                    <div>Specifiche</div>
-                                    <div className="text-right font-mono">Netto</div>
+                                    <div>Componente</div><div>Specifiche</div><div className="text-right font-mono">Netto</div>
                                 </div>
                                 <div className={`grid grid-cols-3 p-2 text-xs border-t ${previewStyle.border}`}>
-                                    <div>Sostituzione Display</div>
-                                    <div>OLED Originale</div>
-                                    <div className="text-right font-mono font-bold">€ 130.00</div>
+                                    <div>Sostituzione Display</div><div>OLED Originale</div><div className="text-right font-mono font-bold">€ 130.00</div>
                                 </div>
                             </div>
-                            
-                            {/* Totals Summary mock */}
                             <div className="flex flex-col items-end text-xs font-semibold gap-1">
                                 <div>Subtotale Voci: € 130.00</div>
                                 <div className={`text-base font-bold mt-1 ${previewStyle.totalColor}`}>TOTALE PREVENTIVO: € 130.00</div>
                             </div>
-
                             <div className="text-[9px] text-justify leading-relaxed whitespace-pre-wrap opacity-60">
                                 {pdfTemplate.terms || 'Nessun termine specificato.'}
                             </div>
@@ -1133,288 +971,459 @@ const Settings = () => {
                         </div>
 
                         {/* Configurazione Etichette Termiche */}
-                        <div className="space-y-3 pt-4 border-t border-theme-panelBorder">
-                            <label className="text-gray-400 block mb-1">Dati Etichetta Termica (Configurazione Layout)</label>
+                        <div className="border-t border-white/5 pt-6">
+                            <h3 className="text-lg font-bold text-theme-text mb-4 flex items-center gap-2">
+                                <Tag size={18} className="text-[var(--color-primary)]" />
+                                Etichette Termiche
+                            </h3>
                             <div className="grid grid-cols-2 gap-4 bg-theme-panel/40 p-4 rounded-lg border border-theme-panelBorder">
                                 <label className="flex items-center gap-3 cursor-pointer text-sm text-theme-text">
-                                    <input
-                                        type="checkbox"
-                                        checked={labelConfig.showLogo}
+                                    <input type="checkbox" checked={labelConfig.showLogo}
                                         onChange={(e) => setLabelConfig({ ...labelConfig, showLogo: e.target.checked })}
-                                        className="rounded border-theme-panelBorder bg-theme-surface accent-[var(--color-primary)] w-4 h-4"
-                                    />
+                                        className="rounded border-theme-panelBorder bg-theme-surface accent-[var(--color-primary)] w-4 h-4" />
                                     Mostra Logo Negozio
                                 </label>
                                 <label className="flex items-center gap-3 cursor-pointer text-sm text-theme-text">
-                                    <input
-                                        type="checkbox"
-                                        checked={labelConfig.showAddress}
+                                    <input type="checkbox" checked={labelConfig.showAddress}
                                         onChange={(e) => setLabelConfig({ ...labelConfig, showAddress: e.target.checked })}
-                                        className="rounded border-theme-panelBorder bg-theme-surface accent-[var(--color-primary)] w-4 h-4"
-                                    />
+                                        className="rounded border-theme-panelBorder bg-theme-surface accent-[var(--color-primary)] w-4 h-4" />
                                     Mostra Indirizzo
                                 </label>
                                 <label className="flex items-center gap-3 cursor-pointer text-sm text-theme-text">
-                                    <input
-                                        type="checkbox"
-                                        checked={labelConfig.showPhone}
+                                    <input type="checkbox" checked={labelConfig.showPhone}
                                         onChange={(e) => setLabelConfig({ ...labelConfig, showPhone: e.target.checked })}
-                                        className="rounded border-theme-panelBorder bg-theme-surface accent-[var(--color-primary)] w-4 h-4"
-                                    />
+                                        className="rounded border-theme-panelBorder bg-theme-surface accent-[var(--color-primary)] w-4 h-4" />
                                     Mostra Telefono
                                 </label>
                                 <label className="flex items-center gap-3 cursor-pointer text-sm text-theme-text">
-                                    <input
-                                        type="checkbox"
-                                        checked={labelConfig.showDate}
+                                    <input type="checkbox" checked={labelConfig.showDate}
                                         onChange={(e) => setLabelConfig({ ...labelConfig, showDate: e.target.checked })}
-                                        className="rounded border-theme-panelBorder bg-theme-surface accent-[var(--color-primary)] w-4 h-4"
-                                    />
+                                        className="rounded border-theme-panelBorder bg-theme-surface accent-[var(--color-primary)] w-4 h-4" />
                                     Mostra Data Check-In
                                 </label>
                                 <label className="flex items-center col-span-2 gap-3 cursor-pointer text-sm text-theme-text">
-                                    <input
-                                        type="checkbox"
-                                        checked={labelConfig.showNotes}
+                                    <input type="checkbox" checked={labelConfig.showNotes}
                                         onChange={(e) => setLabelConfig({ ...labelConfig, showNotes: e.target.checked })}
-                                        className="rounded border-theme-panelBorder bg-theme-surface accent-[var(--color-primary)] w-4 h-4"
-                                    />
+                                        className="rounded border-theme-panelBorder bg-theme-surface accent-[var(--color-primary)] w-4 h-4" />
                                     Mostra Note Diagnostica Riparatore
                                 </label>
                             </div>
                         </div>
-
-                        <button
-                            onClick={handleSave}
-                            className="w-full bg-theme-primary hover:bg-theme-primary text-theme-primaryContent font-bold py-4 mt-4 rounded-theme-btn transition-all active:scale-95 flex items-center justify-center gap-2"
-                        >
-                            <Save size={20} />
-                            Salva Template PDF
-                        </button>
                     </div>
-                </div>
+                );
 
-                {/* GESTIONE SITI RICERCA */}
-                <div className="glass-panel p-8 rounded-theme-panel mb-8" style={{ marginBottom: '2rem' }}>
-                    <h2 className="text-2xl font-bold text-theme-text mb-6">Siti per Ricerca Ricambi</h2>
-                    <p className="text-gray-400 text-sm mb-4">
-                        Trascina le righe per riordinare la priorità dei siti.
-                    </p>
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // SITI RICERCA — Gestione siti ricambi
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            case 'ricerca':
+                return (
+                    <div className="space-y-6">
+                        <p className="text-gray-400 text-sm">
+                            Trascina le righe per riordinare la priorità dei siti.
+                        </p>
 
-                    {/* Lista Siti */}
-                    <div className="space-y-3 mb-8">
-                        {searchSites.map((site, index) => (
-                            <div
-                                key={site.id}
-                                draggable
-                                onDragStart={(e) => onDragStart(e, index)}
-                                onDragEnd={onDragEnd}
-                                onDragOver={(e) => onDragOver(e, index)}
-                                onDrop={(e) => onDrop(e, index)}
-                                className={`flex items-center justify-between bg-theme-panel border border-theme-panelBorder border border-theme-panelBorder p-4 rounded-theme-btn cursor-move hover:bg-theme-panel brightness-110 border border-theme-panelBorder transition-colors ${draggedItemIndex === index ? 'opacity-50 border-theme-primary' : ''}`}
-                            >
-                                <div className="flex items-center gap-4 overflow-hidden">
-                                    <GripVertical className="text-gray-500 cursor-grab active:cursor-grabbing flex-shrink-0" size={20} />
-                                    <div className="overflow-hidden">
-                                        <div className="font-bold text-theme-text truncate">{site.name}</div>
-                                        <div className="text-xs text-gray-500 truncate max-w-[250px]">{site.url}</div>
+                        {/* Lista Siti */}
+                        <div className="space-y-3">
+                            {searchSites.map((site, index) => (
+                                <div
+                                    key={site.id}
+                                    draggable
+                                    onDragStart={(e) => onDragStart(e, index)}
+                                    onDragEnd={onDragEnd}
+                                    onDragOver={(e) => onDragOver(e, index)}
+                                    onDrop={(e) => onDrop(e, index)}
+                                    className={`flex items-center justify-between bg-theme-panel border border-theme-panelBorder p-4 rounded-theme-btn cursor-move hover:brightness-110 transition-colors ${draggedItemIndex === index ? 'opacity-50 border-theme-primary' : ''}`}
+                                >
+                                    <div className="flex items-center gap-4 overflow-hidden">
+                                        <GripVertical className="text-gray-500 cursor-grab active:cursor-grabbing flex-shrink-0" size={20} />
+                                        <div className="overflow-hidden">
+                                            <div className="font-bold text-theme-text truncate">{site.name}</div>
+                                            <div className="text-xs text-gray-500 truncate max-w-[250px]">{site.url}</div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (confirmDeleteSiteId === site.id) {
+                                                handleDeleteSite(site.id);
+                                            } else {
+                                                setConfirmDeleteSiteId(site.id);
+                                                setTimeout(() => setConfirmDeleteSiteId(null), 3000);
+                                            }
+                                        }}
+                                        className="text-red-400 hover:text-red-300 p-2 hover:bg-white/5 rounded-lg transition-colors flex-shrink-0 min-w-[80px] text-sm"
+                                    >
+                                        {confirmDeleteSiteId === site.id ? 'Sicuro?' : 'Rimuovi'}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Aggiungi Nuovo */}
+                        <div className="border-t border-white/5 pt-6">
+                            <h3 className="text-lg font-bold text-theme-text mb-4">Aggiungi Nuovo Sito</h3>
+
+                            <div className="mb-4">
+                                <label className="text-gray-400 text-sm block mb-2">Preset Rapidi (Consigliato)</label>
+                                <select
+                                    onChange={handlePresetChange}
+                                    className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none"
+                                >
+                                    {PRESETS.map(p => (
+                                        <option key={p.name} value={p.name}>{p.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-gray-400 text-sm">Nome Sito</label>
+                                    <input type="text" value={newSiteName}
+                                        onChange={(e) => setNewSiteName(e.target.value)}
+                                        placeholder="Es. eBay"
+                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none" />
+                                </div>
+                                <div>
+                                    <label className="text-gray-400 text-sm">URL di Ricerca</label>
+                                    <input type="text" value={newSiteUrl}
+                                        onChange={(e) => setNewSiteUrl(e.target.value)}
+                                        placeholder="https://sito.com/search?q={query}"
+                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none" />
+                                    <div className="mt-2 text-xs text-gray-500 space-y-1">
+                                        <p>Placeholders supportati:</p>
+                                        <ul className="list-disc pl-4 space-y-0.5 text-gray-400">
+                                            <li><b>{'{'}query{'}'}</b> (Consigliato): Ricerca completa (es. "Samsung S22 Display")</li>
+                                            <li><b>{'{'}brand{'}'}</b>: Solo marchio (es. "Samsung")</li>
+                                            <li><b>{'{'}model{'}'}</b>: Solo modello (es. "S22")</li>
+                                            <li><b>{'{'}component{'}'}</b>: Solo componente (es. "Display")</li>
+                                        </ul>
+                                        {newSiteUrl && (
+                                            <div className="mt-3 p-3 bg-theme-primary/10 border border-theme-primary/20 rounded-theme-btn text-gray-300">
+                                                <span className="text-theme-primary font-bold block mb-2">Anteprima Ricerca:</span>
+                                                <div className="break-all font-mono text-xs bg-theme-panel p-2 rounded mb-3">
+                                                    {(() => {
+                                                        let previewUrl = newSiteUrl.trim();
+                                                        if (!/^https?:\/\//i.test(previewUrl)) {
+                                                            previewUrl = `https://${previewUrl}`;
+                                                        }
+                                                        return previewUrl
+                                                            .replace('{query}', 'Samsung S22 Display')
+                                                            .replace('{brand}', 'Samsung')
+                                                            .replace('{model}', 'S22')
+                                                            .replace('{component}', 'Display');
+                                                    })()}
+                                                </div>
+                                                <button
+                                                    onClick={testUrl}
+                                                    className="bg-theme-primary text-theme-primaryContent text-xs font-bold px-3 py-1 rounded hover:bg-theme-primary transition-colors"
+                                                >
+                                                    Prova il link (Test)
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 <button
-                                    onClick={(e) => {
-                                        e.stopPropagation(); // Prevent drag interference
-                                        if (confirmDeleteSiteId === site.id) {
-                                            handleDeleteSite(site.id);
-                                        } else {
-                                            setConfirmDeleteSiteId(site.id);
-                                            setTimeout(() => setConfirmDeleteSiteId(null), 3000);
-                                        }
-                                    }}
-                                    className="text-red-400 hover:text-red-300 p-2 hover:bg-theme-panel border border-theme-panelBorder rounded-lg transition-colors flex-shrink-0 min-w-[80px]"
+                                    onClick={handleAddSite}
+                                    disabled={!newSiteName || !newSiteUrl}
+                                    className="w-full bg-theme-panel brightness-110 border border-theme-panelBorder hover:bg-white/20 text-theme-text font-bold py-3 rounded-theme-btn transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {confirmDeleteSiteId === site.id ? 'Sicuro?' : 'Rimuovi'}
+                                    Aggiungi Sito
                                 </button>
                             </div>
-                        ))}
+                        </div>
                     </div>
+                );
 
-                    {/* Aggiungi Nuovo */}
-                    <div className="border-t border-theme-panelBorder pt-6">
-                        <h3 className="text-lg font-bold text-gray-300 mb-4">Aggiungi Nuovo Sito</h3>
-
-                        {/* Preset Selector */}
-                        <div className="mb-4">
-                            <label className="text-gray-400 text-sm block mb-2">Preset Rapidi (Consigliato)</label>
-                            <select
-                                onChange={handlePresetChange}
-                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                            >
-                                {PRESETS.map(p => (
-                                    <option key={p.name} value={p.name}>{p.name}</option>
-                                ))}
-                            </select>
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // DATI & BACKUP — Salvataggio, Backup, Cloud
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            case 'dati':
+                return (
+                    <div className="space-y-8">
+                        {/* Persistenza Dati */}
+                        <div>
+                            <h3 className="text-lg font-bold text-theme-text mb-4 flex items-center gap-2">
+                                <HardDrive size={18} className="text-[var(--color-primary)]" />
+                                Persistenza Dati
+                            </h3>
+                            <div className="space-y-2">
+                                <label className="text-gray-400 text-sm">Cartella di Salvataggio (Database Locale)</label>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-1 bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-4 text-theme-text font-mono text-sm break-all">
+                                        {savePath}
+                                    </div>
+                                    <button
+                                        onClick={handleSelectFolder}
+                                        className="p-4 bg-theme-panel border border-theme-panelBorder rounded-theme-btn hover:brightness-110 transition-colors text-theme-primary flex items-center gap-2"
+                                        title="Modifica cartella"
+                                    >
+                                        <Folder size={20} /> Sfoglia...
+                                    </button>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2">I dati (magazzino, riparazioni ecc.) vengono salvati in formato JSON all'interno di questa cartella.</p>
+                            </div>
                         </div>
 
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-gray-400 text-sm">Nome Sito</label>
-                                <input
-                                    type="text"
-                                    value={newSiteName}
-                                    onChange={(e) => setNewSiteName(e.target.value)}
-                                    placeholder="Es. eBay"
-                                    className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                                />
+                        {/* Backup e Sicurezza */}
+                        <div className="border-t border-white/5 pt-6">
+                            <h3 className="text-lg font-bold text-theme-text mb-2 flex items-center gap-2">
+                                <Database size={18} className="text-[var(--color-primary)]" />
+                                Backup e Sicurezza Dati
+                            </h3>
+                            <p className="text-gray-400 text-sm mb-4">
+                                Esporta una copia di sicurezza del database completo o ripristina un backup precedentemente salvato.
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <button onClick={handleCreateBackup}
+                                    className="bg-theme-panel border border-theme-panelBorder hover:bg-theme-primary hover:text-black py-4 rounded-theme-btn font-bold transition-all flex items-center justify-center gap-2 text-theme-text">
+                                    <Save size={20} /> Esporta Backup
+                                </button>
+                                <button onClick={handleRestoreBackup}
+                                    className="bg-theme-panel border border-theme-panelBorder hover:bg-red-500/20 hover:border-red-500/30 text-theme-text py-4 rounded-theme-btn font-bold transition-all flex items-center justify-center gap-2">
+                                    <RefreshCw size={20} /> Ripristina Backup
+                                </button>
                             </div>
-                            <div>
-                                <label className="text-gray-400 text-sm">URL di Ricerca</label>
-                                <input
-                                    type="text"
-                                    value={newSiteUrl}
-                                    onChange={(e) => setNewSiteUrl(e.target.value)}
-                                    placeholder="https://sito.com/search?q={query}"
-                                    className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                                />
-                                <div className="mt-2 text-xs text-gray-500 space-y-1">
-                                    <p>Placeholders supportati:</p>
-                                    <ul className="list-disc pl-4 space-y-0.5 text-gray-400">
-                                        <li><b>{'{'}query{'}'}</b> (Consigliato): Ricerca completa (es. "Samsung S22 Display")</li>
-                                        <li><b>{'{'}brand{'}'}</b>: Solo marchio (es. "Samsung")</li>
-                                        <li><b>{'{'}model{'}'}</b>: Solo modello (es. "S22")</li>
-                                        <li><b>{'{'}component{'}'}</b>: Solo componente (es. "Display")</li>
-                                    </ul>
-                                    {newSiteUrl && (
-                                        <div className="mt-3 p-3 bg-theme-primary/10 border border-theme-primary/20 rounded-theme-btn text-gray-300">
-                                            <span className="text-theme-primary font-bold block mb-2">Anteprima Ricerca:</span>
-                                            <div className="break-all font-mono text-xs bg-theme-panel p-2 rounded mb-3">
-                                                {(() => {
-                                                    let previewUrl = newSiteUrl.trim();
-                                                    if (!/^https?:\/\//i.test(previewUrl)) {
-                                                        previewUrl = `https://${previewUrl}`;
-                                                    }
-                                                    return previewUrl
-                                                        .replace('{query}', 'Samsung S22 Display')
-                                                        .replace('{brand}', 'Samsung')
-                                                        .replace('{model}', 'S22')
-                                                        .replace('{component}', 'Display');
-                                                })()}
-                                            </div>
-                                            <button
-                                                onClick={testUrl}
-                                                className="bg-theme-primary text-theme-primaryContent text-xs font-bold px-3 py-1 rounded hover:bg-theme-primary transition-colors"
-                                            >
-                                                Prova il link (Test)
-                                            </button>
-                                        </div>
-                                    )}
+                            <div className="mt-4">
+                                <label className="text-gray-400 text-sm block mb-2 font-medium">Frequenza Backup Automatico (Avvio)</label>
+                                <select
+                                    value={backupFrequency}
+                                    onChange={(e) => setBackupFrequency(e.target.value)}
+                                    className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-theme-primary/50 focus:outline-none text-sm"
+                                >
+                                    <option value="none">Disabilitato (Manuale)</option>
+                                    <option value="daily">Giornaliero (Ogni 24 ore)</option>
+                                    <option value="weekly">Settimanale (Ogni 7 giorni)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Sincronizzazione Cloud */}
+                        <div className="border-t border-white/5 pt-6">
+                            <h3 className="text-lg font-bold text-theme-text mb-2 flex items-center gap-2">
+                                <Cloud size={18} className="text-green-400" />
+                                Sincronizzazione Cloud
+                            </h3>
+                            <p className="text-gray-400 text-sm mb-4">
+                                Collega Google Fogli per salvare automaticamente i dati dei tuoi clienti nel cloud nel pieno rispetto della privacy.
+                            </p>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-gray-400 block mb-1 text-sm">Google Sheets Webhook URL</label>
+                                    <input type="text" value={googleSheetsWebhook}
+                                        onChange={(e) => setGoogleSheetsWebhook(e.target.value)}
+                                        placeholder="https://script.google.com/macros/s/.../exec"
+                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text focus:border-green-500/50 focus:outline-none" />
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Incolla qui il link generato da Google Apps Script. Lascia vuoto per disabilitare.
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-3 bg-theme-panel/20 p-3 rounded-lg border border-theme-panelBorder">
+                                    <label className="flex items-center gap-3 cursor-pointer text-sm text-theme-text">
+                                        <input type="checkbox" checked={googleSheetsTestMode}
+                                            onChange={(e) => setGoogleSheetsTestMode(e.target.checked)}
+                                            className="rounded border-theme-panelBorder bg-theme-surface accent-green-500 w-4 h-4" />
+                                        🧪 Modalità Test (Disabilita l'invio dati a Google Sheets)
+                                    </label>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                );
+
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // LIBRERIA DISPOSITIVI — Stats, Aggiornamento
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            case 'libreria':
+                return (
+                    <div className="space-y-6">
+                        <p className="text-gray-400 text-sm">
+                            Aggiorna l'elenco dei dispositivi di check-in (Android, iOS) e dei componenti hardware PC (CPU, GPU) scaricando i database aggiornati gestiti dalla community su GitHub.
+                        </p>
+
+                        <div className="p-4 rounded-lg bg-theme-panel border border-theme-panelBorder space-y-3 text-sm">
+                            <div className="flex justify-between text-gray-400">
+                                <span>Modelli Android in memoria:</span>
+                                <span className="font-bold text-theme-text">{libStats.androidCount}</span>
+                            </div>
+                            <div className="flex justify-between text-gray-400">
+                                <span>Modelli Apple (iPhone/iPad) in memoria:</span>
+                                <span className="font-bold text-theme-text">{libStats.iosCount}</span>
+                            </div>
+                            <div className="flex justify-between text-gray-400">
+                                <span>Processori PC (CPU) in memoria:</span>
+                                <span className="font-bold text-theme-text">{libStats.cpuCount}</span>
+                            </div>
+                            <div className="flex justify-between text-gray-400">
+                                <span>Schede Video PC (GPU) in memoria:</span>
+                                <span className="font-bold text-theme-text">{libStats.gpuCount}</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-500 border-t border-white/5 pt-2">
+                                <span>Ultimo aggiornamento internet:</span>
+                                <span className="font-mono">{libStats.updatedAt}</span>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleUpdateDatabase}
+                            disabled={isUpdatingLib}
+                            className="w-full bg-theme-primary hover:bg-theme-primary text-theme-primaryContent font-bold py-4 rounded-theme-btn transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            <RefreshCw size={20} className={isUpdatingLib ? 'animate-spin' : ''} />
+                            {isUpdatingLib ? 'Download & Parsing in corso...' : 'Aggiorna Dispositivi e Componenti'}
+                        </button>
+                    </div>
+                );
+
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // AGGIORNAMENTI — Versione, Check Update, Log
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            case 'aggiornamenti':
+                return (
+                    <div className="space-y-6">
+                        <p className="text-gray-400 text-sm">
+                            Verifica se sono presenti aggiornamenti per l'applicazione FixOrTrash Pro. Il sistema effettua un controllo all'avvio, ma puoi forzarlo manualmente qui.
+                        </p>
+
+                        <div className="p-4 rounded-lg bg-theme-panel border border-theme-panelBorder space-y-3 text-sm">
+                            <div className="flex justify-between text-gray-400">
+                                <span>Versione installata:</span>
+                                <span className="font-mono font-bold text-theme-text">v{appVersion}</span>
+                            </div>
+                            {updaterState.error && (
+                                <div className="text-red-400 text-xs border-t border-red-500/10 pt-2 font-mono">
+                                    {updaterState.error}
+                                </div>
+                            )}
+                            {updaterState.noUpdate && (
+                                <div className="text-green-400 text-xs border-t border-green-500/10 pt-2">
+                                    ✅ L'applicazione è già aggiornata all'ultima versione disponibile.
+                                </div>
+                            )}
+                            {updaterState.updateRef && (
+                                <div className="text-[var(--color-primary)] text-xs border-t border-[var(--color-primary)]/10 pt-2 font-semibold">
+                                    🚀 Nuova versione v{updaterState.updateRef.version} disponibile! Avvio del download in corso...
+                                </div>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={handleCheckUpdate}
+                            disabled={updaterState.checking}
+                            className="w-full bg-theme-panel hover:bg-theme-panel border border-theme-panelBorder text-theme-text font-bold py-4 rounded-theme-btn transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            <RefreshCw size={20} className={updaterState.checking ? 'animate-spin' : ''} />
+                            {updaterState.checking ? 'Verifica in corso...' : 'Verifica Aggiornamenti'}
+                        </button>
+
+                        {updaterLogs.length > 0 && (
+                            <div className="p-3 bg-black/45 border border-theme-panelBorder rounded-lg font-mono text-xs text-gray-300 max-h-40 overflow-y-auto space-y-1">
+                                <div className="font-bold text-theme-primary mb-1 border-b border-white/5 pb-1 flex justify-between items-center">
+                                    <span>LOG DIAGNOSTICA AGGIORNAMENTI:</span>
+                                    <button onClick={() => setUpdaterLogs([])} className="text-gray-500 hover:text-gray-300">Pulisci</button>
+                                </div>
+                                {updaterLogs.map((log, idx) => (
+                                    <div key={idx} className="break-all">{log}</div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                );
+
+            default:
+                return null;
+        }
+    };
+
+    // ── Main Render ─────────────────────────────────────────────────────────────
+    const currentTab = SIDEBAR_TABS.find(t => t.id === activeTab);
+
+    return (
+        <div className="min-h-screen p-6 animate-fade-in relative z-10">
+
+            {/* Notification Toast */}
+            {notification.show && (
+                <div className={`fixed top-8 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-theme-btn shadow-2xl flex items-center gap-3 animate-fade-in ${notification.type === 'error' ? 'bg-red-500/90 text-white' : 'bg-green-500/90 text-white font-bold'}`}>
+                    {notification.type === 'error' ? <X size={20} /> : <CheckCircle size={20} />}
+                    <span className="whitespace-pre-line text-sm">{notification.message}</span>
+                </div>
+            )}
+
+            {/* Header */}
+            <div className="flex items-center gap-4 mb-6">
+                <button
+                    onClick={() => navigate('/')}
+                    className="p-3 bg-theme-panel border border-theme-panelBorder rounded-theme-btn hover:brightness-110 transition-colors text-theme-text"
+                >
+                    <ArrowLeft size={24} />
+                </button>
+                <h1 className="text-2xl font-bold text-theme-text flex items-center gap-2">
+                    <SettingsIcon className="text-[var(--color-primary)]" size={24} />
+                    Impostazioni
+                </h1>
+            </div>
+
+            {/* ── Sidebar + Content Layout ───────────────────────────────────── */}
+            <div className="flex gap-6 min-h-[calc(100vh-140px)]">
+
+                {/* ── LEFT SIDEBAR ──────────────────────────────────────────── */}
+                <div className="w-[240px] shrink-0 flex flex-col">
+                    <nav className="glass-panel rounded-theme-panel border border-theme-panelBorder flex flex-col flex-1">
+                        <div className="p-3 flex flex-col gap-1 flex-1">
+                            {SIDEBAR_TABS.map(tab => {
+                                const Icon = tab.icon;
+                                const isActive = activeTab === tab.id;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-all group ${
+                                            isActive
+                                                ? 'bg-[var(--color-primary)]/15 text-[var(--color-primary)] border border-[var(--color-primary)]/20'
+                                                : 'text-gray-400 hover:text-theme-text hover:bg-white/5 border border-transparent'
+                                        }`}
+                                    >
+                                        <Icon size={18} className={isActive ? 'text-[var(--color-primary)]' : 'text-gray-500 group-hover:text-gray-300'} />
+                                        <div className="min-w-0">
+                                            <div className={`text-sm font-semibold truncate ${isActive ? 'text-[var(--color-primary)]' : ''}`}>{tab.label}</div>
+                                            <div className="text-[10px] text-gray-500 truncate">{tab.description}</div>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Sidebar Footer — Save + Version */}
+                        <div className="p-3 border-t border-white/5 space-y-3">
                             <button
-                                onClick={handleAddSite}
-                                disabled={!newSiteName || !newSiteUrl}
-                                className="w-full bg-theme-panel brightness-110 border border-theme-panelBorder hover:bg-white/20 text-theme-text font-bold py-3 rounded-theme-btn transition-all border border-theme-panelBorder disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={handleSave}
+                                className="w-full bg-[var(--color-primary)] hover:brightness-110 text-[var(--color-primary-content)] font-bold py-3 rounded-theme-btn transition-all active:scale-95 flex items-center justify-center gap-2 text-sm"
                             >
-                                Aggiungi Sito
+                                <Save size={16} />
+                                Salva Tutto
                             </button>
+                            <div className="text-center text-[10px] text-gray-500 font-mono">
+                                FixOrTrash Pro v{appVersion}
+                            </div>
                         </div>
-                    </div>
+                    </nav>
                 </div>
 
-                {/* MANUTENZIONE DATABASE E LIBRERIA */}
-                <div className="glass-panel p-8 rounded-theme-panel mb-8 border border-theme-panelBorder" style={{ marginBottom: '2rem' }}>
-                    <h2 className="text-2xl font-bold text-theme-text mb-2 flex items-center gap-2">
-                        <Database className="text-theme-primary" size={24} />
-                        Libreria Dispositivi & Componenti
-                    </h2>
-                    <p className="text-gray-400 text-sm mb-6">
-                        Aggiorna l'elenco dei dispositivi di check-in (Android, iOS) e dei componenti hardware PC (CPU, GPU) scaricando i database aggiornati gestiti dalla community su GitHub.
-                    </p>
+                {/* ── RIGHT CONTENT AREA ────────────────────────────────────── */}
+                <div className="flex-1 min-w-0">
+                    <div className="glass-panel rounded-theme-panel border border-theme-panelBorder p-8">
+                        {/* Section Title */}
+                        <div className="mb-6 pb-4 border-b border-white/5">
+                            <h2 className="text-xl font-bold text-theme-text flex items-center gap-3">
+                                {currentTab && <currentTab.icon size={22} className="text-[var(--color-primary)]" />}
+                                {currentTab?.label}
+                            </h2>
+                            <p className="text-xs text-gray-500 mt-1">{currentTab?.description}</p>
+                        </div>
 
-                    <div className="p-4 rounded-lg bg-theme-panel border border-theme-panelBorder mb-6 space-y-3 text-sm">
-                        <div className="flex justify-between text-gray-400">
-                            <span>Modelli Android in memoria:</span>
-                            <span className="font-bold text-theme-text">{libStats.androidCount}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-400">
-                            <span>Modelli Apple (iPhone/iPad) in memoria:</span>
-                            <span className="font-bold text-theme-text">{libStats.iosCount}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-400">
-                            <span>Processori PC (CPU) in memoria:</span>
-                            <span className="font-bold text-theme-text">{libStats.cpuCount}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-400">
-                            <span>Schede Video PC (GPU) in memoria:</span>
-                            <span className="font-bold text-theme-text">{libStats.gpuCount}</span>
-                        </div>
-                        <div className="flex justify-between text-xs text-gray-500 border-t border-white/5 pt-2">
-                            <span>Ultimo aggiornamento internet:</span>
-                            <span className="font-mono">{libStats.updatedAt}</span>
-                        </div>
+                        {/* Tab Content */}
+                        {renderTabContent()}
                     </div>
-
-                    <button
-                        onClick={handleUpdateDatabase}
-                        disabled={isUpdatingLib}
-                        className="w-full bg-theme-primary hover:bg-theme-primary text-theme-primaryContent font-bold py-4 rounded-theme-btn transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                        <RefreshCw size={20} className={isUpdatingLib ? 'animate-spin' : ''} />
-                        {isUpdatingLib ? 'Download & Parsing in corso...' : 'Aggiorna Dispositivi e Componenti'}
-                    </button>
-                </div>
-
-                {/* AGGIORNAMENTI APPLICAZIONE */}
-                <div className="glass-panel p-8 rounded-theme-panel mb-8 border border-theme-panelBorder" style={{ marginBottom: '2rem' }}>
-                    <h2 className="text-2xl font-bold text-theme-text mb-2 flex items-center gap-2">
-                        <Activity className="text-theme-primary" size={24} />
-                        Aggiornamento Software
-                    </h2>
-                    <p className="text-gray-400 text-sm mb-6">
-                        Verifica se sono presenti aggiornamenti per l'applicazione FixOrTrash Pro. Il sistema effettua un controllo all'avvio, ma puoi forzarlo manualmente qui.
-                    </p>
-
-                    <div className="p-4 rounded-lg bg-theme-panel border border-theme-panelBorder mb-6 space-y-3 text-sm">
-                        <div className="flex justify-between text-gray-400">
-                            <span>Versione installata:</span>
-                            <span className="font-mono font-bold text-theme-text">v{appVersion}</span>
-                        </div>
-                        {updaterState.error && (
-                            <div className="text-red-400 text-xs border-t border-red-500/10 pt-2 font-mono">
-                                {updaterState.error}
-                            </div>
-                        )}
-                        {updaterState.noUpdate && (
-                            <div className="text-green-400 text-xs border-t border-green-500/10 pt-2">
-                                L'applicazione è già aggiornata all'ultima versione disponibile.
-                            </div>
-                        )}
-                        {updaterState.updateRef && (
-                            <div className="text-[var(--color-primary)] text-xs border-t border-[var(--color-primary)]/10 pt-2 font-semibold">
-                                Nuova versione v{updaterState.updateRef.version} disponibile! Avvio del download in corso...
-                            </div>
-                        )}
-                    </div>
-
-                    <button
-                        onClick={handleCheckUpdate}
-                        disabled={updaterState.checking}
-                        className="w-full bg-theme-panel hover:bg-theme-panel border border-theme-panelBorder text-theme-text font-bold py-4 rounded-theme-btn transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                        <RefreshCw size={20} className={updaterState.checking ? 'animate-spin' : ''} />
-                        {updaterState.checking ? 'Verifica in corso...' : 'Verifica Aggiornamenti'}
-                    </button>
-
-                    {updaterLogs.length > 0 && (
-                        <div className="mt-4 p-3 bg-black/45 border border-theme-panelBorder rounded-lg font-mono text-xs text-gray-300 max-h-40 overflow-y-auto space-y-1">
-                            <div className="font-bold text-theme-primary mb-1 border-b border-white/5 pb-1 flex justify-between items-center">
-                                <span>LOG DIAGNOSTICA AGGIORNAMENTI:</span>
-                                <button onClick={() => setUpdaterLogs([])} className="text-gray-500 hover:text-gray-300">Pulisci</button>
-                            </div>
-                            {updaterLogs.map((log, idx) => (
-                                <div key={idx} className="break-all">{log}</div>
-                            ))}
-                        </div>
-                    )}
                 </div>
             </div>
 
