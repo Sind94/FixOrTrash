@@ -4,10 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { dataManager } from '../services/dataManager';
 import { libraryService } from '../services/libraryService';
 import PdfLayoutEditor from '../components/PdfLayoutEditor';
-import { Update } from '@tauri-apps/plugin-updater';
+import { check as tauriCheck } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { getVersion } from '@tauri-apps/api/app';
-import { invoke } from '@tauri-apps/api/core';
 
 const Settings = () => {
     const navigate = useNavigate();
@@ -22,6 +21,8 @@ const Settings = () => {
         { id: 'default', label: 'Dark Yellow (Predefinito)', preview: ['#0a0a0a', '#eab308', '#141414'] },
         { id: 'classic-light', label: 'Classico Grigio & Blu (Chiaro)', preview: ['#f1f5f9', '#2563eb', '#ffffff'] },
         { id: 'classic-cream', label: 'Classico Crema & Ardesia (Chiaro)', preview: ['#faf6ee', '#44403c', '#ffffff'] },
+        { id: 'slate-light-blue', label: 'Grigio & Blu (Semi-chiaro)', preview: ['#cbd5e1', '#1d4ed8', '#f1f5f9'] },
+        { id: 'warm-grey-gold', label: 'Grigio & Oro (Semi-chiaro)', preview: ['#d6d3d1', '#854d0e', '#fafaf9'] },
         { id: 'ocean-dark', label: 'Ocean Dark — Blu & Ciano', preview: ['#060d1a', '#06b6d4', '#0d1b2e'] },
         { id: 'slate-pro', label: 'Slate Pro — Ardesia & Viola', preview: ['#0f1117', '#8b5cf6', '#1a1d2e'] },
         { id: 'forest-night', label: 'Forest Night — Verde & Lime', preview: ['#080f0a', '#84cc16', '#0f1a10'] },
@@ -160,27 +161,20 @@ const Settings = () => {
                 return;
             }
 
-            addLog("Chiamata a Tauri plugin:updater|check via invoke (safeCheck)...");
-            const safeCheck = async (options) => {
-                const meta = await invoke('plugin:updater|check', { ...options });
-                if (meta && meta.available) {
-                    return new Update(meta);
-                }
-                return null;
-            };
-            const update = await safeCheck({
+            addLog("Chiamata a tauriCheck() (API ufficiale @tauri-apps/plugin-updater)...");
+            const update = await tauriCheck({
                 headers: {
                     'Cache-Control': 'no-cache',
                     'Pragma': 'no-cache'
                 }
             });
-            if (update) {
-                addLog(`Tauri check() ha rilevato una nuova versione: v${update.version}!`);
+            if (update && update.available) {
+                addLog(`Nuova versione rilevata: v${update.version}!`);
                 setUpdaterState({ checking: false, error: null, noUpdate: false, updateRef: update });
                 const event = new CustomEvent('trigger-app-update', { detail: { update } });
                 window.dispatchEvent(event);
             } else {
-                addLog("Tauri check() ha restituito null (nessun aggiornamento rilevato).");
+                addLog("Nessun aggiornamento disponibile (versione già aggiornata).");
                 setUpdaterState({ checking: false, error: null, noUpdate: true, updateRef: null });
             }
         } catch (err) {
