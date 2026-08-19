@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, Settings as SettingsIcon, GripVertical, Folder, X, CheckCircle, Database, RefreshCw, Activity, Palette, FileText, Search, HardDrive, Smartphone, Download, Globe, Volume2, Layout, Cloud, Tag } from 'lucide-react';
+import { ArrowLeft, Save, Settings as SettingsIcon, GripVertical, Folder, X, CheckCircle, Database, RefreshCw, Activity, Palette, FileText, Search, HardDrive, Smartphone, Download, Globe, Volume2, Layout, Cloud, Tag, Rocket, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { dataManager } from '../services/dataManager';
 import { libraryService } from '../services/libraryService';
@@ -7,6 +7,7 @@ import PdfLayoutEditor from '../components/PdfLayoutEditor';
 import { check as tauriCheck } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { getVersion } from '@tauri-apps/api/app';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 const Settings = () => {
     const navigate = useNavigate();
@@ -116,6 +117,71 @@ const Settings = () => {
         updateRef: null
     });
     const [updaterLogs, setUpdaterLogs] = useState([]);
+    const [isInstallingUpdate, setIsInstallingUpdate] = useState(false);
+    const [installProgress, setInstallProgress] = useState(0);
+
+    const safeOpenUrl = async (url) => {
+        try {
+            if (window.__TAURI_INTERNALS__) {
+                await openUrl(url);
+            } else {
+                window.open(url, '_blank');
+            }
+        } catch {
+            window.open(url, '_blank');
+        }
+    };
+
+    const handleInstallDirect = async (updatePayload) => {
+        if (!updatePayload) return;
+        setIsInstallingUpdate(true);
+        setInstallProgress(0);
+        soundService.playClick();
+        
+        const addLog = (msg) => {
+            setUpdaterLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+        };
+
+        addLog("Avvio procedura di aggiornamento...");
+        
+        try {
+            if (updatePayload._updateRef && typeof updatePayload._updateRef.downloadAndInstall === 'function') {
+                addLog("Download del pacchetto con motore nativo Tauri...");
+                let downloaded = 0, contentLength = 0;
+                await updatePayload._updateRef.downloadAndInstall((event) => {
+                    if (event.event === 'Started') {
+                        contentLength = event.data.contentLength || 0;
+                        addLog(`Download iniziato (${contentLength > 0 ? (contentLength / (1024 * 1024)).toFixed(1) + ' MB' : 'dimensione sconosciuta'})`);
+                    }
+                    if (event.event === 'Progress') {
+                        downloaded += event.data.chunkLength;
+                        if (contentLength > 0) {
+                            const pct = Math.round((downloaded / contentLength) * 100);
+                            setInstallProgress(pct);
+                        }
+                    }
+                    if (event.event === 'Finished') {
+                        addLog("Download completato! Riavvio in corso per applicare l'aggiornamento...");
+                    }
+                });
+                addLog("Riavvio dell'applicazione in corso...");
+                await relaunch();
+                return;
+            }
+        } catch (err) {
+            addLog(`Motore nativo: ${err.message}. Apertura download diretto installer...`);
+        }
+
+        // Fallback: download direct installer .exe
+        if (updatePayload.downloadUrl) {
+            addLog(`Apertura link download setup: ${updatePayload.downloadUrl}`);
+            await safeOpenUrl(updatePayload.downloadUrl);
+            setIsInstallingUpdate(false);
+        } else {
+            setIsInstallingUpdate(false);
+            addLog("Nessun link di download disponibile.");
+        }
+    };
 
     useEffect(() => {
         const fetchVersion = async () => {
@@ -1310,8 +1376,48 @@ const Settings = () => {
                                 </div>
                             )}
                             {updaterState.updateRef && (
-                                <div className="text-[var(--color-primary)] text-xs border-t border-[var(--color-primary)]/10 pt-2 font-semibold">
-                                    🚀 Nuova versione v{updaterState.updateRef.version} disponibile! Avvio del download in corso...
+                                <div className="border-t border-white/10 pt-4 mt-3 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[var(--color-primary)] font-bold text-sm flex items-center gap-2">
+                                            <Rocket size={16} /> Nuova Versione v{updaterState.updateRef.version} Disponibile!
+                                        </span>
+                                        <span className="text-[10px] text-gray-400 font-mono">Setup Ufficiale GitHub</span>
+                                    </div>
+
+                                    {isInstallingUpdate && (
+                                        <div className="w-full space-y-1.5 animate-fade-in">
+                                            <div className="w-full bg-white/10 h-2.5 rounded-full overflow-hidden">
+                                                <div
+                                                    className="bg-[var(--color-primary)] h-full transition-all duration-300 rounded-full"
+                                                    style={{ width: `${installProgress}%` }}
+                                                />
+                                            </div>
+                                            <div className="flex justify-between text-[11px] text-gray-400 font-mono">
+                                                <span>Download e applicazione in corso...</span>
+                                                <span className="font-bold text-[var(--color-primary)]">{installProgress}%</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleInstallDirect(updaterState.updateRef)}
+                                            disabled={isInstallingUpdate}
+                                            className="flex-1 py-3 px-4 rounded-lg bg-[var(--color-primary)] hover:brightness-110 text-[var(--color-primary-content)] font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-md shadow-[var(--color-primary)]/20 disabled:opacity-50"
+                                        >
+                                            <RefreshCw size={15} className={isInstallingUpdate ? 'animate-spin' : ''} />
+                                            {isInstallingUpdate ? 'Aggiornamento in corso...' : 'Aggiorna Ora (Automatico)'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => safeOpenUrl(updaterState.updateRef.downloadUrl)}
+                                            className="py-3 px-4 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 font-semibold text-xs transition-all flex items-center justify-center gap-2"
+                                            title="Scarica direttamente il file .exe di installazione nel browser"
+                                        >
+                                            <Download size={15} /> Scarica Setup .exe
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>

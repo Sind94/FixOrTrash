@@ -193,9 +193,9 @@ function App() {
 
   const handleStartUpdate = async () => {
     soundService.playClick();
+    setUpdateStatus(prev => ({ ...prev, downloading: true, progress: 0, error: null }));
     try {
       if (updateStatus._updateRef && typeof updateStatus._updateRef.downloadAndInstall === 'function') {
-        setUpdateStatus(prev => ({ ...prev, downloading: true, progress: 0 }));
         let downloaded = 0, contentLength = 0;
         await updateStatus._updateRef.downloadAndInstall((event) => {
           if (event.event === 'Started') contentLength = event.data.contentLength || 0;
@@ -207,17 +207,26 @@ function App() {
           }
         });
         await updateStatus._relaunchRef();
-      } else if (updateStatus.downloadUrl) {
-        window.open(updateStatus.downloadUrl, '_blank');
-        setUpdateStatus(prev => ({ ...prev, available: false }));
+        return;
       }
     } catch (err) {
-      if (updateStatus.downloadUrl) {
+      console.warn("Tauri native updater error, falling back to direct browser download:", err);
+    }
+
+    if (updateStatus.downloadUrl) {
+      try {
+        if (window.__TAURI_INTERNALS__) {
+          const { openUrl } = await import('@tauri-apps/plugin-opener');
+          await openUrl(updateStatus.downloadUrl);
+        } else {
+          window.open(updateStatus.downloadUrl, '_blank');
+        }
+      } catch {
         window.open(updateStatus.downloadUrl, '_blank');
-        setUpdateStatus(prev => ({ ...prev, available: false }));
-      } else {
-        setUpdateStatus(prev => ({ ...prev, downloading: false, error: err.message }));
       }
+      setUpdateStatus(prev => ({ ...prev, available: false, downloading: false }));
+    } else {
+      setUpdateStatus(prev => ({ ...prev, downloading: false, error: "Impossibile scaricare l'aggiornamento automaticamente." }));
     }
   };
 
@@ -693,14 +702,33 @@ function App() {
                 <span className="text-xs text-gray-400 mt-2 font-mono">{updateStatus.progress}% completato</span>
               </div>
             ) : (
-              <div className="w-full flex gap-3 mt-2">
+              <div className="w-full flex flex-col sm:flex-row gap-2 mt-2">
                 <button onClick={() => setUpdateStatus(prev => ({ ...prev, available: false }))}
-                  className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-lg text-xs font-semibold hover:bg-white/10 text-gray-300 transition-colors">
+                  className="py-2.5 px-3 bg-white/5 border border-white/10 rounded-lg text-xs font-semibold hover:bg-white/10 text-gray-300 transition-colors">
                   Più Tardi
                 </button>
+                <button onClick={async () => {
+                  if (updateStatus.downloadUrl) {
+                    try {
+                      if (window.__TAURI_INTERNALS__) {
+                        const { openUrl } = await import('@tauri-apps/plugin-opener');
+                        await openUrl(updateStatus.downloadUrl);
+                      } else {
+                        window.open(updateStatus.downloadUrl, '_blank');
+                      }
+                    } catch {
+                      window.open(updateStatus.downloadUrl, '_blank');
+                    }
+                  }
+                }}
+                  className="py-2.5 px-3 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                  title="Scarica direttamente il file installer dal browser"
+                >
+                  <Download size={14} /> Setup .exe
+                </button>
                 <button onClick={handleStartUpdate}
-                  className="flex-1 py-2.5 bg-[var(--color-primary)] rounded-lg text-xs font-bold text-[var(--color-primary-content)] hover:brightness-110 transition-all">
-                  Aggiorna Ora
+                  className="flex-1 py-2.5 px-3 bg-[var(--color-primary)] rounded-lg text-xs font-bold text-[var(--color-primary-content)] hover:brightness-110 transition-all flex items-center justify-center gap-1.5 shadow-md shadow-[var(--color-primary)]/20">
+                  <RefreshCw size={14} /> Aggiorna Ora
                 </button>
               </div>
             )}
