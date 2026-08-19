@@ -1,11 +1,11 @@
 {
-  "version": "18.22.0",
-  "notes": "Aggiornamento automatico v18.22.0",
-  "pub_date": "2026-08-19T23:32:44.746Z",
+  "version": "18.23.0",
+  "notes": "Aggiornamento automatico v18.23.0",
+  "pub_date": "2026-08-19T23:40:11.272Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSNi9RY0pzM1N0VDVLdll1NWJnQ0NWSHVZUHF3aXNPci9MbnkzbUczK0JXTHE3Zy9tbnVWc0s0eUVzSjNwU042Zk5ONW5RWDJkVjd2ZWV1K0lrWW1zTjFqN1VId0hIZEFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MTgyMzYxCWZpbGU6Rml4T3JUcmFzaFByb18xOC4yMi4wX3g2NC1zZXR1cC5leGUKTkFYeEc3ak50UHlpZm15RlpjUG1WQUl5cTZ0NzNrdTdiblM2Ykl1Z1QvZXh3dWhKSkN4ZDJNT2dmSE1iL2pHMDhGWmtBT2ptaEh3aXNBMWtHMVdaQ2c9PQo=",
-      "url": "https://github.com/Sind94/FixOrTrash/releases/download/v18.22.0/FixOrTrashPro_18.22.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSNi9RY0pzM1N0VDRUNVhUNWthRmVnWGRnQUIvOGQwNmY4WlhGdzdMSUxyb21VNXdBbEhxZmI1c1pDRG1YdEZVdTY4N2dSNDZpeHNrMzI0Tzd2VlBlNG05LzRzdGkyQWdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MTgyODA4CWZpbGU6Rml4T3JUcmFzaFByb18xOC4yMy4wX3g2NC1zZXR1cC5leGUKR0NvN1lMME1LV2xITE9vemRhTmxCMzRyVUFZMm9GSGRGaEs3VFVTUGdQdXF1UnNwVWNNSkhRR1pTcGVDeVRrakpiMzVtZ3pVU2ZTSmxYOEpyek1EQ1E9PQo=",
+      "url": "https://github.com/Sind94/FixOrTrash/releases/download/v18.23.0/FixOrTrashPro_18.23.0_x64-setup.exe"
     }
   }
 }
