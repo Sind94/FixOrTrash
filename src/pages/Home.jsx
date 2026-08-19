@@ -23,7 +23,10 @@ import {
     Edit3,
     Bold,
     List,
-    Table
+    Table,
+    Lock,
+    Unlock,
+    Copy
 } from 'lucide-react';
 import { dataManager } from '../services/dataManager';
 import { soundService } from '../services/soundService';
@@ -150,7 +153,8 @@ const Home = () => {
     });
     const [newKanbanText, setNewKanbanText] = useState('');
     const [techMemo, setTechMemo] = useState(() => localStorage.getItem('techMemo') || '');
-    const [notesTab, setNotesTab] = useState('edit');
+    const [isEditingMemo, setIsEditingMemo] = useState(false);
+    const [memoCopied, setMemoCopied] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
 
     const saveKanbanTasks = (tasks) => {
@@ -952,93 +956,93 @@ const maxTypeCount = Math.max(...Object.values(deviceTypeCounts), 1);
                         </div>
                     </div>
 
-                    {/* Note e Appunti Rapidi con Markdown & Tabelle */}
+                    {/* Note e Appunti Rapidi con vista Bloccata / Modifica */}
                     <div className="glass-panel p-6 rounded-theme-panel border border-theme-panelBorder flex flex-col h-[460px] overflow-hidden">
                         <div className="flex justify-between items-center mb-4 shrink-0">
                             <h3 className="text-lg font-bold text-theme-text flex items-center gap-2">
                                 <FileText className="text-theme-primary" size={20} />
                                 Appunti del Negozio
                             </h3>
-                            {/* Tab Switcher */}
-                            <div className="flex bg-white/5 p-1 rounded-lg border border-white/5">
+                            
+                            <div className="flex items-center gap-2">
+                                {!isEditingMemo && techMemo && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(techMemo);
+                                            setMemoCopied(true);
+                                            soundService.playClick();
+                                            setTimeout(() => setMemoCopied(false), 2000);
+                                        }}
+                                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 transition-colors flex items-center gap-1"
+                                        title="Copia appunti"
+                                    >
+                                        <Copy size={12} /> {memoCopied ? 'Copiato!' : 'Copia'}
+                                    </button>
+                                )}
+
                                 <button
                                     type="button"
-                                    onClick={() => { soundService.playClick(); setNotesTab('edit'); }}
-                                    className={`px-3 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${notesTab === 'edit' ? 'bg-theme-primary text-theme-primaryContent shadow' : 'text-gray-400 hover:text-white'}`}
+                                    onClick={() => {
+                                        if (isEditingMemo) {
+                                            soundService.playSuccess();
+                                            setIsEditingMemo(false);
+                                        } else {
+                                            soundService.playClick();
+                                            setIsEditingMemo(true);
+                                        }
+                                    }}
+                                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm ${
+                                        isEditingMemo 
+                                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30' 
+                                            : 'bg-theme-primary hover:brightness-110 text-theme-primaryContent shadow-theme-primary/20'
+                                    }`}
                                 >
-                                    <Edit3 size={12} /> Scrivi
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => { soundService.playClick(); setNotesTab('preview'); }}
-                                    className={`px-3 py-1 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${notesTab === 'preview' ? 'bg-theme-primary text-theme-primaryContent shadow' : 'text-gray-400 hover:text-white'}`}
-                                >
-                                    <Eye size={12} /> Anteprima
+                                    {isEditingMemo ? (
+                                        <>
+                                            <Lock size={13} /> Salva & Blocca
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Edit3 size={13} /> Modifica Appunti
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </div>
 
-                        {notesTab === 'edit' ? (
-                            <div className="flex-1 flex flex-col overflow-hidden">
-                                {/* Formatting Toolbar */}
-                                <div className="flex gap-1.5 mb-2 bg-white/5 p-1.5 rounded-lg border border-white/5 overflow-x-auto shrink-0 scrollbar-none">
-                                    <button
-                                        type="button"
-                                        onClick={() => handleInsertMarkup('**')}
-                                        className="p-1.5 bg-white/5 hover:bg-white/10 border border-white/5 rounded text-[10px] font-bold text-theme-text transition-colors flex items-center gap-1 shrink-0"
-                                        title="Grassetto"
-                                    >
-                                        <Bold size={11} /> Bold
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleInsertMarkup('### ')}
-                                        className="p-1.5 bg-white/5 hover:bg-white/10 border border-white/5 rounded text-[10px] font-bold text-theme-text transition-colors flex items-center gap-1 shrink-0"
-                                        title="Titolo"
-                                    >
-                                        <span className="font-mono">H3</span> Titolo
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleInsertMarkup('- ')}
-                                        className="p-1.5 bg-white/5 hover:bg-white/10 border border-white/5 rounded text-[10px] font-bold text-theme-text transition-colors flex items-center gap-1 shrink-0"
-                                        title="Lista puntata"
-                                    >
-                                        <List size={11} /> Lista
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleInsertMarkup('\n| Colonna 1 | Colonna 2 |\n| :--- | :--- |\n| Cella A | Cella B |\n')}
-                                        className="p-1.5 bg-white/5 hover:bg-white/10 border border-white/5 rounded text-[10px] font-bold text-theme-text transition-colors flex items-center gap-1 shrink-0"
-                                        title="Inserisci Tabella"
-                                    >
-                                        <Table size={11} /> Tabella
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleInsertMarkup('`')}
-                                        className="p-1.5 bg-white/5 hover:bg-white/10 border border-white/5 rounded text-[10px] font-bold text-theme-text transition-colors flex items-center gap-1 shrink-0"
-                                        title="Codice"
-                                    >
-                                        <span className="font-mono">`</span> Codice
-                                    </button>
+                        {isEditingMemo ? (
+                            <div className="flex-1 flex flex-col overflow-hidden animate-fade-in">
+                                <div className="text-[11px] text-gray-400 mb-2 flex justify-between items-center">
+                                    <span>Modifica libera — salvataggio automatico continuo</span>
+                                    <span className="font-mono text-emerald-400 font-semibold">Salvataggio attivo ✓</span>
                                 </div>
-                                
-                                {/* Editor Textarea */}
                                 <textarea
                                     id="notes-textarea"
                                     value={techMemo}
                                     onChange={handleMemoChange}
-                                    placeholder="Scrivi qui i tuoi appunti, password, numeri utili... Puoi usare il formato Markdown o inserire tabelle tramite i tasti sopra!"
-                                    className="flex-1 w-full bg-white/5 border border-theme-panelBorder rounded-lg p-3 text-xs text-theme-text resize-none focus:outline-none focus:border-theme-primary/50 leading-relaxed font-mono custom-scroll"
+                                    autoFocus
+                                    placeholder="Scrivi qui i tuoi appunti: note rapide, codici fornitore, password banco, procedure, promemoria..."
+                                    className="flex-1 w-full bg-black/20 border border-theme-panelBorder focus:border-theme-primary/60 rounded-lg p-3.5 text-xs text-theme-text resize-none focus:outline-none leading-relaxed font-sans custom-scroll"
                                 />
                             </div>
                         ) : (
-                            /* Live Preview */
-                            <div 
-                                className="flex-1 overflow-y-auto pr-1 bg-white/[0.01] border border-theme-panelBorder rounded-lg p-4 custom-scroll"
-                                dangerouslySetInnerHTML={{ __html: parseMarkdown(techMemo) || '<p class="text-xs text-gray-500 italic">Nessun appunto registrato al momento. Clicca su "Scrivi" per aggiungerne uno!</p>' }}
-                            />
+                            /* Vista Bloccata e Pulita */
+                            <div className="flex-1 overflow-y-auto pr-1 bg-black/10 border border-theme-panelBorder/40 rounded-lg p-4 custom-scroll">
+                                {techMemo && techMemo.trim() ? (
+                                    <div className="text-xs text-theme-text leading-relaxed whitespace-pre-wrap font-sans select-text">
+                                        {techMemo}
+                                    </div>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-500">
+                                        <Lock size={28} className="mb-2 opacity-40 text-gray-400" />
+                                        <p className="text-xs font-semibold text-gray-400">Nessun appunto presente</p>
+                                        <p className="text-[11px] text-gray-500 mt-1 max-w-xs">
+                                            Clicca su <span className="text-theme-primary font-bold">"Modifica Appunti"</span> in alto per scrivere note del negozio, codici o procedure.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
                 </div>

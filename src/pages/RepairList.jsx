@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Search, Clock, CheckCircle, Trash2, X, Smartphone, User, Wrench, Calendar, Euro, FileText, Upload, File, LayoutGrid, List, Tag, History, AlertCircle, ClipboardList, Activity, Receipt, MessageCircle, Minimize2 } from 'lucide-react';
+import { ArrowLeft, Search, Clock, CheckCircle, Trash2, X, Smartphone, User, Wrench, Calendar, Euro, FileText, Upload, File, LayoutGrid, List, Tag, History, AlertCircle, ClipboardList, Activity, Receipt, MessageCircle, Minimize2, Edit3 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import logoReport from '../assets/logo_denis.jpg';
@@ -774,18 +774,37 @@ const RepairList = () => {
                         {/* Modal Header */}
                         <div className="sticky top-0 bg-[#121212]/95 backdrop-blur z-10 p-6 border-b border-theme-panelBorder flex justify-between items-center">
                             <div>
-                                <h2 className="text-2xl font-bold text-theme-text flex items-center gap-3">
-                                    <Smartphone className="text-theme-primary" />
-                                    {selectedTicket.device.info}
-                                </h2>
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-2xl font-bold text-theme-text flex items-center gap-3">
+                                        <Smartphone className="text-theme-primary" />
+                                        {selectedTicket.device.info}
+                                    </h2>
+                                    {selectedTicket.isDiagnostic && (
+                                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                                            🔍 Solo Diagnosi
+                                        </span>
+                                    )}
+                                </div>
                                 <p className="text-gray-400 text-sm mt-1">Ticket #{selectedTicket.id}</p>
                             </div>
-                            <button
-                                onClick={() => setSelectedTicket(null)}
-                                className="p-2 hover:bg-theme-panel brightness-110 border border-theme-panelBorder rounded-full text-gray-400 hover:text-theme-text transition-colors"
-                            >
-                                <X size={24} />
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => {
+                                        soundService.playClick();
+                                        navigate('/checkin', { state: { editTicketId: selectedTicket.id, ticketToEdit: selectedTicket } });
+                                    }}
+                                    className="px-3.5 py-2 bg-theme-primary/15 hover:bg-theme-primary/25 border border-theme-primary/30 rounded-lg text-theme-primary text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                                    title="Modifica i dati del Check-In (cliente, difetto, costi, test)"
+                                >
+                                    <Edit3 size={14} /> Modifica Dati Check-In
+                                </button>
+                                <button
+                                    onClick={() => setSelectedTicket(null)}
+                                    className="p-2 hover:bg-theme-panel brightness-110 border border-theme-panelBorder rounded-full text-gray-400 hover:text-theme-text transition-colors"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Modal Body */}

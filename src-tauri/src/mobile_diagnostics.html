@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>FixOrTrash Pro - Mobile Diagnostics</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            background-color: #1e293b;
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid #334155;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #38bdf8;
+            flex-shrink: 0;
+        }
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow-y: auto;
+            position: relative;
+        }
+        .card {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        h2 {
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+        p {
+            color: #94a3b8;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+        .btn {
+            background-color: #0284c7;
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.2s, transform 0.1s;
+            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+        }
+        .btn:active {
+            background-color: #0369a1;
+            transform: scale(0.98);
+        }
+        .btn:disabled {
+            background-color: #475569;
+            color: #94a3b8;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .btn-success {
+            background-color: #16a34a;
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+        }
+        .btn-success:active {
+            background-color: #15803d;
+        }
+        .btn-danger {
+            background-color: #dc2626;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        }
+        .btn-danger:active {
+            background-color: #b91c1c;
+        }
+        .btn-secondary {
+            background-color: #475569;
+            box-shadow: none;
+        }
+        .btn-secondary:active {
+            background-color: #334155;
+        }
+        /* Touch grid styles */
+        #touch-grid-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            grid-template-rows: repeat(10, 1fr);
+            gap: 2px;
+            z-index: 100;
+        }
+        .grid-cell {
+            background-color: #1e293b;
+            border-radius: 2px;
+            transition: background-color 0.1s;
+        }
+        .grid-cell.touched {
+            background-color: #16a34a;
+        }
+        /* Display color screen */
+        #color-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100;
+            cursor: pointer;
+            display: none;
+        }
+        /* Camera preview */
+        #camera-container {
+            width: 100%;
+            max-width: 320px;
+            height: 240px;
+            background-color: #000;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            border: 1px solid #334155;
+            position: relative;
+        }
+        #camera-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .camera-overlay {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.5);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+        /* Mic level visualizer */
+        .mic-visualizer {
+            width: 100%;
+            height: 20px;
+            background-color: #334155;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+        .mic-bar {
+            height: 100%;
+            width: 0%;
+            background-color: #38bdf8;
+            transition: width 0.1s;
+        }
+        .flex-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-top: 10px;
+        }
+        /* Sensor visualizer */
+        .sensor-box {
+            background-color: #0f172a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            text-align: left;
+            font-size: 0.9rem;
+            color: #38bdf8;
+            border: 1px solid #334155;
+        }
+        /* Key indicator box */
+        .key-indicator {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+        .key-badge {
+            flex: 1;
+            padding: 15px 5px;
+            background-color: #334155;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+        .key-badge.pressed {
+            background-color: #16a34a;
+            border-color: #22c55e;
+            color: white;
+        }
+        /* Loader indicator */
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            background-color: #64748b;
+        }
+        .status-online { background-color: #22c55e; }
+        .status-offline { background-color: #ef4444; }
+    </style>
+</head>
+<body>
+    <!-- PROXIMITY BLACKOUT OVERLAY -->
+    <div id="proximity-blackout-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: black; z-index: 99999; justify-content: center; align-items: center; flex-direction: column;">
+        <span style="color: #475569; font-size: 1.2rem; font-weight: bold;">Rilevamento prossimità...</span>
+    </div>
+
+    <header>
+        <span id="ws-status-dot" class="status-dot"></span>
+        FixOrTrash Diagnostics
+    </header>
+
+    <!-- TOUCH GRID -->
+    <div id="touch-grid-container" style="display: none;"></div>
+
+    <!-- COLOR TEST SCREEN -->
+    <div id="color-screen"></div>
+
+    <div class="container" id="main-container">
+        <!-- WELCOME CARD -->
+        <div class="card" id="step-welcome">
+            <h2>Avvia Diagnostica</h2>
+            <p>Benvenuto nel collaudo automatico FixOrTrash Pro. Connetti lo smartphone al Wi-Fi del laboratorio ed effettua i test guidati a schermo. I risultati appariranno in tempo reale sul PC.</p>
+            <button class="btn" id="btn-start">Inizia Test</button>
+        </div>
+
+        <!-- TOUCH INSTRUCTION CARD -->
+        <div class="card" id="step-touch-start" style="display: none;">
+            <h2>Test Touch Screen</h2>
+            <p>Nel prossimo passaggio, trascina il dito su tutta la superficie dello schermo per colorare tutti i tasselli di verde. Questo verificherà la presenza di zone morte.</p>
+            <button class="btn" id="btn-touch-go">Inizia Touch Test</button>
+        </div>
+
+        <!-- COLOR INSTRUCTION CARD -->
+        <div class="card" id="step-color-start" style="display: none;">
+            <h2>Test Display (Pixel/Colori)</h2>
+            <p>Lo schermo diventerà interamente di vari colori. Tocca lo schermo per cambiare colore e controlla la presenza di pixel bruciati, aloni o graffi sul display.</p>
+            <button class="btn" id="btn-color-go">Inizia Test Colore</button>
+        </div>
+        <!-- GYROSCOPE CARD -->
+        <div class="card" id="step-gyro" style="display: none; max-width: 450px;">
+            <h2>Test Giroscopio</h2>
+            <p>Inclina il dispositivo per far rotolare la pallina gialla e toccare i 3 bersagli blu sullo schermo.</p>
+            <div style="position: relative; width: 100%; height: 260px; margin: 15px 0; background: #0f172a; border-radius: 8px; border: 1px solid #334155; overflow: hidden;">
+                <canvas id="gyro-canvas" style="display: block; width: 100%; height: 100%;"></canvas>
+            </div>
+            <!-- Fallback buttons -->
+            <div id="gyro-fallback-buttons" style="display: none; margin-bottom: 15px;">
+                <p style="font-size: 0.85rem; margin-bottom: 10px; color: #f59e0b;">Se il giroscopio non risponde per restrizioni HTTP, rispondi manualmente:</p>
+                <div class="flex-row">
+                    <button class="btn btn-success text-xs" id="btn-gyro-ok">Funziona</button>
+                    <button class="btn btn-danger text-xs" id="btn-gyro-ko">Non Funziona</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PROXIMITY CARD -->
+        <div class="card" id="step-proximity" style="display: none;">
+            <h2>Sensore Prossimità</h2>
+            <div style="background-color: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: left;">
+                <p style="color: #f59e0b; font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; text-align: left;">
+                    ⚠️ RESTRIZIONE DI SISTEMA
+                </p>
+                <p style="color: #cbd5e1; font-size: 0.8rem; line-height: 1.35; margin-bottom: 0; text-align: left;">
+                    I browser mobile (Safari/Chrome) bloccano l'accesso hardware e impediscono la disattivazione dello schermo via web per privacy.
+                </p>
+            </div>
+            <p style="text-align: left; font-size: 0.9rem; line-height: 1.4; color: #cbd5e1; margin-bottom: 15px;">
+                Tocca il pulsante qui sotto per avviare una chiamata rapida di test e verifica se lo schermo si spegne regolarmente quando avvicini il telefono all'orecchio.
+            </p>
+            
+            <div style="margin-bottom: 15px; text-align: left;">
+                <label style="display: block; font-size: 0.8rem; font-weight: bold; color: #94a3b8; margin-bottom: 5px;">Numero da chiamare:</label>
+                <input type="tel" id="input-test-phone" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #475569; background-color: #0f172a; color: white; font-weight: bold; font-size: 1rem; box-sizing: border-box; outline: none;" value="3755417618">
+            </div>
+
+            <a id="btn-dial-test" href="tel:3755417618" class="btn" style="background-color: #0891b2; text-decoration: none; display: inline-block; width: 100%; text-align: center; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3); box-sizing: border-box; line-height: 1.2;">
+                📞 Avvia Chiamata di Test
+            </a>
+
+            <div class="flex-row">
+                <button class="btn btn-success" id="btn-proximity-ok">Sì, si spegne</button>
+                <button class="btn btn-danger" id="btn-proximity-ko">No, resta acceso</button>
+            </div>
+        </div>
+
+        <!-- LIGHT SENSOR CARD -->
+        <div class="card" id="step-light" style="display: none;">
+            <h2>Sensore Luminosità</h2>
+            <p>Assicurati che la "Luminosità Automatica" sia attiva nelle impostazioni. Punta una torcia forte sul sensore superiore (e poi coprilo): lo schermo reagisce cambiando intensità?</p>
+            <div class="flex-row">
+                <button class="btn btn-success" id="btn-light-ok">Funziona (Sì)</button>
+                <button class="btn btn-danger" id="btn-light-ko">Non Funziona (No)</button>
+            </div>
+        </div>
+
+        <!-- SPEAKER CARD -->
+        <div class="card" id="step-speaker" style="display: none;">
+            <h2>Test Altoparlante</h2>
+            <p>Il telefono riprodurrà un suono di test. Conferma se lo senti chiaramente.</p>
+            <button class="btn" id="btn-play-tone" style="margin-bottom: 15px;">Riproduci Suono</button>
+            <div class="flex-row">
+                <button class="btn btn-success" id="btn-speaker-ok">Sento il Suono</button>
+                <button class="btn btn-danger" id="btn-speaker-ko">Non Sento nulla</button>
+            </div>
+        </div>
+
+        <!-- MICROPHONE PLAYBACK CARD -->
+        <div class="card" id="step-mic" style="display: none;">
+            <h2>Test Microfono Live</h2>
+            <p>Il test del microfono è attivo in tempo reale. Parla vicino al microfono: dovresti sentire all'istante la tua voce riprodotta dall'altoparlante del telefono.</p>
+            
+            <div id="mic-live-indicator" style="margin: 15px 0; padding: 15px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; font-weight: bold; color: #38bdf8; text-align: center;">
+                Microfono Attivo... Parla Ora!
+            </div>
+            
+            <div class="flex-row" style="margin-top: 15px;">
+                <button class="btn btn-success" id="btn-mic-playback-ok">Sento la mia Voce</button>
+                <button class="btn btn-danger" id="btn-mic-playback-ko">Nessun Suono</button>
+            </div>
+            <button class="btn btn-secondary" id="btn-mic-skip" style="margin-top: 15px;">Salta Test</button>
+        </div>
+
+        <!-- CHARGER CARD -->
+        <div class="card" id="step-charger" style="display: none;">
+            <h2>Test Connettore di Ricarica</h2>
+            <p id="charger-text">Collega il cavo di ricarica allo smartphone per verificare che il connettore carichi.</p>
+            <div class="flex-row">
+                <button class="btn btn-success" id="btn-charger-ok">In Carica (Sì)</button>
+                <button class="btn btn-danger" id="btn-charger-ko">Non in Carica (No)</button>
+            </div>
+        </div>
+
+        <!-- PHYSICAL BUTTONS CARD -->
+        <div class="card" id="step-buttons" style="display: none;">
+            <h2>Test Tasti Fisici</h2>
+            <p style="text-align: left; font-size: 0.9rem; line-height: 1.4; color: #94a3b8; margin-bottom: 12px;">
+                <strong>Nota:</strong> Per sicurezza, il browser non rileva direttamente i tasti fisici.
+            </p>
+            <p style="text-align: left; font-size: 0.9rem; line-height: 1.4; color: #cbd5e1; margin-bottom: 20px;">
+                Premi i tasti fisici sul telefono per verificare il click (e le barre a schermo), quindi <strong>tocca i pulsanti qui sotto</strong> per confermarli:
+            </p>
+            
+            <div class="key-indicator" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
+                <div class="key-badge" id="key-vol-up" style="cursor: pointer; padding: 12px; background-color: #334155; border: 2px solid #475569; border-radius: 8px; font-weight: bold; color: #94a3b8; text-align: center; font-size: 1rem; transition: all 0.2s;">
+                    🔊 TOCCA: Volume Su OK
+                </div>
+                <div class="key-badge" id="key-vol-down" style="cursor: pointer; padding: 12px; background-color: #334155; border: 2px solid #475569; border-radius: 8px; font-weight: bold; color: #94a3b8; text-align: center; font-size: 1rem; transition: all 0.2s;">
+                    🔉 TOCCA: Volume Giù OK
+                </div>
+                <div class="key-badge" id="key-power" style="cursor: pointer; padding: 12px; background-color: #334155; border: 2px solid #475569; border-radius: 8px; font-weight: bold; color: #94a3b8; text-align: center; font-size: 1rem; transition: all 0.2s;">
+                    🔌 TOCCA: Tasto Accensione OK
+                </div>
+            </div>
+
+            <div class="flex-row" style="margin-top: 15px;">
+                <button class="btn btn-success" id="btn-buttons-confirm">Tasti OK</button>
+                <button class="btn btn-danger" id="btn-buttons-fail">Tasti KO</button>
+            </div>
+            <button class="btn btn-secondary" id="btn-buttons-skip" style="margin-top: 10px;">Salta Test Tasti</button>
+        </div>
+
+        <!-- BIOMETRICS CARD (FaceID / Fingerprint) -->
+        <div class="card" id="step-biometrics" style="display: none;">
+            <h2>FaceID / Impronta Digitale</h2>
+            
+            <p style="text-align: left; font-size: 0.9rem; line-height: 1.4; color: #e2e8f0; margin-bottom: 15px;">
+                I browser web non hanno accesso diretto ai sensori biometrici del telefono. Per verificare il funzionamento del sensore:
+            </p>
+
+            <!-- iOS Instructions -->
+            <div id="biometrics-ios-inst" style="display: none; text-align: left; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 15px; background-color: rgba(30, 41, 59, 0.5); padding: 12px; border-radius: 8px; border: 1px solid #334155;">
+                <ol style="margin-left: 18px; list-style-type: decimal;">
+                    <li style="margin-bottom: 5px;">Premi il pulsante sotto per aprire le impostazioni o aprila manualmente dalla Home.</li>
+                    <li style="margin-bottom: 5px;">Vai su <strong>Face ID e codice</strong> ➡️ <strong>Configura Face ID</strong>.</li>
+                    <li style="margin-bottom: 5px;">Verifica se il sensore si attiva e inquadra la griglia sul volto.</li>
+                    <li style="margin-bottom: 5px;">Premi <strong>Annulla</strong> per non registrare il tuo volto sul telefono del cliente.</li>
+                </ol>
+            </div>
+
+            <!-- Android Instructions -->
+            <div id="biometrics-android-inst" style="display: none; text-align: left; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 15px; background-color: rgba(30, 41, 59, 0.5); padding: 12px; border-radius: 8px; border: 1px solid #334155;">
+                <ol style="margin-left: 18px; list-style-type: decimal;">
+                    <li style="margin-bottom: 5px;">Premi il pulsante sotto per aprire la schermata di sicurezza.</li>
+                    <li style="margin-bottom: 5px;">Seleziona <strong>Impronta digitale</strong> (o Sblocco con il viso) ➡️ <strong>Aggiungi impronta</strong>.</li>
+                    <li style="margin-bottom: 5px;">Tocca il sensore e verifica se vibra/rileva la pressione.</li>
+                    <li style="margin-bottom: 5px;">Premi <strong>Annulla</strong> per non salvare la tua impronta sul telefono del cliente.</li>
+                </ol>
+            </div>
+
+            <a id="btn-biometrics-settings" href="#" class="btn" style="background-color: #6d28d9; text-decoration: none; display: inline-block; width: 100%; text-align: center; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(109, 40, 217, 0.3); box-sizing: border-box; line-height: 1.2;">
+                ⚙️ Apri Impostazioni Sicurezza
+            </a>
+
+            <p id="biometrics-settings-note" style="display: none; text-align: left; font-size: 0.75rem; color: #94a3b8; margin-top: -10px; margin-bottom: 15px; line-height: 1.3;">
+                ⚠️ Nota: Su iOS (Apple) Safari impedisce il reindirizzamento alle impostazioni. Apri l'app <strong>Impostazioni</strong> manualmente dalla Home screen.
+            </p>
+
+            <div class="flex-row">
+                <button class="btn btn-success" id="btn-biometrics-ok">Sì, Reagisce (OK)</button>
+                <button class="btn btn-danger" id="btn-biometrics-ko">No, Nessuna Reazione</button>
+            </div>
+            <button class="btn btn-secondary" id="btn-biometrics-skip" style="margin-top: 15px;">Salta Test</button>
+        </div>
+
+        <!-- WI-FI / PING CARD -->
+        <div class="card" id="step-wifi" style="display: none;">
+            <h2>Test Wi-Fi / Connettività</h2>
+            <p>Avviamo un ping test verso il PC per testare la stabilità dell'antenna Wi-Fi e della rete.</p>
+            <button class="btn" id="btn-start-ping">Avvia Ping Test</button>
+            <div class="sensor-box" id="ping-results-box" style="display: none;">
+                Stato: <span id="ping-status">In esecuzione...</span><br>
+                Latenza media: <span id="ping-latency">--</span> ms
+            </div>
+            <div class="flex-row" id="net-confirm-buttons" style="display: none; margin-top: 15px;">
+                <button class="btn btn-success" id="btn-net-ok">Rete Funzionante</button>
+                <button class="btn btn-danger" id="btn-net-ko">Rete Assente/Problemi</button>
+            </div>
+        </div>
+
+        <!-- BLUETOOTH CARD -->
+        <div class="card" id="step-bluetooth" style="display: none;">
+            <h2>Test Antenna Bluetooth</h2>
+            <p style="text-align: left; font-size: 0.9rem; line-height: 1.4; color: #94a3b8; margin-bottom: 12px;">
+                Il browser non può accedere alla scansione Bluetooth per privacy. Per testarla:
+            </p>
+            <ol style="text-align: left; font-size: 0.85rem; color: #cbd5e1; margin-left: 20px; margin-bottom: 20px; list-style-type: decimal;">
+                <li style="margin-bottom: 4px;">Apri le <strong>Impostazioni</strong> del telefono.</li>
+                <li style="margin-bottom: 4px;">Vai su <strong>Bluetooth</strong> e assicurati che sia attivo.</li>
+                <li style="margin-bottom: 4px;">Verifica se l'elenco si popola con dispositivi vicini.</li>
+            </ol>
+            <p style="margin-bottom: 15px;">Rileva correttamente altri dispositivi Bluetooth?</p>
+            <div class="flex-row">
+                <button class="btn btn-success" id="btn-bluetooth-ok">Sì, rileva dispositivi</button>
+                <button class="btn btn-danger" id="btn-bluetooth-ko">No, nessun dispositivo / errore</button>
+            </div>
+        </div>
+
+        <!-- CELLULAR NETWORK CARD -->
+        <div class="card" id="step-cellular" style="display: none;">
+            <h2>Rete Dati Cellulare (SIM)</h2>
+            <p style="text-align: left; font-size: 0.9rem; line-height: 1.4; color: #cbd5e1; margin-bottom: 15px;">
+                Per verificare la parte cellulare, controlla lo stato della SIM direttamente sul telefono:
+            </p>
+            <ol style="text-align: left; font-size: 0.85rem; color: #cbd5e1; margin-left: 20px; margin-bottom: 20px; list-style-type: decimal;">
+                <li style="margin-bottom: 5px;">Verifica che in alto compaiano le <strong>tacche del segnale</strong> dell'operatore.</li>
+                <li style="margin-bottom: 5px;">Assicurati che la SIM venga rilevata (mostri il nome dell'operatore e non "Nessuna SIM" o "Solo emergenze").</li>
+            </ol>
+            <p style="margin-bottom: 15px;">La SIM e la rete cellulare sono funzionanti?</p>
+            <div class="flex-row">
+                <button class="btn btn-success" id="btn-cellular-ok">Sì, Segnale OK</button>
+                <button class="btn btn-danger" id="btn-cellular-ko">No, Nessun Servizio</button>
+            </div>
+        </div>
+
+        <!-- GPS LOCATION CARD -->
+        <div class="card" id="step-gps" style="display: none;">
+            <h2>Test Localizzazione (GPS)</h2>
+            <p>Consenti la localizzazione per verificare che l'antenna GPS rilevi la posizione corretta.</p>
+            <button class="btn" id="btn-start-gps">Avvia Localizzazione</button>
+            <div class="sensor-box" id="gps-results-box" style="display: none;">
+                Stato: <span id="gps-status">Rilevamento...</span><br>
+                Lat: <span id="gps-lat">--</span><br>
+                Lon: <span id="gps-lon">--</span><br>
+                Accuratezza: ±<span id="gps-acc">--</span> m
+            </div>
+            <!-- OSM Map Iframe -->
+            <iframe id="gps-map-iframe" style="display: none; width: 100%; height: 200px; border: 1px solid #334155; border-radius: 8px; margin-top: 15px;" src=""></iframe>
+            <div class="flex-row" id="gps-confirm-buttons" style="display: none; margin-top: 15px;">
+                <button class="btn btn-success" id="btn-gps-ok">GPS OK</button>
+                <button class="btn btn-danger" id="btn-gps-ko">GPS Guasto</button>
+            </div>
+            <button class="btn btn-secondary" id="btn-gps-skip" style="margin-top: 15px;">Salta Localizzazione</button>
+        </div>
+
+        <!-- CAMERA CARD -->
+        <div class="card" id="step-camera" style="display: none;">
+            <h2>Test Fotocamera</h2>
+            <p>Consenti l'accesso alla fotocamera. Verificheremo tutti gli obiettivi disponibili sul telefono.</p>
+            <button class="btn" id="btn-cam-auth">Consenti Fotocamera</button>
+            <div id="camera-container" style="display: none;">
+                <video id="camera-video" autoplay playsinline></video>
+                <div class="camera-overlay" id="camera-label">Inizializzazione...</div>
+            </div>
+            <button class="btn btn-secondary" id="btn-cam-toggle" style="display: none; margin-bottom: 15px;">Cambia Fotocamera (Cicla obiettivi)</button>
+            <div class="flex-row" id="camera-decide-buttons" style="display: none;">
+                <button class="btn btn-success" id="btn-cam-ok">Foto Chiara (OK)</button>
+                <button class="btn btn-danger" id="btn-cam-ko">Foto Sfocata/Errore</button>
+            </div>
+            <button class="btn btn-secondary" id="btn-cam-skip" style="margin-top: 15px;">Salta Fotocamera</button>
+        </div>
+
+        <!-- VIBRATION CARD -->
+        <div class="card" id="step-vibrate" style="display: none;">
+            <h2>Test Vibrazione</h2>
+            <p>Il telefono proverà ad attivare la vibrazione. Conferma se senti il dispositivo vibrare.</p>
+            <button class="btn" id="btn-trigger-vibrate" style="margin-bottom: 15px;">Vibra Ora</button>
+            <div class="flex-row">
+                <button class="btn btn-success" id="btn-vibrate-ok">Vibra (Sì)</button>
+                <button class="btn btn-danger" id="btn-vibrate-ko">Non Vibra (No)</button>
+            </div>
+        </div>
+
+        <!-- COMPLETE CARD -->
+        <div class="card" id="step-complete" style="display: none;">
+            <h2>Collaudo Completato!</h2>
+            <p>Tutti i test diagnostici guidati sono terminati. I risultati sono stati trasmessi con successo al PC. Puoi chiudere questa scheda del browser.</p>
+            <button class="btn btn-success" id="btn-close-app">Termina</button>
+        </div>
+    </div>
+
+    <script>
+        // Parse query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const storePhone = urlParams.get('store_phone') || '';
+
+        // WebSocket client state (Using corrected query port resolver!)
+        let ws;
+        let deviceName = "Smartphone";
+        let deviceOS = "Mobile Browser";
+        
+        // Detect OS / Device info
+        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+        if (/android/i.test(userAgent)) {
+            deviceName = "Android Device";
+            deviceOS = "Android";
+        } else if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+            deviceName = "iPhone/iOS Device";
+            deviceOS = "iOS";
+        }
+
+        // Initialize HTTP connection using heartbeats (replaces WebSocket for dynamic HTTPS contexts)
+        function connectWebSocket() {
+            const statusDot = document.getElementById('ws-status-dot');
+            
+            function sendHeartbeat() {
+                sendData({
+                    type: 'handshake',
+                    device: deviceName,
+                    os: deviceOS
+                });
+            }
+            
+            sendHeartbeat();
+            setInterval(sendHeartbeat, 2000);
+        }
+
+        function sendData(data) {
+            fetch('/api/event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            }).then(res => {
+                if (res.ok) {
+                    document.getElementById('ws-status-dot').className = 'status-dot status-online';
+                } else {
+                    document.getElementById('ws-status-dot').className = 'status-dot status-offline';
+                }
+            }).catch(err => {
+                console.error('Error sending data:', err);
+                document.getElementById('ws-status-dot').className = 'status-dot status-offline';
+            });
+        }
+
+        // Page navigation utility
+        const steps = ['welcome', 'touch-start', 'color-start', 'gyro', 'proximity', 'light', 'speaker', 'mic', 'charger', 'buttons', 'biometrics', 'wifi', 'bluetooth', 'cellular', 'gps', 'camera', 'vibrate', 'complete'];
+        let currentStep = 'welcome';
+        function showStep(stepId) {
+            currentStep = stepId;
+            steps.forEach(s => {
+                const el = document.getElementById(`step-${s}`);
+                if (el) el.style.display = s === stepId ? 'block' : 'none';
+            });
+
+            // Clean up any running sensors/loops
+            stopProximityTest();
+            stopLightSensor();
+            stopMicLoopback();
+            stopBiometricsTest();
+            stopCellularTest();
+
+            // Start new sensor/loops
+            if (stepId === 'gyro') {
+                startGyroTest();
+            } else if (stepId === 'proximity') {
+                startProximityTest();
+            } else if (stepId === 'light') {
+                startLightSensor();
+            } else if (stepId === 'mic') {
+                startMicLoopback();
+            } else if (stepId === 'charger') {
+                startChargerTest();
+            } else if (stepId === 'buttons') {
+                startButtonsTest();
+            } else if (stepId === 'biometrics') {
+                startBiometricsTest();
+            } else if (stepId === 'cellular') {
+                startCellularTest();
+            }
+        }
+
+        // --- TEST 1: TOUCH SCREEN GRID ---
+        const touchGridContainer = document.getElementById('touch-grid-container');
+        const gridRows = 10;
+        const gridCols = 6;
+        let touchedCells = 0;
+        const totalCells = gridRows * gridCols;
+
+        function buildTouchGrid() {
+            touchGridContainer.innerHTML = '';
+            touchedCells = 0;
+            
+            for (let i = 0; i < totalCells; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell';
+                cell.dataset.index = i;
+                touchGridContainer.appendChild(cell);
+            }
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            const touches = e.touches;
+            for (let i = 0; i < touches.length; i++) {
+                const touch = touches[i];
+                const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (element && element.classList.contains('grid-cell') && !element.classList.contains('touched')) {
+                    element.classList.add('touched');
+                    touchedCells++;
+                    
+                    // Send progress to desktop
+                    sendData({
+                        type: 'progress',
+                        test: 'touch',
+                        percent: Math.floor((touchedCells / totalCells) * 100)
+                    });
+
+                    // Check completion
+                    if (touchedCells >= totalCells) {
+                        endTouchTest(true);
+                    }
+                }
+            }
+        }
+
+        function endTouchTest(success) {
+            touchGridContainer.style.display = 'none';
+            document.removeEventListener('touchmove', handleTouchMove);
+            document.removeEventListener('touchstart', handleTouchMove);
+            
+            sendData({
+                type: 'result',
+                test: 'touch',
+                status: success ? 'ok' : 'fail'
+            });
+
+            // Move to next step
+            showStep('color-start');
+        }
+
+        // --- TEST 2: DISPLAY COLORS ---
+        const colorScreen = document.getElementById('color-screen');
+        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffffff', '#000000'];
+        let currentColorIdx = 0;
+
+        function startColorTest() {
+            colorScreen.style.display = 'block';
+            currentColorIdx = 0;
+            colorScreen.style.backgroundColor = colors[currentColorIdx];
+            
+            colorScreen.onclick = () => {
+                currentColorIdx++;
+                if (currentColorIdx < colors.length) {
+                    colorScreen.style.backgroundColor = colors[currentColorIdx];
+                } else {
+                    endColorTest(true);
+                }
+            };
+        }
+
+        function endColorTest(success) {
+            colorScreen.style.display = 'none';
+            colorScreen.onclick = null;
+            
+            sendData({
+                type: 'result',
+                test: 'color',
+                status: success ? 'ok' : 'fail'
+            });
+            
+            // Move to next step
+            showStep('gyro');
+        }
+
+        // --- TEST 3: GYROSCOPE (Canvas Ball Game with 3 Targets) ---
+        let gyroActive = false;
+        let gyroTimeout;
+        let gyroAnimFrame;
+        
+        // Game variables
+        const canvas = document.getElementById('gyro-canvas');
+        const ctx = canvas.getContext('2d');
+        let ball = { x: 0, y: 0, vx: 0, vy: 0, radius: 14 };
+        let targets = [];
+        let collectedTargetsCount = 0;
+        let tilt = { x: 0, y: 0 }; // beta, gamma values
+
+        function startGyroTest() {
+            gyroActive = true;
+            document.getElementById('gyro-fallback-buttons').style.display = 'none';
+
+            // Resize canvas to fit bounds
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            
+            // Set initial positions
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height / 2;
+            ball.vx = 0;
+            ball.vy = 0;
+            
+            // Define 3 targets at different coordinates
+            targets = [
+                { x: canvas.width * 0.25, y: canvas.height * 0.25, radius: 18, collected: false, label: "1" },
+                { x: canvas.width * 0.75, y: canvas.height * 0.25, radius: 18, collected: false, label: "2" },
+                { x: canvas.width * 0.5, y: canvas.height * 0.75, radius: 18, collected: false, label: "3" }
+            ];
+            collectedTargetsCount = 0;
+            tilt.x = 0;
+            tilt.y = 0;
+
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            window.addEventListener('deviceorientation', handleOrientation);
+                        } else {
+                            handleGyroUnavailable();
+                        }
+                    })
+                    .catch(() => {
+                        handleGyroUnavailable();
+                    });
+            } else {
+                window.addEventListener('deviceorientation', handleOrientation);
+            }
+
+            // Start game loop
+            updateGyroGame();
+
+            // Set a timeout. If no motion is detected within 3.5s, display fallback
+            gyroTimeout = setTimeout(() => {
+                if (gyroActive && ball.x === canvas.width / 2 && ball.y === canvas.height / 2) {
+                    handleGyroUnavailable();
+                }
+            }, 3500);
+        }
+
+        function handleOrientation(e) {
+            if (!gyroActive) return;
+            if (e.beta !== null && e.gamma !== null) {
+                tilt.x = e.gamma;
+                tilt.y = e.beta;
+            }
+        }
+
+        function updateGyroGame() {
+            if (!gyroActive) return;
+
+            // Physics constants
+            const ax = tilt.x * 0.15;
+            const ay = tilt.y * 0.15;
+            const friction = 0.96;
+
+            // Update physics
+            ball.vx = (ball.vx + ax) * friction;
+            ball.vy = (ball.vy + ay) * friction;
+            ball.x += ball.vx;
+            ball.y += ball.vy;
+
+            // Boundaries collision
+            if (ball.x < ball.radius) {
+                ball.x = ball.radius;
+                ball.vx = -ball.vx * 0.4;
+            }
+            if (ball.x > canvas.width - ball.radius) {
+                ball.x = canvas.width - ball.radius;
+                ball.vx = -ball.vx * 0.4;
+            }
+            if (ball.y < ball.radius) {
+                ball.y = ball.radius;
+                ball.vy = -ball.vy * 0.4;
+            }
+            if (ball.y > canvas.height - ball.radius) {
+                ball.y = canvas.height - ball.radius;
+                ball.vy = -ball.vy * 0.4;
+            }
+
+            // Check collision with targets
+            targets.forEach(t => {
+                if (!t.collected) {
+                    const dx = ball.x - t.x;
+                    const dy = ball.y - t.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < (ball.radius + t.radius)) {
+                        t.collected = true;
+                        collectedTargetsCount++;
+                        if (navigator.vibrate) {
+                            navigator.vibrate(50);
+                        }
+                    }
+                }
+            });
+
+            // Render
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw targets
+            targets.forEach(t => {
+                ctx.beginPath();
+                ctx.arc(t.x, t.y, t.radius, 0, Math.PI * 2);
+                if (t.collected) {
+                    ctx.fillStyle = '#064e3b'; // dark green
+                    ctx.strokeStyle = '#10b981'; // bright emerald border
+                } else {
+                    ctx.fillStyle = '#1e3a8a'; // dark blue
+                    ctx.strokeStyle = '#3b82f6'; // bright blue border
+                }
+                ctx.lineWidth = 3;
+                ctx.fill();
+                ctx.stroke();
+                ctx.closePath();
+
+                // Draw Check or Label
+                ctx.beginPath();
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(t.collected ? '✓' : t.label, t.x, t.y);
+                ctx.closePath();
+            });
+
+            // Check win condition
+            if (collectedTargetsCount >= targets.length) {
+                endGyroTest(true);
+                return;
+            }
+
+            // Draw ball (Yellow gradient)
+            const grad = ctx.createRadialGradient(ball.x - 3, ball.y - 3, 2, ball.x, ball.y, ball.radius);
+            grad.addColorStop(0, '#fef08a');
+            grad.addColorStop(1, '#eab308');
+            
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.shadowColor = 'rgba(234, 179, 8, 0.4)';
+            ctx.shadowBlur = 8;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.closePath();
+
+            // Next frame
+            gyroAnimFrame = requestAnimationFrame(updateGyroGame);
+        }
+
+        function handleGyroUnavailable() {
+            document.getElementById('gyro-fallback-buttons').style.display = 'block';
+        }
+
+        document.getElementById('btn-gyro-ok').onclick = () => endGyroTest(true);
+        document.getElementById('btn-gyro-ko').onclick = () => endGyroTest(false);
+
+        function endGyroTest(success) {
+            gyroActive = false;
+            window.removeEventListener('deviceorientation', handleOrientation);
+            clearTimeout(gyroTimeout);
+            if (gyroAnimFrame) {
+                cancelAnimationFrame(gyroAnimFrame);
+            }
+            
+            sendData({
+                type: 'result',
+                test: 'gyro',
+                status: success ? 'ok' : 'fail'
+            });
+
+            showStep('proximity');
+        }
+
+        // --- TEST 3B: PROXIMITY (Manual Verification via Dial Call) ---
+        function startProximityTest() {
+            document.getElementById('btn-proximity-ok').onclick = () => endProximityTest(true);
+            document.getElementById('btn-proximity-ko').onclick = () => endProximityTest(false);
+
+            const dialBtn = document.getElementById('btn-dial-test');
+            const inputPhone = document.getElementById('input-test-phone');
+            
+            function cleanPhoneNumber(raw) {
+                let cleaned = raw.replace(/[^0-9+]/g, '');
+                if (cleaned.startsWith('+39')) {
+                    cleaned = cleaned.substring(3);
+                } else if (cleaned.startsWith('39') && cleaned.length > 9) {
+                    cleaned = cleaned.substring(2);
+                }
+                return cleaned;
+            }
+
+            let defaultNumber = '3755417618';
+            if (storePhone && storePhone.trim() !== '') {
+                const parsedNum = cleanPhoneNumber(storePhone);
+                if (parsedNum !== '0123456789' && parsedNum !== '') {
+                    defaultNumber = parsedNum;
+                }
+            }
+            inputPhone.value = defaultNumber;
+
+            function updateDialLink() {
+                const rawNum = inputPhone.value;
+                const num = cleanPhoneNumber(rawNum);
+                if (num) {
+                    dialBtn.href = `tel:${num}`;
+                    dialBtn.innerText = `📞 Avvia Chiamata (${num})`;
+                } else {
+                    dialBtn.href = '#';
+                    dialBtn.innerText = `📞 Inserisci un numero`;
+                }
+            }
+
+            inputPhone.oninput = updateDialLink;
+            updateDialLink();
+        }
+
+        function stopProximityTest() {
+            document.getElementById('btn-proximity-ok').onclick = null;
+            document.getElementById('btn-proximity-ko').onclick = null;
+            document.getElementById('input-test-phone').oninput = null;
+        }
+
+        function endProximityTest(success) {
+            stopProximityTest();
+            sendData({
+                type: 'result',
+                test: 'proximity',
+                status: success ? 'ok' : 'fail'
+            });
+            showStep('light');
+        }
+
+        // --- TEST 3C: LIGHT SENSOR (Manual System Check) ---
+        function startLightSensor() {
+            // Manual verification screen is displayed; no active sensor code needed
+        }
+
+        function stopLightSensor() {
+            // Nothing to stop
+        }
+
+        document.getElementById('btn-light-ok').onclick = () => endLightTest(true);
+        document.getElementById('btn-light-ko').onclick = () => endLightTest(false);
+
+        function endLightTest(success) {
+            sendData({
+                type: 'result',
+                test: 'light',
+                status: success ? 'ok' : 'fail'
+            });
+            showStep('speaker');
+        }
+
+        // --- TEST 4: SPEAKER ---
+        let audioContext;
+        document.getElementById('btn-play-tone').onclick = () => {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+                gain.gain.setValueAtTime(0.5, audioContext.currentTime);
+                
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.8);
+                osc.stop(audioContext.currentTime + 1.8);
+            } catch (e) {
+                console.error("Audio error:", e);
+                alert("Impossibile avviare il suono del test.");
+            }
+        };
+
+        document.getElementById('btn-speaker-ok').onclick = () => endSpeakerTest(true);
+        document.getElementById('btn-speaker-ko').onclick = () => endSpeakerTest(false);
+
+        function endSpeakerTest(success) {
+            sendData({
+                type: 'result',
+                test: 'speaker',
+                status: success ? 'ok' : 'fail'
+            });
+            showStep('mic');
+        }
+
+        // --- TEST 5: MICROPHONE (Live Real-Time Loopback) ---
+        let micStream = null;
+        let micAudio = null;
+
+        async function startMicLoopback() {
+            try {
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                micAudio = document.createElement('audio');
+                micAudio.srcObject = micStream;
+                micAudio.muted = false;
+                
+                await micAudio.play();
+                micAudio.volume = 0.7;
+            } catch (e) {
+                console.error("Microphone loopback start error:", e);
+                const indicator = document.getElementById('mic-live-indicator');
+                if (indicator) {
+                    indicator.innerText = "Errore Accesso Microfono: Consenti i permessi.";
+                    indicator.style.color = '#ef4444';
+                }
+            }
+        }
+
+        function stopMicLoopback() {
+            if (micStream) {
+                micStream.getTracks().forEach(track => track.stop());
+                micStream = null;
+            }
+            if (micAudio) {
+                micAudio.pause();
+                micAudio = null;
+            }
+        }
+
+        document.getElementById('btn-mic-playback-ok').onclick = () => endMicTest(true);
+        document.getElementById('btn-mic-playback-ko').onclick = () => endMicTest(false);
+        document.getElementById('btn-mic-skip').onclick = () => endMicTest(false);
+
+        function endMicTest(success) {
+            stopMicLoopback();
+            sendData({
+                type: 'result',
+                test: 'mic',
+                status: success ? 'ok' : 'fail'
+            });
+            showStep('charger');
+        }
+
+        // --- TEST 6: CHARGER ---
+        function startChargerTest() {
+            if (navigator.getBattery) {
+                navigator.getBattery().then(battery => {
+                    const checkBatteryStatus = () => {
+                        if (battery.charging) {
+                            endChargerTest(true);
+                        }
+                    };
+                    checkBatteryStatus();
+                    battery.onchargingchange = checkBatteryStatus;
+                });
+            }
+        }
+
+        document.getElementById('btn-charger-ok').onclick = () => endChargerTest(true);
+        document.getElementById('btn-charger-ko').onclick = () => endChargerTest(false);
+
+        function endChargerTest(success) {
+            sendData({
+                type: 'result',
+                test: 'charger',
+                status: success ? 'ok' : 'fail'
+            });
+            showStep('buttons');
+        }
+
+        // --- TEST 7: PHYSICAL BUTTONS ---
+        let buttonsPressed = {
+            volUp: false,
+            volDown: false,
+            power: false
+        };
+
+        function startButtonsTest() {
+            buttonsPressed = { volUp: false, volDown: false, power: false };
+            
+            document.getElementById('key-vol-up').className = 'key-badge';
+            document.getElementById('key-vol-down').className = 'key-badge';
+            document.getElementById('key-power').className = 'key-badge';
+
+            // Touch handlers for manual override
+            document.getElementById('key-vol-up').onclick = () => toggleKeyBadge('volUp', 'key-vol-up');
+            document.getElementById('key-vol-down').onclick = () => toggleKeyBadge('volDown', 'key-vol-down');
+            document.getElementById('key-power').onclick = () => toggleKeyBadge('power', 'key-power');
+        }
+
+        function toggleKeyBadge(key, elementId) {
+            buttonsPressed[key] = !buttonsPressed[key];
+            const el = document.getElementById(elementId);
+            if (buttonsPressed[key]) {
+                el.classList.add('pressed');
+            } else {
+                el.classList.remove('pressed');
+            }
+            checkButtonsCompletion();
+        }
+
+        function checkButtonsCompletion() {
+            if (buttonsPressed.volUp && buttonsPressed.volDown && buttonsPressed.power) {
+                setTimeout(() => {
+                    endButtonsTest(true);
+                }, 800);
+            }
+        }
+
+        document.getElementById('btn-buttons-confirm').onclick = () => endButtonsTest(true);
+        document.getElementById('btn-buttons-fail').onclick = () => endButtonsTest(false);
+        document.getElementById('btn-buttons-skip').onclick = () => endButtonsTest(false);
+
+        function endButtonsTest(success) {
+            document.getElementById('key-vol-up').onclick = null;
+            document.getElementById('key-vol-down').onclick = null;
+            document.getElementById('key-power').onclick = null;
+
+            sendData({
+                type: 'result',
+                test: 'buttons',
+                status: success ? 'ok' : 'fail'
+            });
+            sendData({
+                type: 'result',
+                test: 'power',
+                status: success ? 'ok' : 'fail'
+            });
+            showStep('biometrics');
+        }
+
+        // --- TEST 7B: BIOMETRICS (Guided Manual Verification + Settings Intent) ---
+        function startBiometricsTest() {
+            document.getElementById('btn-biometrics-ok').onclick = () => endBiometricsTest(true);
+            document.getElementById('btn-biometrics-ko').onclick = () => endBiometricsTest(false);
+            document.getElementById('btn-biometrics-skip').onclick = () => endBiometricsTest(false);
+
+            const iosInst = document.getElementById('biometrics-ios-inst');
+            const androidInst = document.getElementById('biometrics-android-inst');
+            const settingsBtn = document.getElementById('btn-biometrics-settings');
+            const noteEl = document.getElementById('biometrics-settings-note');
+
+            if (deviceOS === 'iOS') {
+                iosInst.style.display = 'block';
+                androidInst.style.display = 'none';
+                noteEl.style.display = 'block';
+                settingsBtn.href = 'App-Prefs:root=TOUCHID_PASSCODE';
+            } else {
+                iosInst.style.display = 'none';
+                androidInst.style.display = 'block';
+                noteEl.style.display = 'none';
+                settingsBtn.href = 'intent:#Intent;action=android.settings.SECURITY_SETTINGS;category=android.intent.category.DEFAULT;end';
+            }
+        }
+
+        function stopBiometricsTest() {
+            document.getElementById('btn-biometrics-ok').onclick = null;
+            document.getElementById('btn-biometrics-ko').onclick = null;
+            document.getElementById('btn-biometrics-skip').onclick = null;
+        }
+
+        function endBiometricsTest(success) {
+            stopBiometricsTest();
+            sendData({
+                type: 'result',
+                test: 'biometrics',
+                status: success ? 'ok' : 'fail'
+            });
+            showStep('wifi');
+        }
+
+        // --- TEST 8: WI-FI PING DIAGNOSTIC TEST ---
+        document.getElementById('btn-start-ping').onclick = async () => {
+            const btnPing = document.getElementById('btn-start-ping');
+            btnPing.disabled = true;
+            btnPing.innerText = "Ping test in corso...";
+            
+            const resultsBox = document.getElementById('ping-results-box');
+            const statusEl = document.getElementById('ping-status');
+            const latencyEl = document.getElementById('ping-latency');
+            
+            resultsBox.style.display = 'block';
+            statusEl.innerText = "Calcolo latenza...";
+            
+            let successfulPings = 0;
+            let totalLatency = 0;
+            const pingsCount = 5;
+
+            for (let i = 0; i < pingsCount; i++) {
+                const startTime = Date.now();
+                try {
+                    await fetch(`/?ping=${Date.now()}`, { cache: 'no-store', mode: 'no-cors' });
+                    const latency = Date.now() - startTime;
+                    totalLatency += latency;
+                    successfulPings++;
+                } catch (e) {
+                    console.error("Ping request error:", e);
+                }
+                await new Promise(resolve => setTimeout(resolve, 150));
+            }
+
+            btnPing.disabled = false;
+            btnPing.innerText = "Ripeti Ping Test";
+
+            if (successfulPings > 0) {
+                const avgLatency = Math.round(totalLatency / successfulPings);
+                statusEl.innerText = `OK (${successfulPings}/${pingsCount} riusciti)`;
+                statusEl.style.color = '#22c55e';
+                latencyEl.innerText = avgLatency;
+                
+                sendData({
+                    type: 'network_ping',
+                    latency: avgLatency
+                });
+                
+                document.getElementById('net-confirm-buttons').style.display = 'flex';
+                
+                // Automatic transition on success
+                setTimeout(() => {
+                    endWifiTest(true);
+                }, 1500);
+            } else {
+                statusEl.innerText = "Rete locale non raggiungibile";
+                statusEl.style.color = '#ef4444';
+                latencyEl.innerText = "--";
+                document.getElementById('net-confirm-buttons').style.display = 'flex';
+            }
+        };
+
+        document.getElementById('btn-net-ok').onclick = () => endWifiTest(true);
+        document.getElementById('btn-net-ko').onclick = () => endWifiTest(false);
+
+        function endWifiTest(success) {
+            sendData({
+                type: 'result',
+                test: 'wifi',
+                status: success ? 'ok' : 'fail'
+            });
+            showStep('bluetooth');
+        }
+
+        // --- TEST 8C: BLUETOOTH TEST ---
+        document.getElementById('btn-bluetooth-ok').onclick = () => endBluetoothTest(true);
+        document.getElementById('btn-bluetooth-ko').onclick = () => endBluetoothTest(false);
+
+        function endBluetoothTest(success) {
+            sendData({
+                type: 'result',
+                test: 'bluetooth',
+                status: success ? 'ok' : 'fail'
+            });
+            showStep('cellular');
+        }
+
+        // --- TEST 8D: CELLULAR DATA TEST (Manual Check) ---
+        function startCellularTest() {
+            document.getElementById('btn-cellular-ok').onclick = () => endCellularTest(true);
+            document.getElementById('btn-cellular-ko').onclick = () => endCellularTest(false);
+        }
+
+        function stopCellularTest() {
+            document.getElementById('btn-cellular-ok').onclick = null;
+            document.getElementById('btn-cellular-ko').onclick = null;
+        }
+
+        function endCellularTest(success) {
+            stopCellularTest();
+            sendData({
+                type: 'result',
+                test: 'cellular',
+                status: success ? 'ok' : 'fail'
+            });
+            showStep('gps');
+        }
+
+        // --- TEST 8B: GPS LOCATION TEST ---
+        document.getElementById('btn-start-gps').onclick = () => {
+            const btnGps = document.getElementById('btn-start-gps');
+            btnGps.disabled = true;
+            btnGps.innerText = "Rilevamento GPS in corso...";
+            
+            const resultsBox = document.getElementById('gps-results-box');
+            const statusEl = document.getElementById('gps-status');
+            
+            resultsBox.style.display = 'block';
+            statusEl.innerText = "Attesa coordinate satellite...";
+            statusEl.style.color = '#38bdf8';
+
+            if (!navigator.geolocation) {
+                statusEl.innerText = "GPS non supportato dal browser";
+                statusEl.style.color = '#ef4444';
+                btnGps.disabled = false;
+                btnGps.innerText = "Avvia Localizzazione";
+                document.getElementById('gps-confirm-buttons').style.display = 'flex';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude.toFixed(6);
+                    const lon = position.coords.longitude.toFixed(6);
+                    const acc = position.coords.accuracy ? position.coords.accuracy.toFixed(1) : "N/D";
+                    
+                    document.getElementById('gps-lat').innerText = lat;
+                    document.getElementById('gps-lon').innerText = lon;
+                    document.getElementById('gps-acc').innerText = acc;
+                    
+                    statusEl.innerText = "Posizione Rilevata!";
+                    statusEl.style.color = '#22c55e';
+                    
+                    btnGps.disabled = false;
+                    btnGps.innerText = "Rileva di nuovo";
+
+                    // Show Map using OpenStreetMap
+                    const minLon = (parseFloat(lon) - 0.003).toFixed(6);
+                    const maxLon = (parseFloat(lon) + 0.003).toFixed(6);
+                    const minLat = (parseFloat(lat) - 0.002).toFixed(6);
+                    const maxLat = (parseFloat(lat) + 0.002).toFixed(6);
+                    const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${minLon}%2C${minLat}%2C${maxLon}%2C${maxLat}&layer=mapnik&marker=${lat}%2C${lon}`;
+                    const mapIframe = document.getElementById('gps-map-iframe');
+                    mapIframe.src = mapUrl;
+                    mapIframe.style.display = 'block';
+
+                    // Send live coordinates to PC
+                    sendData({
+                        type: 'gps_live',
+                        lat,
+                        lon,
+                        accuracy: acc
+                    });
+                    
+                    document.getElementById('gps-confirm-buttons').style.display = 'flex';
+                    
+                    // Automatically pass after 2 seconds
+                    setTimeout(() => {
+                        endGpsTest(true);
+                    }, 2000);
+                },
+                (error) => {
+                    let errMsg = "Errore sconosciuto";
+                    if (error.code === 1) errMsg = "Permesso di posizione negato";
+                    else if (error.code === 2) errMsg = "Segnale GPS debole / assente";
+                    else if (error.code === 3) errMsg = "Timeout posizionamento";
+                    
+                    statusEl.innerText = errMsg;
+                    statusEl.style.color = '#f59e0b';
+                    
+                    btnGps.disabled = false;
+                    btnGps.innerText = "Avvia Localizzazione";
+                    document.getElementById('gps-confirm-buttons').style.display = 'flex';
+                },
+                { enableHighAccuracy: true, timeout: 5000 }
+            );
+        };
+
+        document.getElementById('btn-gps-ok').onclick = () => endGpsTest(true);
+        document.getElementById('btn-gps-ko').onclick = () => endGpsTest(false);
+        document.getElementById('btn-gps-skip').onclick = () => endGpsTest(false);
+
+        function endGpsTest(success) {
+            sendData({
+                type: 'result',
+                test: 'gps',
+                status: success ? 'ok' : 'fail'
+            });
+            showStep('camera');
+        }
+
+        // --- TEST 9: CAMERA ---
+        let cameraStream;
+        let videoDevices = [];
+        let currentDeviceIdx = 0;
+
+        document.getElementById('btn-cam-auth').onclick = () => startCamera();
+        document.getElementById('btn-cam-toggle').onclick = () => {
+            if (videoDevices.length > 0) {
+                currentDeviceIdx = (currentDeviceIdx + 1) % videoDevices.length;
+                startCamera();
+            }
+        };
+
+        async function startCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+
+            try {
+                // Request camera permission first to get labels
+                if (videoDevices.length === 0) {
+                    try {
+                        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                        tempStream.getTracks().forEach(track => track.stop());
+                    } catch (permErr) {
+                        console.warn("Initial camera permission error:", permErr);
+                    }
+                    
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    videoDevices = devices.filter(d => d.kind === 'videoinput');
+                    
+                    // Sort to make front camera (user) or main rear camera predictable
+                    videoDevices.sort((a, b) => {
+                        const aLabel = (a.label || '').toLowerCase();
+                        const bLabel = (b.label || '').toLowerCase();
+                        const aIsFront = aLabel.includes('front') || aLabel.includes('user') || aLabel.includes('anteriore') || aLabel.includes('selfie');
+                        const bIsFront = bLabel.includes('front') || bLabel.includes('user') || bLabel.includes('anteriore') || bLabel.includes('selfie');
+                        if (aIsFront && !bIsFront) return 1; // Rear first
+                        if (!aIsFront && bIsFront) return -1;
+                        return 0;
+                    });
+                }
+
+                if (videoDevices.length === 0) {
+                    throw new Error("Nessuna fotocamera rilevata");
+                }
+
+                const device = videoDevices[currentDeviceIdx];
+                const constraints = {
+                    video: {
+                        deviceId: { exact: device.deviceId },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const videoEl = document.getElementById('camera-video');
+                videoEl.srcObject = cameraStream;
+                
+                document.getElementById('btn-cam-auth').style.display = 'none';
+                document.getElementById('camera-container').style.display = 'block';
+                document.getElementById('btn-cam-toggle').style.display = 'block';
+                document.getElementById('camera-decide-buttons').style.display = 'flex';
+                
+                let label = device.label || `Camera ${currentDeviceIdx + 1}`;
+                const lowerLabel = label.toLowerCase();
+                if (lowerLabel.includes('front') || lowerLabel.includes('user') || lowerLabel.includes('anteriore') || lowerLabel.includes('selfie')) {
+                    label = "Frontale (Selfie)";
+                } else if (lowerLabel.includes('back') || lowerLabel.includes('environment') || lowerLabel.includes('posteriore') || lowerLabel.includes('retro')) {
+                    if (lowerLabel.includes('wide') || lowerLabel.includes('grandangolo')) {
+                        label = "Posteriore (Grandangolo)";
+                    } else if (lowerLabel.includes('ultra')) {
+                        label = "Posteriore (Ultra-grandangolo)";
+                    } else {
+                        label = "Posteriore (Principale)";
+                    }
+                } else {
+                    label = `Fotocamera ${currentDeviceIdx + 1} (${label})`;
+                }
+                document.getElementById('camera-label').innerText = label;
+            } catch (e) {
+                console.error("Camera access error, trying facingMode fallback:", e);
+                try {
+                    const fallbackFacing = currentDeviceIdx % 2 === 0 ? "environment" : "user";
+                    cameraStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: fallbackFacing }
+                    });
+                    const videoEl = document.getElementById('camera-video');
+                    videoEl.srcObject = cameraStream;
+                    
+                    document.getElementById('btn-cam-auth').style.display = 'none';
+                    document.getElementById('camera-container').style.display = 'block';
+                    document.getElementById('btn-cam-toggle').style.display = 'block';
+                    document.getElementById('camera-decide-buttons').style.display = 'flex';
+                    document.getElementById('camera-label').innerText = (fallbackFacing === "environment") ? "Posteriore (Fallback)" : "Frontale (Fallback)";
+                } catch (fallbackErr) {
+                    console.error("All camera fallback options failed:", fallbackErr);
+                    alert("Permesso fotocamera negato o non supportato. Rispondi usando i tasti manuali.");
+                    document.getElementById('btn-cam-auth').style.display = 'none';
+                    document.getElementById('camera-decide-buttons').style.display = 'flex';
+                }
+            }
+        }
+
+        document.getElementById('btn-cam-ok').onclick = () => endCameraTest(true);
+        document.getElementById('btn-cam-ko').onclick = () => endCameraTest(false);
+        document.getElementById('btn-cam-skip').onclick = () => endCameraTest(false);
+
+        function endCameraTest(success) {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+            
+            sendData({
+                type: 'result',
+                test: 'camera',
+                status: success ? 'ok' : 'fail'
+            });
+            showStep('vibrate');
+        }
+
+        // --- TEST 10: VIBRATION ---
+        document.getElementById('btn-trigger-vibrate').onclick = () => {
+            if (navigator.vibrate) {
+                navigator.vibrate([300, 100, 300]);
+            } else {
+                document.body.style.backgroundColor = '#3b82f6';
+                setTimeout(() => document.body.style.backgroundColor = '#0f172a', 150);
+                setTimeout(() => document.body.style.backgroundColor = '#3b82f6', 300);
+                setTimeout(() => document.body.style.backgroundColor = '#0f172a', 450);
+            }
+        };
+
+        document.getElementById('btn-vibrate-ok').onclick = () => endVibrateTest(true);
+        document.getElementById('btn-vibrate-ko').onclick = () => endVibrateTest(false);
+
+        function endVibrateTest(success) {
+            sendData({
+                type: 'result',
+                test: 'vibrate',
+                status: success ? 'ok' : 'fail'
+            });
+            showStep('complete');
+        }
+
+        // --- COMPLETION ---
+        document.getElementById('btn-close-app').onclick = () => {
+            window.close();
+            alert("Puoi chiudere questa pagina del browser.");
+        };
+
+        // --- START ROUTINES ---
+        document.getElementById('btn-start').onclick = () => {
+            try {
+                const docEl = document.documentElement;
+                if (docEl.requestFullscreen) {
+                    docEl.requestFullscreen();
+                } else if (docEl.webkitRequestFullscreen) {
+                    docEl.webkitRequestFullscreen();
+                } else if (docEl.msRequestFullscreen) {
+                    docEl.msRequestFullscreen();
+                }
+            } catch (e) {
+                console.warn("Fullscreen request blocked:", e);
+            }
+            showStep('touch-start');
+        };
+
+        document.getElementById('btn-touch-go').onclick = () => {
+            touchGridContainer.style.display = 'grid';
+            buildTouchGrid();
+            
+            document.addEventListener('touchmove', handleTouchMove, { passive: false });
+            document.addEventListener('touchstart', handleTouchMove, { passive: false });
+        };
+
+        document.getElementById('btn-color-go').onclick = () => {
+            startColorTest();
+        };
+
+        // Start connection
+        connectWebSocket();
+    </script>
+</body>
+</html>

@@ -19,10 +19,10 @@ const Settings = () => {
 
     const THEMES = [
         { id: 'default', label: 'Dark Yellow (Predefinito)', preview: ['#0a0a0a', '#eab308', '#141414'] },
+        { id: 'modern-light-amber', label: 'Modern Light — Grigio & Ambra (Ispirato UI)', preview: ['#eaedf2', '#f59e0b', '#ffffff'] },
+        { id: 'modern-light-azure', label: 'Modern Light — Grigio & Azzurro', preview: ['#eaedf2', '#0284c7', '#ffffff'] },
         { id: 'classic-light', label: 'Classico Grigio & Blu (Chiaro)', preview: ['#f1f5f9', '#2563eb', '#ffffff'] },
         { id: 'classic-cream', label: 'Classico Crema & Ardesia (Chiaro)', preview: ['#faf6ee', '#44403c', '#ffffff'] },
-        { id: 'slate-light-blue', label: 'Grigio & Blu (Semi-chiaro)', preview: ['#cbd5e1', '#1d4ed8', '#f1f5f9'] },
-        { id: 'warm-grey-gold', label: 'Grigio & Oro (Semi-chiaro)', preview: ['#d6d3d1', '#854d0e', '#fafaf9'] },
         { id: 'ocean-dark', label: 'Ocean Dark — Blu & Ciano', preview: ['#060d1a', '#06b6d4', '#0d1b2e'] },
         { id: 'slate-pro', label: 'Slate Pro — Ardesia & Viola', preview: ['#0f1117', '#8b5cf6', '#1a1d2e'] },
         { id: 'forest-night', label: 'Forest Night — Verde & Lime', preview: ['#080f0a', '#84cc16', '#0f1a10'] },
@@ -130,6 +130,18 @@ const Settings = () => {
         fetchVersion();
     }, []);
 
+    const compareVersions = (v1, v2) => {
+        const p1 = (v1 || '').replace(/^v/, '').split('.').map(Number);
+        const p2 = (v2 || '').replace(/^v/, '').split('.').map(Number);
+        for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+            const n1 = p1[i] || 0;
+            const n2 = p2[i] || 0;
+            if (n1 > n2) return 1;
+            if (n1 < n2) return -1;
+        }
+        return 0;
+    };
+
     const handleCheckUpdate = async () => {
         const logs = [];
         const addLog = (msg) => {
@@ -141,41 +153,43 @@ const Settings = () => {
             setUpdaterState({ checking: true, error: null, noUpdate: false, updateRef: null });
             addLog("Avvio controllo aggiornamenti...");
             
-            // Check internet connectivity & raw json version bypassing browser cache
-            try {
-                addLog("Test connessione a GitHub updater.json (senza cache)...");
-                const res = await fetch(`https://raw.githubusercontent.com/Sind94/FixOrTrash/main/updater.json?t=${Date.now()}`, { cache: 'no-store' });
-                if (res.ok) {
-                    const data = await res.json();
-                    addLog(`updater.json letto con successo. Versione su GitHub: v${data.version}`);
+            addLog("Interrogazione GitHub Releases API...");
+            const res = await fetch(`https://api.github.com/repos/Sind94/FixOrTrash/releases/latest?t=${Date.now()}`, { cache: 'no-store' });
+            
+            if (res.ok) {
+                const release = await res.json();
+                const latestVersion = release.tag_name ? release.tag_name.replace(/^v/, '') : '';
+                const currentVer = appVersion || '18.20.0';
+                addLog(`Versione installata: v${currentVer} | Ultima online: v${latestVersion}`);
+
+                const setupAsset = (release.assets || []).find(a => a.name.endsWith('.exe') || a.name.includes('setup'));
+                const downloadUrl = setupAsset ? setupAsset.browser_download_url : (release.html_url || 'https://github.com/Sind94/FixOrTrash/releases/latest');
+
+                if (latestVersion && compareVersions(latestVersion, currentVer) > 0) {
+                    addLog(`Trovata nuova versione v${latestVersion}!`);
+                    let tauriUpdate = null;
+                    if (window.__TAURI_INTERNALS__) {
+                        try {
+                            tauriUpdate = await tauriCheck();
+                        } catch (e) {
+                            addLog(`Tauri native updater: ${e.message}`);
+                        }
+                    }
+                    const updatePayload = {
+                        version: latestVersion,
+                        body: release.body || 'Aggiornamento di stabilità, correzione bug e ottimizzazione.',
+                        downloadUrl: downloadUrl,
+                        _updateRef: tauriUpdate,
+                        available: true
+                    };
+                    setUpdaterState({ checking: false, error: null, noUpdate: false, updateRef: updatePayload });
+                    window.dispatchEvent(new CustomEvent('trigger-app-update', { detail: { update: updatePayload } }));
                 } else {
-                    addLog(`Errore HTTP test fetch: ${res.status} ${res.statusText}`);
+                    addLog("L'applicazione è già aggiornata all'ultima versione.");
+                    setUpdaterState({ checking: false, error: null, noUpdate: true, updateRef: null });
                 }
-            } catch (e) {
-                addLog(`Errore nel test fetch: ${e.message}`);
-            }
-
-            if (!window.__TAURI_INTERNALS__) {
-                addLog("Tauri internals non rilevate. Controllo terminato.");
-                setUpdaterState({ checking: false, error: 'Tauri internals non rilevate (l\'updater funziona solo dentro l\'app compilata).', noUpdate: false, updateRef: null });
-                return;
-            }
-
-            addLog("Chiamata a tauriCheck() (API ufficiale @tauri-apps/plugin-updater)...");
-            const update = await tauriCheck({
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
-                }
-            });
-            if (update && update.available) {
-                addLog(`Nuova versione rilevata: v${update.version}!`);
-                setUpdaterState({ checking: false, error: null, noUpdate: false, updateRef: update });
-                const event = new CustomEvent('trigger-app-update', { detail: { update } });
-                window.dispatchEvent(event);
             } else {
-                addLog("Nessun aggiornamento disponibile (versione già aggiornata).");
-                setUpdaterState({ checking: false, error: null, noUpdate: true, updateRef: null });
+                throw new Error(`GitHub API error ${res.status}: ${res.statusText}`);
             }
         } catch (err) {
             addLog(`Errore durante il controllo: ${err.message}`);

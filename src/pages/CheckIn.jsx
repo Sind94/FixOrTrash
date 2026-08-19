@@ -327,7 +327,13 @@ const CheckIn = () => {
     const [checkInSuccess, setCheckInSuccess] = useState(false);
     const [lastTicket, setLastTicket] = useState(null);
 
-    // Load Data
+    // Edit Mode & Diagnostic States
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editTicketId, setEditTicketId] = useState(null);
+    const [isDiagnostic, setIsDiagnostic] = useState(false);
+    const [hasDraftRestored, setHasDraftRestored] = useState(false);
+
+    // Load Data, Check Edit Mode, or Restore Draft
     useEffect(() => {
         try {
             const storedInventory = dataManager.getSync('inventory') || [];
@@ -343,22 +349,99 @@ const CheckIn = () => {
             console.error(e);
         }
 
-        // Check for passed state parameters for autocompilation
-        if (location.state) {
-            if (location.state.deviceInfo) {
-                setDeviceInfo(location.state.deviceInfo);
-            }
-            if (location.state.customerName) {
-                setCustomerName(location.state.customerName);
-            }
-            if (location.state.customerPhone) {
-                setCustomerPhone(location.state.customerPhone);
-            }
-            if (location.state.customerEmail) {
-                setCustomerEmail(location.state.customerEmail);
+        // 1. Check if we came in EDIT MODE from RepairList
+        if (location.state && (location.state.ticketToEdit || location.state.editTicketId)) {
+            const repairs = dataManager.getSync('repairs') || [];
+            const ticket = location.state.ticketToEdit || repairs.find(r => r.id === location.state.editTicketId);
+            if (ticket) {
+                setIsEditMode(true);
+                setEditTicketId(ticket.id);
+                setCustomerName(ticket.customer?.name || '');
+                setCustomerPhone(ticket.customer?.phone || ticket.customer?.contact || '');
+                setCustomerEmail(ticket.customer?.email || '');
+                setDeviceInfo(ticket.device?.info || '');
+                setImei(ticket.device?.imei || '');
+                setProblemDescription(ticket.device?.problem || '');
+                setNotes(ticket.device?.notes || '');
+                setPhotos(ticket.device?.photos || []);
+                setLockType(ticket.device?.lockType || 'none');
+                setLockCode(ticket.device?.lockCode || '');
+                setPriority(ticket.priority || 'medium');
+                setDueDate(ticket.dueDate || '');
+                setWarrantyMonths(ticket.repair?.warrantyMonths !== undefined ? ticket.repair.warrantyMonths : 3);
+                setDeposit(ticket.repair?.deposit ? ticket.repair.deposit.toString() : '');
+                setLaborCost(ticket.repair?.laborCost !== undefined ? ticket.repair.laborCost.toString() : '50');
+                setDiscount(ticket.repair?.discount ? ticket.repair.discount.toString() : 0);
+                setSelectedParts(ticket.repair?.parts || []);
+                if (ticket.checklist) setChecklist(ticket.checklist);
+                setIsDiagnostic(!!ticket.isDiagnostic || ticket.status === 'diagnostica');
+                return;
             }
         }
+
+        // 2. Check for passed state parameters for autocompilation
+        let hasDirectParam = false;
+        if (location.state) {
+            if (location.state.deviceInfo) { setDeviceInfo(location.state.deviceInfo); hasDirectParam = true; }
+            if (location.state.customerName) { setCustomerName(location.state.customerName); hasDirectParam = true; }
+            if (location.state.customerPhone) { setCustomerPhone(location.state.customerPhone); hasDirectParam = true; }
+            if (location.state.customerEmail) { setCustomerEmail(location.state.customerEmail); hasDirectParam = true; }
+        }
+
+        // 3. Otherwise restore draft if available
+        if (!hasDirectParam) {
+            try {
+                const savedDraft = localStorage.getItem('checkin_draft');
+                if (savedDraft) {
+                    const d = JSON.parse(savedDraft);
+                    if (d.customerName || d.deviceInfo || d.problemDescription || d.customerPhone) {
+                        setCustomerName(d.customerName || '');
+                        setCustomerPhone(d.customerPhone || '');
+                        setCustomerEmail(d.customerEmail || '');
+                        setDeviceInfo(d.deviceInfo || '');
+                        setImei(d.imei || '');
+                        setProblemDescription(d.problemDescription || '');
+                        setNotes(d.notes || '');
+                        setPriority(d.priority || 'medium');
+                        setDueDate(d.dueDate || '');
+                        setWarrantyMonths(d.warrantyMonths !== undefined ? d.warrantyMonths : 3);
+                        setDeposit(d.deposit || '');
+                        setLockType(d.lockType || 'none');
+                        setLockCode(d.lockCode || '');
+                        if (d.checklist) setChecklist(d.checklist);
+                        if (d.selectedParts) setSelectedParts(d.selectedParts);
+                        if (d.laborCost !== undefined) setLaborCost(d.laborCost.toString());
+                        if (d.discount !== undefined) setDiscount(d.discount);
+                        if (d.isDiagnostic !== undefined) setIsDiagnostic(d.isDiagnostic);
+                        setHasDraftRestored(true);
+                    }
+                }
+            } catch (e) { console.error("Error restoring draft:", e); }
+        }
     }, [location.state]);
+
+    // Auto-save draft on every change (when not in edit mode and not completed)
+    useEffect(() => {
+        if (isEditMode || checkInSuccess) return;
+        const hasData = customerName || customerPhone || customerEmail || deviceInfo || imei || problemDescription || notes || (selectedParts && selectedParts.length > 0) || deposit;
+        if (hasData) {
+            const draft = {
+                customerName, customerPhone, customerEmail,
+                deviceInfo, imei, problemDescription, notes,
+                priority, dueDate, warrantyMonths, deposit,
+                lockType, lockCode, checklist, selectedParts,
+                laborCost, discount, isDiagnostic
+            };
+            localStorage.setItem('checkin_draft', JSON.stringify(draft));
+        }
+    }, [customerName, customerPhone, customerEmail, deviceInfo, imei, problemDescription, notes, priority, dueDate, warrantyMonths, deposit, lockType, lockCode, checklist, selectedParts, laborCost, discount, isDiagnostic, isEditMode, checkInSuccess]);
+
+    const clearDraft = () => {
+        localStorage.removeItem('checkin_draft');
+        setHasDraftRestored(false);
+        handleReset();
+        showMessage('Bozza cancellata e campi reimpostati.', 'success');
+    };
 
     // Calculate Total when Parts or Labor changes
     useEffect(() => {
@@ -501,6 +584,55 @@ const CheckIn = () => {
         // Save to tickets (create new array if needed)
         const existingRepairs = dataManager.getSync('repairs') || [];
 
+        // CASE 1: EDITING EXISTING TICKET
+        if (isEditMode && editTicketId) {
+            const originalTicket = existingRepairs.find(t => t.id === editTicketId) || {};
+            const updatedTicket = {
+                ...originalTicket,
+                priority: priority,
+                dueDate: dueDate,
+                checklist: checklist,
+                isDiagnostic: !!isDiagnostic,
+                customer: {
+                    name: customerName,
+                    phone: customerPhone,
+                    email: customerEmail
+                },
+                device: {
+                    info: deviceInfo,
+                    imei: imei,
+                    problem: problemDescription,
+                    notes: notes,
+                    photos: photos,
+                    pdfIngress: pdfIngressPath,
+                    lockType: lockType,
+                    lockCode: lockCode
+                },
+                repair: {
+                    parts: selectedParts,
+                    partsTotalCost: partsTotalWithMarkup,
+                    laborCost: isDiagnostic ? 0 : (parseFloat(laborCost) || 0),
+                    laborAtecoCode: '95.11.00',
+                    markupPercent: markupPercent,
+                    ivaPercent: ivaPercent,
+                    discount: parseFloat(discount) || 0,
+                    totalCost: isDiagnostic ? 0 : totalCost,
+                    warrantyMonths: parseInt(warrantyMonths) || 0,
+                    deposit: parseFloat(deposit) || 0
+                }
+            };
+
+            const updatedRepairs = existingRepairs.map(t => t.id === editTicketId ? updatedTicket : t);
+            dataManager.updateSlice('repairs', updatedRepairs);
+            localStorage.removeItem('checkin_draft');
+            setHasDraftRestored(false);
+            showMessage('Modifiche salvate con successo!', 'success');
+            setLastTicket(updatedTicket);
+            setCheckInSuccess(true);
+            return;
+        }
+
+        // CASE 2: CREATING NEW TICKET
         const now = new Date();
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -517,18 +649,20 @@ const CheckIn = () => {
             collisionCounter++;
         }
 
+        const initialStatus = isDiagnostic ? 'diagnostica' : 'check_in';
         const newTicket = {
             id: finalTimestampId,
             date: new Date().toISOString(),
-            status: 'check_in',
+            status: initialStatus,
             priority: priority,
             dueDate: dueDate,
             checklist: checklist,
+            isDiagnostic: !!isDiagnostic,
             statusHistory: [
                 {
-                    status: 'check_in',
+                    status: initialStatus,
                     date: new Date().toISOString(),
-                    note: 'Dispositivo registrato in ingresso.'
+                    note: isDiagnostic ? 'Dispositivo registrato in ingresso per sola diagnosi/preventivo.' : 'Dispositivo registrato in ingresso.'
                 }
             ],
             customer: {
@@ -549,12 +683,12 @@ const CheckIn = () => {
             repair: {
                 parts: selectedParts,
                 partsTotalCost: partsTotalWithMarkup,
-                laborCost: parseFloat(laborCost),
+                laborCost: isDiagnostic ? 0 : (parseFloat(laborCost) || 0),
                 laborAtecoCode: '95.11.00',
                 markupPercent: markupPercent,
                 ivaPercent: ivaPercent,
                 discount: parseFloat(discount) || 0,
-                totalCost: totalCost,
+                totalCost: isDiagnostic ? 0 : totalCost,
                 warrantyMonths: parseInt(warrantyMonths) || 0,
                 deposit: parseFloat(deposit) || 0
             }
@@ -562,6 +696,8 @@ const CheckIn = () => {
 
         const updatedRepairs = [newTicket, ...existingRepairs];
         dataManager.updateSlice('repairs', updatedRepairs);
+        localStorage.removeItem('checkin_draft');
+        setHasDraftRestored(false);
 
         // Update Inventory (Reserve the parts)
         if (selectedParts.length > 0) {
@@ -754,17 +890,88 @@ const CheckIn = () => {
     return (
         <div className="min-h-screen p-8 animate-fade-in pb-24">
             {/* Header */}
-            <div className="flex items-center gap-4 mb-8">
-                <button
-                    onClick={() => navigate('/')}
-                    className="p-3 bg-theme-panel border border-theme-panelBorder border border-theme-panelBorder rounded-theme-btn hover:bg-theme-panel brightness-110 border border-theme-panelBorder transition-colors text-theme-text"
-                >
-                    <ArrowLeft size={24} />
-                </button>
-                <h1 className="text-2xl font-bold text-theme-text flex items-center gap-2">
-                    <Wrench className="text-[var(--color-primary)]" size={24} />
-                    Check-In Riparazione
-                </h1>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => navigate(isEditMode ? '/repairs' : '/')}
+                        className="p-3 bg-theme-panel border border-theme-panelBorder rounded-theme-btn hover:bg-theme-panel brightness-110 transition-colors text-theme-text"
+                    >
+                        <ArrowLeft size={24} />
+                    </button>
+                    <div>
+                        <h1 className="text-2xl font-bold text-theme-text flex items-center gap-2">
+                            {isEditMode ? (
+                                <>
+                                    <ClipboardList className="text-[var(--color-primary)]" size={24} />
+                                    Modifica Riparazione #{editTicketId}
+                                </>
+                            ) : isDiagnostic ? (
+                                <>
+                                    <Search className="text-purple-400" size={24} />
+                                    Check-In Diagnostico (Solo Diagnosi)
+                                </>
+                            ) : (
+                                <>
+                                    <Wrench className="text-[var(--color-primary)]" size={24} />
+                                    Check-In Riparazione
+                                </>
+                            )}
+                        </h1>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                            {isEditMode 
+                                ? 'Modifica e correggi i dati registrati per questo dispositivo.' 
+                                : isDiagnostic 
+                                    ? 'Ingresso dispositivo per diagnosi tecnica e valutazione preventivo.' 
+                                    : 'Registra una nuova scheda di riparazione con preventivo.'}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Right controls: Type Selector + Draft Controls */}
+                <div className="flex items-center gap-3 flex-wrap">
+                    {!isEditMode && (
+                        <div className="flex bg-black/20 p-1 rounded-xl border border-theme-panelBorder">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsDiagnostic(false);
+                                    const savedSettings = dataManager.getSync('settings') || {};
+                                    setLaborCost(savedSettings.laborCost !== undefined ? savedSettings.laborCost.toString() : '50');
+                                }}
+                                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${!isDiagnostic ? 'bg-theme-primary text-theme-primaryContent shadow' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                <Wrench size={13} /> Riparazione
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsDiagnostic(true);
+                                    setLaborCost('0');
+                                }}
+                                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${isDiagnostic ? 'bg-purple-600 text-white shadow shadow-purple-600/30' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                <Search size={13} /> Diagnostico (€0)
+                            </button>
+                        </div>
+                    )}
+
+                    {!isEditMode && hasDraftRestored && (
+                        <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-lg">
+                            <span className="text-[11px] text-amber-400 font-semibold flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                Bozza in memoria
+                            </span>
+                            <button
+                                type="button"
+                                onClick={clearDraft}
+                                className="text-[10px] bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white px-2 py-0.5 rounded font-bold transition-colors ml-1"
+                                title="Cancella bozza e ricomincia"
+                            >
+                                Svuota
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Notification Toast */}
@@ -1345,10 +1552,30 @@ const CheckIn = () => {
 
                     <button
                         onClick={handleSave}
-                        className="w-full bg-theme-primary hover:bg-theme-primary text-theme-primaryContent font-bold py-4 rounded-theme-btn transition-all active:scale-95 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(250,204,21,0.2)] hover:shadow-[0_0_30px_rgba(250,204,21,0.4)]"
+                        className={`w-full font-bold py-4 rounded-theme-btn transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg ${
+                            isEditMode
+                                ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30'
+                                : isDiagnostic
+                                    ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-600/30'
+                                    : 'bg-theme-primary hover:brightness-110 text-theme-primaryContent shadow-theme-primary/20'
+                        }`}
                     >
-                        <Save size={20} />
-                        Registra Riparazione
+                        {isEditMode ? (
+                            <>
+                                <CheckCircle size={20} />
+                                Salva Modifiche Scheda #{editTicketId}
+                            </>
+                        ) : isDiagnostic ? (
+                            <>
+                                <Search size={20} />
+                                Registra Ingresso Diagnostico
+                            </>
+                        ) : (
+                            <>
+                                <Save size={20} />
+                                Registra Riparazione
+                            </>
+                        )}
                     </button>
 
                 </div>

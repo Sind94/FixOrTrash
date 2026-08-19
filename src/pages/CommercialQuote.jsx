@@ -38,6 +38,8 @@ const CommercialQuote = () => {
         total: 0
     });
 
+    const [hasDraft, setHasDraft] = useState(false);
+
     useEffect(() => {
         // Load initial store settings
         try {
@@ -45,6 +47,26 @@ const CommercialQuote = () => {
             if (savedSettings.pdfTemplate) setPdfTemplate(savedSettings.pdfTemplate);
             if (savedSettings.pdfStyle) setPdfStyle(savedSettings.pdfStyle);
             
+            // Try restore draft
+            const draftStr = localStorage.getItem('commercial_quote_draft');
+            if (draftStr) {
+                const d = JSON.parse(draftStr);
+                if (d.customerName || d.items?.length > 1 || d.notes || d.customerPhone) {
+                    if (d.customerName) setCustomerName(d.customerName);
+                    if (d.customerPhone) setCustomerPhone(d.customerPhone);
+                    if (d.customerEmail) setCustomerEmail(d.customerEmail);
+                    if (d.customerAddress) setCustomerAddress(d.customerAddress);
+                    if (d.quoteDate) setQuoteDate(d.quoteDate);
+                    if (d.validDays) setValidDays(d.validDays);
+                    if (d.notes) setNotes(d.notes);
+                    if (d.quoteNumber) setQuoteNumber(d.quoteNumber);
+                    if (d.globalDiscount !== undefined) setGlobalDiscount(d.globalDiscount);
+                    if (d.items && d.items.length > 0) setItems(d.items);
+                    setHasDraft(true);
+                    return;
+                }
+            }
+
             // Auto generate a quote number
             const now = new Date();
             const yearStr = now.getFullYear();
@@ -54,6 +76,32 @@ const CommercialQuote = () => {
             console.error("Failed to load settings in CommercialQuote", e);
         }
     }, []);
+
+    // Auto-save draft
+    useEffect(() => {
+        const hasData = customerName || customerPhone || customerEmail || notes || (items && items.some(i => i.description || i.price > 0));
+        if (hasData) {
+            const draft = {
+                customerName, customerPhone, customerEmail, customerAddress,
+                quoteDate, validDays, notes, quoteNumber, globalDiscount, items
+            };
+            localStorage.setItem('commercial_quote_draft', JSON.stringify(draft));
+        }
+    }, [customerName, customerPhone, customerEmail, customerAddress, quoteDate, validDays, notes, quoteNumber, globalDiscount, items]);
+
+    const handleClearDraft = () => {
+        localStorage.removeItem('commercial_quote_draft');
+        setHasDraft(false);
+        setCustomerName('');
+        setCustomerPhone('');
+        setCustomerEmail('');
+        setCustomerAddress('');
+        setNotes('');
+        setGlobalDiscount(0);
+        setItems([{ id: 1, description: '', quantity: 1, price: 0, discount: 0, iva: 0 }]);
+        const now = new Date();
+        setQuoteNumber(`PREV-${now.getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
+    };
 
     // Recalculate totals whenever items change
     useEffect(() => {
@@ -151,20 +199,42 @@ const CommercialQuote = () => {
     return (
         <div className="min-h-screen p-8 animate-fade-in pb-24 relative z-10">
             {/* Header */}
-            <div className="flex items-center gap-4 mb-8">
-                <button
-                    onClick={() => {
-                        soundService.playClick();
-                        navigate('/');
-                    }}
-                    className="p-3 bg-theme-panel border border-theme-panelBorder rounded-theme-btn hover:bg-theme-panel brightness-110 border border-theme-panelBorder transition-colors text-theme-text"
-                >
-                    <ArrowLeft size={24} />
-                </button>
-                <h1 className="text-2xl font-bold text-theme-text flex items-center gap-2">
-                    <Calculator className="text-[var(--color-primary)]" size={24} />
-                    Preventivo Commerciale Libero
-                </h1>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => {
+                            soundService.playClick();
+                            navigate('/');
+                        }}
+                        className="p-3 bg-theme-panel border border-theme-panelBorder rounded-theme-btn hover:bg-theme-panel brightness-110 transition-colors text-theme-text"
+                    >
+                        <ArrowLeft size={24} />
+                    </button>
+                    <div>
+                        <h1 className="text-2xl font-bold text-theme-text flex items-center gap-2">
+                            <Calculator className="text-[var(--color-primary)]" size={24} />
+                            Preventivo Commerciale Libero
+                        </h1>
+                        <p className="text-xs text-gray-400 mt-0.5">Crea e stampa preventivi con calcolo automatico imponibile e sconti</p>
+                    </div>
+                </div>
+
+                {hasDraft && (
+                    <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-lg">
+                        <span className="text-[11px] text-amber-400 font-semibold flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                            Bozza preventivo in memoria
+                        </span>
+                        <button
+                            type="button"
+                            onClick={handleClearDraft}
+                            className="text-[10px] bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white px-2 py-0.5 rounded font-bold transition-colors ml-1"
+                            title="Cancella bozza e ricomincia"
+                        >
+                            Svuota
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -308,10 +308,18 @@ const renderTable = (doc, item, dataContext, pdfStyle) => {
         const balanceDue = Math.max(0, repairTotal - depositVal);
         const discountVal = ticket.repair?.discount || 0;
         
-        const discountStr = discountVal > 0 ? `Sconto Applicato: -€ ${discountVal.toFixed(2)}\n` : '';
-        let pricingText = `${discountStr}TOTALE STIMATO: € ${repairTotal.toFixed(2)}`;
-        if (depositVal > 0) {
-            pricingText += `\n\nAcconto Versato: € ${depositVal.toFixed(2)}\nSaldo da Saldare: € ${balanceDue.toFixed(2)}`;
+        let pricingText = '';
+        if (ticket.isDiagnostic) {
+            pricingText = `INGRESSO PER DIAGNOSTICA\nPreventivo da definire dopo diagnosi tecnica.`;
+            if (depositVal > 0) {
+                pricingText += `\nAcconto/Deposito Versato: € ${depositVal.toFixed(2)}`;
+            }
+        } else {
+            const discountStr = discountVal > 0 ? `Sconto Applicato: -€ ${discountVal.toFixed(2)}\n` : '';
+            pricingText = `${discountStr}TOTALE STIMATO: € ${repairTotal.toFixed(2)}`;
+            if (depositVal > 0) {
+                pricingText += `\n\nAcconto Versato: € ${depositVal.toFixed(2)}\nSaldo da Saldare: € ${balanceDue.toFixed(2)}`;
+            }
         }
         head = [['Dettagli Ricambi', 'Preventivo Economico']];
         body = [[

@@ -81,28 +81,28 @@ html[data-theme="forest-night"] {
   --text-main: #f0fdf4;
 }
 
-/* NEW: Slate Light Blue — Semi-light metallic grey & cobalt blue */
-html[data-theme="slate-light-blue"] {
-  --color-bg: #cbd5e1;
-  --color-surface: #f1f5f9;
-  --color-primary: #1d4ed8;
+/* NEW: Modern Light — Grigio & Ambra (Ispirato UI) */
+html[data-theme="modern-light-amber"] {
+  --color-bg: #eaedf2;
+  --color-surface: #ffffff;
+  --color-primary: #f59e0b;
   --color-primary-content: #ffffff;
-  --glass-border: rgba(30, 41, 59, 0.08);
-  --panel-bg: rgba(241, 245, 249, 0.85);
-  --panel-border: rgba(30, 41, 59, 0.08);
-  --text-main: #0f172a;
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --panel-bg: rgba(255, 255, 255, 0.96);
+  --panel-border: rgba(0, 0, 0, 0.08);
+  --text-main: #1e293b;
 }
 
-/* NEW: Warm Grey Gold — Semi-light stone grey & gold */
-html[data-theme="warm-grey-gold"] {
-  --color-bg: #d6d3d1;
-  --color-surface: #fafaf9;
-  --color-primary: #854d0e;
+/* NEW: Modern Light — Grigio & Azzurro */
+html[data-theme="modern-light-azure"] {
+  --color-bg: #eaedf2;
+  --color-surface: #ffffff;
+  --color-primary: #0284c7;
   --color-primary-content: #ffffff;
-  --glass-border: rgba(44, 42, 41, 0.08);
-  --panel-bg: rgba(250, 250, 249, 0.85);
-  --panel-border: rgba(44, 42, 41, 0.08);
-  --text-main: #1c1917;
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --panel-bg: rgba(255, 255, 255, 0.96);
+  --panel-border: rgba(0, 0, 0, 0.08);
+  --text-main: #1e293b;
 }
 
 /* ── SHAPES ─────────────────────────────────────────── */
@@ -207,23 +207,20 @@ option {
 /* Light theme overrides for nav */
 html[data-theme="classic-light"] .topbar-outer,
 html[data-theme="classic-cream"] .topbar-outer,
-html[data-theme="slate-light-blue"] .topbar-outer,
-html[data-theme="warm-grey-gold"] .topbar-outer {
+html[data-theme="modern-light-amber"] .topbar-outer,
+html[data-theme="modern-light-azure"] .topbar-outer {
   background: #ffffff;
   border-bottom-color: rgba(0,0,0,0.08);
 }
 html[data-theme="classic-light"] .subnav-bar,
 html[data-theme="classic-cream"] .subnav-bar,
-html[data-theme="slate-light-blue"] .subnav-bar,
-html[data-theme="warm-grey-gold"] .subnav-bar {
-  background: #f8fafc;
+html[data-theme="modern-light-amber"] .subnav-bar,
+html[data-theme="modern-light-azure"] .subnav-bar {
+  background: #f4f6f9;
   border-bottom-color: rgba(0,0,0,0.06);
 }
 html[data-theme="classic-cream"] .subnav-bar {
   background: #f5f0e8;
-}
-html[data-theme="warm-grey-gold"] .subnav-bar {
-  background: #edebe9;
 }
 
 /* Settings Gear Button */
@@ -289,16 +286,18 @@ html[data-theme="warm-grey-gold"] .subnav-bar {
 /* Light theme glass overrides */
 html[data-theme="classic-light"] .glass-panel,
 html[data-theme="classic-cream"] .glass-panel,
-html[data-theme="slate-light-blue"] .glass-panel,
-html[data-theme="warm-grey-gold"] .glass-panel {
-  box-shadow: 0 4px 20px -4px rgba(0,0,0,0.08), inset 0 1px 1px rgba(255,255,255,0.9) !important;
+html[data-theme="modern-light-amber"] .glass-panel,
+html[data-theme="modern-light-azure"] .glass-panel {
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.02) !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
 }
 html[data-theme="classic-light"] .glass-card,
 html[data-theme="classic-cream"] .glass-card,
-html[data-theme="slate-light-blue"] .glass-card,
-html[data-theme="warm-grey-gold"] .glass-card {
-  background: rgba(255, 255, 255, 0.7) !important;
-  border: 1px solid rgba(0,0,0,0.06) !important;
+html[data-theme="modern-light-amber"] .glass-card,
+html[data-theme="modern-light-azure"] .glass-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(0,0,0,0.07) !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03) !important;
 }
 
 /* ════════════════════════════════════════════════════════

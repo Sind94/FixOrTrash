@@ -114,28 +114,60 @@ function App() {
   // Global PDF Preview
   const [globalPdfUrl, setGlobalPdfUrl] = useState(null);
 
+  const compareVersions = (v1, v2) => {
+    const p1 = (v1 || '').replace(/^v/, '').split('.').map(Number);
+    const p2 = (v2 || '').replace(/^v/, '').split('.').map(Number);
+    for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+      const n1 = p1[i] || 0;
+      const n2 = p2[i] || 0;
+      if (n1 > n2) return 1;
+      if (n1 < n2) return -1;
+    }
+    return 0;
+  };
+
   // ── Auto Updater ──────────────────────────────────────────────────────────
   useEffect(() => {
     const runUpdater = async () => {
       try {
-        if (!window.__TAURI_INTERNALS__ && !window.__TAURI__) return;
         setUpdateStatus(prev => ({ ...prev, checking: true }));
-        const update = await tauriCheck({
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
+        const res = await fetch(`https://api.github.com/repos/Sind94/FixOrTrash/releases/latest?t=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok) {
+          const release = await res.json();
+          const latestVersion = release.tag_name ? release.tag_name.replace(/^v/, '') : '';
+          
+          let currentVer = '18.20.0';
+          try {
+            if (window.__TAURI_INTERNALS__) {
+              const { getVersion } = await import('@tauri-apps/api/app');
+              currentVer = await getVersion();
+            }
+          } catch { /* use default */ }
+
+          const setupAsset = (release.assets || []).find(a => a.name.endsWith('.exe') || a.name.includes('setup'));
+          const downloadUrl = setupAsset ? setupAsset.browser_download_url : (release.html_url || 'https://github.com/Sind94/FixOrTrash/releases/latest');
+
+          if (latestVersion && compareVersions(latestVersion, currentVer) > 0) {
+            let tauriUpdate = null;
+            if (window.__TAURI_INTERNALS__) {
+              try {
+                tauriUpdate = await tauriCheck();
+              } catch (e) {
+                console.log("Tauri check note:", e);
+              }
+            }
+
+            setUpdateStatus({
+              checking: false, available: true, version: latestVersion,
+              progress: 0, downloading: false, error: null,
+              body: release.body || 'Nuova versione di FixOrTrash Pro disponibile!',
+              downloadUrl,
+              _updateRef: tauriUpdate, _relaunchRef: relaunch
+            });
+            return;
           }
-        });
-        if (update && update.available) {
-          setUpdateStatus({
-            checking: false, available: true, version: update.version,
-            progress: 0, downloading: false, error: null,
-            body: update.body || 'Aggiornamento di stabilità ed ottimizzazione.',
-            _updateRef: update, _relaunchRef: relaunch
-          });
-        } else {
-          setUpdateStatus(prev => ({ ...prev, checking: false }));
         }
+        setUpdateStatus(prev => ({ ...prev, checking: false }));
       } catch (err) {
         setUpdateStatus(prev => ({ ...prev, checking: false, error: err.message }));
       }
@@ -151,7 +183,8 @@ function App() {
         checking: false, available: true, version: update.version,
         progress: 0, downloading: false, error: null,
         body: update.body || 'Aggiornamento di stabilità ed ottimizzazione.',
-        _updateRef: update, _relaunchRef: relaunch
+        downloadUrl: update.downloadUrl,
+        _updateRef: update._updateRef, _relaunchRef: relaunch
       });
     };
     window.addEventListener('trigger-app-update', handleTriggerUpdate);
@@ -159,23 +192,32 @@ function App() {
   }, []);
 
   const handleStartUpdate = async () => {
-    if (!updateStatus._updateRef) return;
     soundService.playClick();
     try {
-      setUpdateStatus(prev => ({ ...prev, downloading: true, progress: 0 }));
-      let downloaded = 0, contentLength = 0;
-      await updateStatus._updateRef.downloadAndInstall((event) => {
-        if (event.event === 'Started') contentLength = event.data.contentLength || 0;
-        if (event.event === 'Progress') {
-          downloaded += event.data.chunkLength;
-          if (contentLength > 0) {
-            setUpdateStatus(prev => ({ ...prev, progress: Math.round((downloaded / contentLength) * 100) }));
+      if (updateStatus._updateRef && typeof updateStatus._updateRef.downloadAndInstall === 'function') {
+        setUpdateStatus(prev => ({ ...prev, downloading: true, progress: 0 }));
+        let downloaded = 0, contentLength = 0;
+        await updateStatus._updateRef.downloadAndInstall((event) => {
+          if (event.event === 'Started') contentLength = event.data.contentLength || 0;
+          if (event.event === 'Progress') {
+            downloaded += event.data.chunkLength;
+            if (contentLength > 0) {
+              setUpdateStatus(prev => ({ ...prev, progress: Math.round((downloaded / contentLength) * 100) }));
+            }
           }
-        }
-      });
-      await updateStatus._relaunchRef();
+        });
+        await updateStatus._relaunchRef();
+      } else if (updateStatus.downloadUrl) {
+        window.open(updateStatus.downloadUrl, '_blank');
+        setUpdateStatus(prev => ({ ...prev, available: false }));
+      }
     } catch (err) {
-      setUpdateStatus(prev => ({ ...prev, downloading: false, error: err.message }));
+      if (updateStatus.downloadUrl) {
+        window.open(updateStatus.downloadUrl, '_blank');
+        setUpdateStatus(prev => ({ ...prev, available: false }));
+      } else {
+        setUpdateStatus(prev => ({ ...prev, downloading: false, error: err.message }));
+      }
     }
   };
 
