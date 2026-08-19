@@ -26,8 +26,14 @@ import {
     Table,
     Lock,
     Unlock,
-    Copy
+    Copy,
+    QrCode,
+    ExternalLink,
+    Maximize2,
+    Sparkles,
+    Download
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { dataManager } from '../services/dataManager';
 import { soundService } from '../services/soundService';
 
@@ -122,6 +128,99 @@ const parseMarkdown = (text) => {
     return html.join('');
 };
 
+const DEFAULT_QR_CODES = [
+    {
+        id: 1,
+        title: 'Recensioni Google Negozio',
+        url: 'https://g.page/r/FixOrTrash/review',
+        category: 'Clienti & Social'
+    },
+    {
+        id: 2,
+        title: 'WhatsApp Supporto & Assistenza',
+        url: 'https://wa.me/393331234567',
+        category: 'Assistenza'
+    },
+    {
+        id: 3,
+        title: 'Portale Ricambi & Fornitori',
+        url: 'https://www.google.com',
+        category: 'Laboratorio'
+    }
+];
+
+const QRCodeCard = ({ item, onZoom, onDelete, onCopy }) => {
+    const [dataUrl, setDataUrl] = useState('');
+    useEffect(() => {
+        if (!item.url) return;
+        QRCode.toDataURL(item.url, {
+            width: 280,
+            margin: 1,
+            color: { dark: '#000000', light: '#ffffff' }
+        }).then(setDataUrl).catch(console.error);
+    }, [item.url]);
+
+    return (
+        <div className="glass-panel p-5 rounded-theme-panel border border-theme-panelBorder flex flex-col justify-between hover:border-theme-primary/50 transition-all duration-300 group shadow-md hover:shadow-xl relative overflow-hidden bg-black/20">
+            <div className="flex justify-between items-start mb-2 gap-2">
+                <div className="flex-1 min-w-0">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/10 text-gray-300 border border-white/10 inline-block mb-1">
+                        {item.category || 'Link Rapido'}
+                    </span>
+                    <h4 className="font-bold text-sm text-theme-text truncate" title={item.title}>{item.title}</h4>
+                </div>
+                <button
+                    onClick={() => onDelete(item.id)}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-400 rounded-lg hover:bg-white/5 transition-all"
+                    title="Elimina QR"
+                >
+                    <Trash2 size={14} />
+                </button>
+            </div>
+
+            {/* QR Code Canvas / Image Display */}
+            <div 
+                onClick={() => onZoom(item, dataUrl)}
+                className="bg-white p-3 rounded-xl mx-auto my-2 cursor-pointer shadow-lg hover:scale-105 transition-transform group/qr relative"
+                title="Clicca per ingrandire a schermo intero"
+            >
+                {dataUrl ? (
+                    <img src={dataUrl} alt={item.title} className="w-36 h-36 object-contain block rounded" />
+                ) : (
+                    <div className="w-36 h-36 flex items-center justify-center text-xs text-gray-400 font-mono">Generazione...</div>
+                )}
+                <div className="absolute inset-0 bg-black/50 rounded-xl opacity-0 group-hover/qr:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-xs font-bold gap-1 backdrop-blur-[2px]">
+                    <Maximize2 size={18} />
+                    <span>Ingrandisci</span>
+                </div>
+            </div>
+
+            <div className="mt-2 pt-3 border-t border-white/5 flex flex-col gap-2">
+                <p className="text-[11px] text-gray-400 font-mono truncate select-all" title={item.url}>
+                    {item.url}
+                </p>
+                <div className="flex items-center gap-2 justify-between">
+                    <button
+                        onClick={() => onCopy(item.url)}
+                        className="flex-1 py-1.5 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white text-[11px] font-semibold border border-white/10 transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                    >
+                        <Copy size={12} /> Copia
+                    </button>
+                    <a
+                        href={item.url.startsWith('http') ? item.url : `https://${item.url}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-1.5 rounded-lg bg-theme-primary/15 hover:bg-theme-primary/30 text-theme-primary border border-theme-primary/30 transition-colors flex items-center justify-center shadow-sm"
+                        title="Apri nel browser"
+                    >
+                        <ExternalLink size={14} />
+                    </a>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const Home = () => {
     const navigate = useNavigate();
     const [stats, setStats] = useState({
@@ -156,6 +255,59 @@ const Home = () => {
     const [isEditingMemo, setIsEditingMemo] = useState(false);
     const [memoCopied, setMemoCopied] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
+
+    // QR Codes Manager State
+    const [qrCodes, setQrCodes] = useState(() => {
+        try {
+            const saved = localStorage.getItem('shop_qrcodes');
+            return saved ? JSON.parse(saved) : DEFAULT_QR_CODES;
+        } catch {
+            return DEFAULT_QR_CODES;
+        }
+    });
+    const [newQrTitle, setNewQrTitle] = useState('');
+    const [newQrUrl, setNewQrUrl] = useState('');
+    const [newQrCategory, setNewQrCategory] = useState('Negozio');
+    const [zoomedQr, setZoomedQr] = useState(null); // { item, dataUrl }
+    const [showAddQrForm, setShowAddQrForm] = useState(false);
+    const [qrCopiedToast, setQrCopiedToast] = useState(false);
+
+    const saveQrCodes = (newCodes) => {
+        setQrCodes(newCodes);
+        localStorage.setItem('shop_qrcodes', JSON.stringify(newCodes));
+    };
+
+    const handleAddQrCode = (e) => {
+        if (e) e.preventDefault();
+        if (!newQrTitle.trim() || !newQrUrl.trim()) return;
+        soundService.playSuccess();
+        let formattedUrl = newQrUrl.trim();
+        if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://') && !formattedUrl.startsWith('WIFI:') && !formattedUrl.startsWith('mailto:') && !formattedUrl.startsWith('tel:')) {
+            formattedUrl = `https://${formattedUrl}`;
+        }
+        const newCode = {
+            id: Date.now(),
+            title: newQrTitle.trim(),
+            url: formattedUrl,
+            category: newQrCategory || 'Negozio'
+        };
+        saveQrCodes([newCode, ...qrCodes]);
+        setNewQrTitle('');
+        setNewQrUrl('');
+        setShowAddQrForm(false);
+    };
+
+    const handleDeleteQrCode = (id) => {
+        soundService.playClick();
+        saveQrCodes(qrCodes.filter(q => q.id !== id));
+    };
+
+    const handleCopyQrLink = (url) => {
+        navigator.clipboard.writeText(url);
+        soundService.playClick();
+        setQrCopiedToast(true);
+        setTimeout(() => setQrCopiedToast(false), 2000);
+    };
 
     const saveKanbanTasks = (tasks) => {
         setKanbanTasks(tasks);
@@ -677,25 +829,32 @@ const maxTypeCount = Math.max(...Object.values(deviceTypeCounts), 1);
             )}
 
             {/* Dashboard Tab Switcher */}
-            <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 mb-8 w-fit shrink-0 select-none">
+            <div className="flex bg-black/30 p-1.5 rounded-xl border border-white/10 mb-8 w-fit shrink-0 select-none shadow-sm gap-1.5 flex-wrap">
                 <button
                     type="button"
                     onClick={() => { soundService.playClick(); setActiveTab('overview'); }}
-                    className={`px-5 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'bg-theme-primary text-theme-primaryContent shadow-md font-extrabold' : 'text-gray-400 hover:text-white'}`}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'bg-theme-primary text-theme-primaryContent shadow-md font-extrabold scale-[1.02]' : 'text-gray-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.09] border border-white/[0.06] hover:border-white/15'}`}
                 >
                     <Activity size={14} /> Panoramica
                 </button>
                 <button
                     type="button"
                     onClick={() => { soundService.playClick(); setActiveTab('activities'); }}
-                    className={`px-5 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'activities' ? 'bg-theme-primary text-theme-primaryContent shadow-md font-extrabold' : 'text-gray-400 hover:text-white'}`}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'activities' ? 'bg-theme-primary text-theme-primaryContent shadow-md font-extrabold scale-[1.02]' : 'text-gray-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.09] border border-white/[0.06] hover:border-white/15'}`}
                 >
                     <PenTool size={14} /> Bacheca & Note
                 </button>
                 <button
                     type="button"
+                    onClick={() => { soundService.playClick(); setActiveTab('qrcodes'); }}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'qrcodes' ? 'bg-theme-primary text-theme-primaryContent shadow-md font-extrabold scale-[1.02]' : 'text-gray-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.09] border border-white/[0.06] hover:border-white/15'}`}
+                >
+                    <QrCode size={14} /> QR Code Rapidi {qrCodes.length > 0 && <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-white/20 text-white font-black ml-0.5">{qrCodes.length}</span>}
+                </button>
+                <button
+                    type="button"
                     onClick={() => { soundService.playClick(); setActiveTab('stock'); }}
-                    className={`px-5 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'stock' ? 'bg-theme-primary text-theme-primaryContent shadow-md font-extrabold' : 'text-gray-400 hover:text-white'}`}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'stock' ? 'bg-theme-primary text-theme-primaryContent shadow-md font-extrabold scale-[1.02]' : 'text-gray-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.09] border border-white/[0.06] hover:border-white/15'}`}
                 >
                     <AlertTriangle size={14} /> Allarmi Scorte {lowStockItems.length > 0 && <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-red-500 text-white font-black animate-pulse ml-1">{lowStockItems.length}</span>}
                 </button>
@@ -1048,6 +1207,129 @@ const maxTypeCount = Math.max(...Object.values(deviceTypeCounts), 1);
                 </div>
             )}
 
+            {/* TAB CONTENT: QR CODES & LINK RAPIDI */}
+            {activeTab === 'qrcodes' && (
+                <div className="animate-fade-in w-full mb-8">
+                    <div className="glass-panel p-6 rounded-theme-panel border border-theme-panelBorder flex flex-col min-h-[460px]">
+                        {/* Header & Add Button */}
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-white/5">
+                            <div>
+                                <h3 className="text-lg font-bold text-theme-text flex items-center gap-2">
+                                    <QrCode className="text-theme-primary" size={20} />
+                                    Bacheca QR Code & Link Rapidi
+                                </h3>
+                                <p className="text-xs text-gray-400 mt-1">
+                                    Genera e tieni a portata di mano codici QR da inquadrare con lo smartphone del banco o del cliente.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    soundService.playClick();
+                                    setShowAddQrForm(prev => !prev);
+                                }}
+                                className="px-4 py-2 rounded-lg text-xs font-bold bg-theme-primary hover:brightness-110 text-theme-primaryContent flex items-center gap-1.5 shadow-md shadow-theme-primary/20 transition-all shrink-0"
+                            >
+                                <Plus size={15} /> {showAddQrForm ? 'Chiudi Modulo' : 'Nuovo QR Code'}
+                            </button>
+                        </div>
+
+                        {/* Inline Form to Add New QR Code */}
+                        {showAddQrForm && (
+                            <form onSubmit={handleAddQrCode} className="mb-6 p-4 rounded-xl bg-white/[0.03] border border-theme-primary/30 animate-fade-in shadow-inner">
+                                <div className="text-xs font-bold text-theme-primary mb-3 flex items-center gap-1.5">
+                                    <Sparkles size={14} /> Crea Nuovo Codice QR
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                                    <div>
+                                        <label className="text-[11px] text-gray-400 block mb-1">Titolo / Nome Servizio</label>
+                                        <input
+                                            type="text"
+                                            value={newQrTitle}
+                                            onChange={(e) => setNewQrTitle(e.target.value)}
+                                            placeholder="Es. Recensioni Google, Wi-Fi Negozio..."
+                                            required
+                                            className="w-full bg-black/30 border border-theme-panelBorder rounded-lg px-3 py-2 text-xs text-theme-text focus:outline-none focus:border-theme-primary/60 font-medium"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="text-[11px] text-gray-400 block mb-1">Link URL o Testo da codificare</label>
+                                        <input
+                                            type="text"
+                                            value={newQrUrl}
+                                            onChange={(e) => setNewQrUrl(e.target.value)}
+                                            placeholder="https://g.page/r/... o https://wa.me/39... o qualsiasi testo"
+                                            required
+                                            className="w-full bg-black/30 border border-theme-panelBorder rounded-lg px-3 py-2 text-xs text-theme-text focus:outline-none focus:border-theme-primary/60 font-mono"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-[11px] text-gray-400">Categoria:</span>
+                                        {['Negozio', 'Assistenza', 'Fornitore', 'Social / Web', 'Altro'].map(cat => (
+                                            <button
+                                                type="button"
+                                                key={cat}
+                                                onClick={() => setNewQrCategory(cat)}
+                                                className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-colors ${newQrCategory === cat ? 'bg-theme-primary text-theme-primaryContent' : 'bg-white/5 text-gray-400 hover:text-white border border-white/5'}`}
+                                            >
+                                                {cat}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAddQrForm(false)}
+                                            className="px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-white transition-colors"
+                                        >
+                                            Annulla
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-md shadow-emerald-600/30 flex items-center gap-1.5"
+                                        >
+                                            <CheckCircle size={14} /> Salva & Genera QR
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        )}
+
+                        {/* Notification toast for copied link */}
+                        {qrCopiedToast && (
+                            <div className="mb-4 p-2.5 rounded-lg bg-green-500/20 border border-green-500/40 text-green-300 text-xs font-bold flex items-center justify-center gap-2 animate-fade-in">
+                                <CheckCircle size={14} /> Link copiato negli appunti!
+                            </div>
+                        )}
+
+                        {/* Grid of QR Codes */}
+                        {qrCodes.length === 0 ? (
+                            <div className="flex-1 flex flex-col items-center justify-center text-center p-12 text-gray-500">
+                                <QrCode size={36} className="mb-2 opacity-30 text-gray-400" />
+                                <p className="text-sm font-semibold text-gray-400">Nessun QR Code salvato</p>
+                                <p className="text-xs text-gray-500 mt-1 max-w-sm">
+                                    Clicca sul pulsante "+ Nuovo QR Code" in alto a destra per creare il tuo primo codice QR.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {qrCodes.map(item => (
+                                    <QRCodeCard
+                                        key={item.id}
+                                        item={item}
+                                        onZoom={(it, dUrl) => setZoomedQr({ item: it, dataUrl: dUrl })}
+                                        onDelete={handleDeleteQrCode}
+                                        onCopy={handleCopyQrLink}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* TAB CONTENT: ALLARMI SCORTE */}
             {activeTab === 'stock' && (
                 <div className="animate-fade-in w-full mb-8">
@@ -1362,7 +1644,57 @@ const maxTypeCount = Math.max(...Object.values(deviceTypeCounts), 1);
                         </div>
                     </div>
                 </div>
-            )}        </div>
+            )}
+
+            {/* Modal: Fullscreen QR Code Zoom for easy phone scanning */}
+            {zoomedQr && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in select-none"
+                    onClick={() => setZoomedQr(null)}
+                >
+                    <div 
+                        className="bg-[#181a20] border border-white/15 p-8 rounded-2xl max-w-md w-full text-center shadow-2xl flex flex-col items-center relative"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            type="button"
+                            onClick={() => setZoomedQr(null)}
+                            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+
+                        <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-theme-primary/20 text-theme-primary border border-theme-primary/30 mb-2">
+                            {zoomedQr.item.category || 'Link Rapido'}
+                        </span>
+                        <h3 className="text-xl font-black text-theme-text mb-1">{zoomedQr.item.title}</h3>
+                        <p className="text-xs text-gray-400 mb-6 font-mono truncate max-w-xs">{zoomedQr.item.url}</p>
+
+                        <div className="bg-white p-6 rounded-2xl shadow-2xl mb-6">
+                            <img src={zoomedQr.dataUrl} alt={zoomedQr.item.title} className="w-64 h-64 object-contain block" />
+                        </div>
+
+                        <div className="flex items-center gap-3 w-full">
+                            <button
+                                type="button"
+                                onClick={() => handleCopyQrLink(zoomedQr.item.url)}
+                                className="flex-1 py-3 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold border border-white/15 transition-all flex items-center justify-center gap-2"
+                            >
+                                <Copy size={15} /> Copia Link
+                            </button>
+                            <a
+                                href={zoomedQr.item.url.startsWith('http') ? zoomedQr.item.url : `https://${zoomedQr.item.url}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex-1 py-3 px-4 rounded-xl bg-theme-primary hover:brightness-110 text-theme-primaryContent text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md shadow-theme-primary/20"
+                            >
+                                <ExternalLink size={15} /> Apri Link
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 };
 

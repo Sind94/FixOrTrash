@@ -105,6 +105,18 @@ html[data-theme="modern-light-azure"] {
   --text-main: #1e293b;
 }
 
+/* NEW: Medio Grigio & Giallo (Ardesia Chiaro) - Schiarito rispetto all'originale */
+html[data-theme="slate-medium-yellow"] {
+  --color-bg: #334155;
+  --color-surface: #475569;
+  --color-primary: #facc15;
+  --color-primary-content: #000000;
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --panel-bg: rgba(71, 85, 105, 0.92);
+  --panel-border: rgba(255, 255, 255, 0.12);
+  --text-main: #f8fafc;
+}
+
 /* ── SHAPES ─────────────────────────────────────────── */
 
 html[data-shape="liquid-glass"] {
@@ -192,16 +204,14 @@ option {
 }
 
 .subnav-bar {
-  height: 38px;
+  min-height: 42px;
   background: var(--color-bg);
   border-bottom: 1px solid var(--panel-border);
-  gap: 2px;
 }
 
 .subnav-item {
   position: relative;
-  height: 36px;
-  padding-bottom: 2px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Light theme overrides for nav */
