@@ -105,16 +105,17 @@ html[data-theme="modern-light-azure"] {
   --text-main: #1e293b;
 }
 
-/* NEW: Medio Grigio & Giallo (Ardesia Chiaro) - Schiarito rispetto all'originale */
+/* Studio Pro — Grigio Premiere & Giallo (Stile Antigravity / Premiere) */
+html[data-theme="studio-pro-gray"],
 html[data-theme="slate-medium-yellow"] {
-  --color-bg: #334155;
-  --color-surface: #475569;
+  --color-bg: #1e1e20;
+  --color-surface: #2b2b2f;
   --color-primary: #facc15;
   --color-primary-content: #000000;
-  --glass-border: rgba(255, 255, 255, 0.14);
-  --panel-bg: rgba(71, 85, 105, 0.92);
-  --panel-border: rgba(255, 255, 255, 0.12);
-  --text-main: #f8fafc;
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --panel-bg: rgba(43, 43, 47, 0.95);
+  --panel-border: rgba(255, 255, 255, 0.10);
+  --text-main: #f3f4f6;
 }
 
 /* ── SHAPES ─────────────────────────────────────────── */

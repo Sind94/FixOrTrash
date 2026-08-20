@@ -20,7 +20,7 @@ const Settings = () => {
 
     const THEMES = [
         { id: 'default', label: 'Dark Yellow (Predefinito)', preview: ['#0a0a0a', '#eab308', '#141414'] },
-        { id: 'slate-medium-yellow', label: 'Medio Grigio & Giallo (Ardesia Chiaro)', preview: ['#334155', '#facc15', '#475569'] },
+        { id: 'studio-pro-gray', label: 'Studio Pro — Grigio Premiere & Giallo (Stile Antigravity)', preview: ['#1e1e20', '#facc15', '#2b2b2f'] },
         { id: 'modern-light-amber', label: 'Modern Light — Grigio & Ambra (Ispirato UI)', preview: ['#eaedf2', '#f59e0b', '#ffffff'] },
         { id: 'modern-light-azure', label: 'Modern Light — Grigio & Azzurro', preview: ['#eaedf2', '#0284c7', '#ffffff'] },
         { id: 'classic-light', label: 'Classico Grigio & Blu (Chiaro)', preview: ['#f1f5f9', '#2563eb', '#ffffff'] },
