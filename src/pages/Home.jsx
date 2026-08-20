@@ -31,7 +31,12 @@ import {
     ExternalLink,
     Maximize2,
     Sparkles,
-    Download
+    Download,
+    ChevronUp,
+    ChevronDown,
+    Layers,
+    Globe,
+    Tag
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { dataManager } from '../services/dataManager';
@@ -128,26 +133,95 @@ const parseMarkdown = (text) => {
     return html.join('');
 };
 
+const DEFAULT_CATEGORIES = [
+    'App Mobile',
+    'Negozio & Banco',
+    'Social & Recensioni',
+    'Fornitori & Ricambi',
+    'Utilità Tecniche'
+];
+
 const DEFAULT_QR_CODES = [
     {
         id: 1,
-        title: 'Recensioni Google Negozio',
-        url: 'https://g.page/r/FixOrTrash/review',
-        category: 'Clienti & Social'
+        title: 'FixOrTrash Pro Tester App',
+        url: 'https://github.com/Sind94/FixOrTrash/releases',
+        category: 'App Mobile',
+        platform: 'android'
     },
     {
         id: 2,
-        title: 'WhatsApp Supporto & Assistenza',
-        url: 'https://wa.me/393331234567',
-        category: 'Assistenza'
+        title: 'Apple Support App Store',
+        url: 'https://apps.apple.com/it/app/supporto-apple/id1130498044',
+        category: 'App Mobile',
+        platform: 'ios'
     },
     {
         id: 3,
-        title: 'Portale Ricambi & Fornitori',
+        title: 'WhatsApp Assistenza Negozio',
+        url: 'https://wa.me/393331234567',
+        category: 'Negozio & Banco',
+        platform: 'both'
+    },
+    {
+        id: 4,
+        title: 'Recensioni Google Maps',
+        url: 'https://g.page/r/FixOrTrash/review',
+        category: 'Social & Recensioni',
+        platform: 'web'
+    },
+    {
+        id: 5,
+        title: 'Portale Ricambi & Schede Tecniche',
         url: 'https://www.google.com',
-        category: 'Laboratorio'
+        category: 'Fornitori & Ricambi',
+        platform: 'web'
     }
 ];
+
+const AppleLogo = ({ size = 14, className = "" }) => (
+    <svg width={size} height={size} viewBox="0 0 170 170" fill="currentColor" className={className}>
+        <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.69-3.08-7.77-8.06-12.24-14.94-6.3-9.74-11.22-20.9-14.75-33.48-3.53-12.59-5.3-24.31-5.3-35.18 0-14.77 3.73-27.18 11.19-37.24 7.46-10.05 17.06-15.19 28.8-15.39 4.35 0 9.27 1.16 14.75 3.48 5.48 2.32 9.4 3.53 11.75 3.63 2.12-.1 6.03-1.31 11.74-3.63 5.71-2.32 10.37-3.43 13.98-3.33 12.38.74 22.09 5.37 29.13 13.88-10.74 6.53-16.01 15.53-15.82 27.01.19 9.17 3.59 16.92 10.2 23.24 6.61 6.32 14.54 9.87 23.79 10.66-2.03 6.13-4.35 12.29-6.96 18.49zm-32.61-105.15c0-6.19 2.24-11.97 6.72-17.34 4.48-5.37 9.94-8.86 16.39-10.47 1.02 5.86.35 11.66-2.01 17.41-2.36 5.75-6.36 10.37-12 13.86-2.82-1.78-5.63-2.67-8.43-2.67-.44 0-.82-.07-1.14-.21-.86-.14-1.37-.33-1.53-.58z"/>
+    </svg>
+);
+
+const AndroidLogo = ({ size = 14, className = "" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+        <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.996-3.4572c.1557-.2698.0632-.6142-.2066-.7699-.2698-.1557-.6142-.0632-.7699.2066l-2.0287 3.5139C15.275 8.169 13.69 7.79 12 7.79c-1.69 0-3.275.379-4.8723 1.0248L5.099 5.3009c-.1557-.2698-.5001-.3623-.7699-.2066-.2698.1557-.3623.5001-.2066.7699l1.996 3.4572C2.6857 11.2338.4111 14.8697.0254 19.24h23.9492c-.3857-4.3703-2.6603-8.0062-6.0991-9.9186"/>
+    </svg>
+);
+
+const renderPlatformBadge = (platform) => {
+    switch (platform) {
+        case 'ios':
+            return (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white border border-white/20 shadow-sm">
+                    <AppleLogo size={11} className="text-white" /> Apple iOS
+                </span>
+            );
+        case 'android':
+            return (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm">
+                    <AndroidLogo size={11} className="text-emerald-400" /> Android
+                </span>
+            );
+        case 'both':
+            return (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30 shadow-sm">
+                    <AppleLogo size={10} className="text-white" />
+                    <AndroidLogo size={10} className="text-emerald-400" />
+                    iOS & Android
+                </span>
+            );
+        case 'web':
+        default:
+            return (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/5 text-gray-300 border border-white/10">
+                    <Globe size={11} className="text-gray-400" /> Web Link
+                </span>
+            );
+    }
+};
 
 const QRCodeCard = ({ item, onZoom, onDelete, onCopy }) => {
     const [dataUrl, setDataUrl] = useState('');
@@ -161,50 +235,50 @@ const QRCodeCard = ({ item, onZoom, onDelete, onCopy }) => {
     }, [item.url]);
 
     return (
-        <div className="glass-panel p-5 rounded-theme-panel border border-theme-panelBorder flex flex-col justify-between hover:border-theme-primary/50 transition-all duration-300 group shadow-md hover:shadow-xl relative overflow-hidden bg-black/20">
+        <div className="glass-panel p-4 rounded-theme-panel border border-theme-panelBorder flex flex-col justify-between hover:border-theme-primary/50 transition-all duration-300 group shadow-md hover:shadow-xl relative overflow-hidden bg-black/20">
             <div className="flex justify-between items-start mb-2 gap-2">
                 <div className="flex-1 min-w-0">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/10 text-gray-300 border border-white/10 inline-block mb-1">
-                        {item.category || 'Link Rapido'}
-                    </span>
-                    <h4 className="font-bold text-sm text-theme-text truncate" title={item.title}>{item.title}</h4>
+                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                        {renderPlatformBadge(item.platform)}
+                    </div>
+                    <h4 className="font-bold text-xs text-theme-text truncate" title={item.title}>{item.title}</h4>
                 </div>
                 <button
                     onClick={() => onDelete(item.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-400 rounded-lg hover:bg-white/5 transition-all"
+                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-400 rounded-lg hover:bg-white/5 transition-all shrink-0"
                     title="Elimina QR"
                 >
-                    <Trash2 size={14} />
+                    <Trash2 size={13} />
                 </button>
             </div>
 
             {/* QR Code Canvas / Image Display */}
             <div 
                 onClick={() => onZoom(item, dataUrl)}
-                className="bg-white p-3 rounded-xl mx-auto my-2 cursor-pointer shadow-lg hover:scale-105 transition-transform group/qr relative"
+                className="bg-white p-2.5 rounded-xl mx-auto my-1.5 cursor-pointer shadow-lg hover:scale-105 transition-transform group/qr relative"
                 title="Clicca per ingrandire a schermo intero"
             >
                 {dataUrl ? (
-                    <img src={dataUrl} alt={item.title} className="w-36 h-36 object-contain block rounded" />
+                    <img src={dataUrl} alt={item.title} className="w-32 h-32 object-contain block rounded" />
                 ) : (
-                    <div className="w-36 h-36 flex items-center justify-center text-xs text-gray-400 font-mono">Generazione...</div>
+                    <div className="w-32 h-32 flex items-center justify-center text-xs text-gray-400 font-mono">Generazione...</div>
                 )}
                 <div className="absolute inset-0 bg-black/50 rounded-xl opacity-0 group-hover/qr:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-xs font-bold gap-1 backdrop-blur-[2px]">
-                    <Maximize2 size={18} />
+                    <Maximize2 size={16} />
                     <span>Ingrandisci</span>
                 </div>
             </div>
 
-            <div className="mt-2 pt-3 border-t border-white/5 flex flex-col gap-2">
-                <p className="text-[11px] text-gray-400 font-mono truncate select-all" title={item.url}>
+            <div className="mt-1 pt-2 border-t border-white/5 flex flex-col gap-2">
+                <p className="text-[10px] text-gray-400 font-mono truncate select-all" title={item.url}>
                     {item.url}
                 </p>
-                <div className="flex items-center gap-2 justify-between">
+                <div className="flex items-center gap-1.5 justify-between">
                     <button
                         onClick={() => onCopy(item.url)}
                         className="flex-1 py-1.5 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white text-[11px] font-semibold border border-white/10 transition-colors flex items-center justify-center gap-1.5 shadow-sm"
                     >
-                        <Copy size={12} /> Copia
+                        <Copy size={11} /> Copia
                     </button>
                     <a
                         href={item.url.startsWith('http') ? item.url : `https://${item.url}`}
@@ -213,7 +287,7 @@ const QRCodeCard = ({ item, onZoom, onDelete, onCopy }) => {
                         className="p-1.5 rounded-lg bg-theme-primary/15 hover:bg-theme-primary/30 text-theme-primary border border-theme-primary/30 transition-colors flex items-center justify-center shadow-sm"
                         title="Apri nel browser"
                     >
-                        <ExternalLink size={14} />
+                        <ExternalLink size={13} />
                     </a>
                 </div>
             </div>
@@ -257,6 +331,14 @@ const Home = () => {
     const [activeTab, setActiveTab] = useState('overview');
 
     // QR Codes Manager State
+    const [categories, setCategories] = useState(() => {
+        try {
+            const saved = localStorage.getItem('shop_qrcode_categories');
+            return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
+        } catch {
+            return DEFAULT_CATEGORIES;
+        }
+    });
     const [qrCodes, setQrCodes] = useState(() => {
         try {
             const saved = localStorage.getItem('shop_qrcodes');
@@ -267,7 +349,10 @@ const Home = () => {
     });
     const [newQrTitle, setNewQrTitle] = useState('');
     const [newQrUrl, setNewQrUrl] = useState('');
-    const [newQrCategory, setNewQrCategory] = useState('Negozio');
+    const [newQrCategory, setNewQrCategory] = useState('App Mobile');
+    const [newQrPlatform, setNewQrPlatform] = useState('android');
+    const [customCatName, setCustomCatName] = useState('');
+    const [isCreatingCustomCat, setIsCreatingCustomCat] = useState(false);
     const [zoomedQr, setZoomedQr] = useState(null); // { item, dataUrl }
     const [showAddQrForm, setShowAddQrForm] = useState(false);
     const [qrCopiedToast, setQrCopiedToast] = useState(false);
@@ -277,10 +362,41 @@ const Home = () => {
         localStorage.setItem('shop_qrcodes', JSON.stringify(newCodes));
     };
 
+    const saveCategories = (newCats) => {
+        setCategories(newCats);
+        localStorage.setItem('shop_qrcode_categories', JSON.stringify(newCats));
+    };
+
+    const handleMoveCategory = (index, direction) => {
+        soundService.playClick();
+        const newCats = [...categories];
+        const targetIdx = direction === 'up' ? index - 1 : index + 1;
+        if (targetIdx < 0 || targetIdx >= newCats.length) return;
+        const temp = newCats[index];
+        newCats[index] = newCats[targetIdx];
+        newCats[targetIdx] = temp;
+        saveCategories(newCats);
+    };
+
+    const handleDeleteCategory = (catName) => {
+        soundService.playClick();
+        const newCats = categories.filter(c => c !== catName);
+        saveCategories(newCats);
+    };
+
     const handleAddQrCode = (e) => {
         if (e) e.preventDefault();
         if (!newQrTitle.trim() || !newQrUrl.trim()) return;
         soundService.playSuccess();
+
+        let finalCategory = newQrCategory;
+        if (isCreatingCustomCat && customCatName.trim()) {
+            finalCategory = customCatName.trim();
+            if (!categories.includes(finalCategory)) {
+                saveCategories([...categories, finalCategory]);
+            }
+        }
+
         let formattedUrl = newQrUrl.trim();
         if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://') && !formattedUrl.startsWith('WIFI:') && !formattedUrl.startsWith('mailto:') && !formattedUrl.startsWith('tel:')) {
             formattedUrl = `https://${formattedUrl}`;
@@ -289,11 +405,14 @@ const Home = () => {
             id: Date.now(),
             title: newQrTitle.trim(),
             url: formattedUrl,
-            category: newQrCategory || 'Negozio'
+            category: finalCategory || 'App Mobile',
+            platform: newQrPlatform || 'web'
         };
         saveQrCodes([newCode, ...qrCodes]);
         setNewQrTitle('');
         setNewQrUrl('');
+        setCustomCatName('');
+        setIsCreatingCustomCat(false);
         setShowAddQrForm(false);
     };
 
@@ -1207,21 +1326,21 @@ const maxTypeCount = Math.max(...Object.values(deviceTypeCounts), 1);
                 </div>
             )}
 
-            {/* TAB CONTENT: QR CODES & LINK RAPIDI */}
+            {/* TAB CONTENT: QR CODES & LINK RAPIDI DIVISI PER TIPOLOGIA */}
             {activeTab === 'qrcodes' && (
-                <div className="animate-fade-in w-full mb-8">
-                    <div className="glass-panel p-6 rounded-theme-panel border border-theme-panelBorder flex flex-col min-h-[460px]">
-                        {/* Header & Add Button */}
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-white/5">
-                            <div>
-                                <h3 className="text-lg font-bold text-theme-text flex items-center gap-2">
-                                    <QrCode className="text-theme-primary" size={20} />
-                                    Bacheca QR Code & Link Rapidi
-                                </h3>
-                                <p className="text-xs text-gray-400 mt-1">
-                                    Genera e tieni a portata di mano codici QR da inquadrare con lo smartphone del banco o del cliente.
-                                </p>
-                            </div>
+                <div className="animate-fade-in w-full mb-8 space-y-6">
+                    {/* Main Bar / Header */}
+                    <div className="glass-panel p-5 rounded-theme-panel border border-theme-panelBorder flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <h3 className="text-lg font-bold text-theme-text flex items-center gap-2">
+                                <QrCode className="text-theme-primary" size={20} />
+                                Bacheca QR Code & App per Tipologia
+                            </h3>
+                            <p className="text-xs text-gray-400 mt-1">
+                                Righe organizzate per categoria e tipo (App iOS/Android, Banco, Social, Fornitori). Usa le frecce per ordinare le sezioni.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
                             <button
                                 type="button"
                                 onClick={() => {
@@ -1233,100 +1352,278 @@ const maxTypeCount = Math.max(...Object.values(deviceTypeCounts), 1);
                                 <Plus size={15} /> {showAddQrForm ? 'Chiudi Modulo' : 'Nuovo QR Code'}
                             </button>
                         </div>
+                    </div>
 
-                        {/* Inline Form to Add New QR Code */}
-                        {showAddQrForm && (
-                            <form onSubmit={handleAddQrCode} className="mb-6 p-4 rounded-xl bg-white/[0.03] border border-theme-primary/30 animate-fade-in shadow-inner">
-                                <div className="text-xs font-bold text-theme-primary mb-3 flex items-center gap-1.5">
-                                    <Sparkles size={14} /> Crea Nuovo Codice QR
+                    {/* Notification toast for copied link */}
+                    {qrCopiedToast && (
+                        <div className="p-2.5 rounded-lg bg-green-500/20 border border-green-500/40 text-green-300 text-xs font-bold flex items-center justify-center gap-2 animate-fade-in shadow-md">
+                            <CheckCircle size={14} /> Link copiato negli appunti!
+                        </div>
+                    )}
+
+                    {/* Inline Form to Add New QR Code */}
+                    {showAddQrForm && (
+                        <form onSubmit={handleAddQrCode} className="glass-panel p-6 rounded-theme-panel border border-theme-primary/40 animate-fade-in shadow-xl bg-black/40">
+                            <div className="text-sm font-bold text-theme-primary mb-4 flex items-center justify-between">
+                                <span className="flex items-center gap-2">
+                                    <Sparkles size={16} /> Configura Nuovo Codice QR
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAddQrForm(false)}
+                                    className="p-1 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            {/* Inputs */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label className="text-[11px] font-bold text-gray-300 block mb-1.5">Titolo / Nome</label>
+                                    <input
+                                        type="text"
+                                        value={newQrTitle}
+                                        onChange={(e) => setNewQrTitle(e.target.value)}
+                                        placeholder="Es. Tester APK, Supporto Apple, Wi-Fi..."
+                                        required
+                                        className="w-full bg-black/40 border border-theme-panelBorder focus:border-theme-primary/60 rounded-lg px-3.5 py-2.5 text-xs text-theme-text focus:outline-none font-medium"
+                                    />
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                                    <div>
-                                        <label className="text-[11px] text-gray-400 block mb-1">Titolo / Nome Servizio</label>
-                                        <input
-                                            type="text"
-                                            value={newQrTitle}
-                                            onChange={(e) => setNewQrTitle(e.target.value)}
-                                            placeholder="Es. Recensioni Google, Wi-Fi Negozio..."
-                                            required
-                                            className="w-full bg-black/30 border border-theme-panelBorder rounded-lg px-3 py-2 text-xs text-theme-text focus:outline-none focus:border-theme-primary/60 font-medium"
-                                        />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="text-[11px] text-gray-400 block mb-1">Link URL o Testo da codificare</label>
-                                        <input
-                                            type="text"
-                                            value={newQrUrl}
-                                            onChange={(e) => setNewQrUrl(e.target.value)}
-                                            placeholder="https://g.page/r/... o https://wa.me/39... o qualsiasi testo"
-                                            required
-                                            className="w-full bg-black/30 border border-theme-panelBorder rounded-lg px-3 py-2 text-xs text-theme-text focus:outline-none focus:border-theme-primary/60 font-mono"
-                                        />
-                                    </div>
+                                <div className="md:col-span-2">
+                                    <label className="text-[11px] font-bold text-gray-300 block mb-1.5">Link URL o Testo da codificare</label>
+                                    <input
+                                        type="text"
+                                        value={newQrUrl}
+                                        onChange={(e) => setNewQrUrl(e.target.value)}
+                                        placeholder="https://... o link store / APK / testo"
+                                        required
+                                        className="w-full bg-black/40 border border-theme-panelBorder focus:border-theme-primary/60 rounded-lg px-3.5 py-2.5 text-xs text-theme-text focus:outline-none font-mono"
+                                    />
                                 </div>
-                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-[11px] text-gray-400">Categoria:</span>
-                                        {['Negozio', 'Assistenza', 'Fornitore', 'Social / Web', 'Altro'].map(cat => (
+                            </div>
+
+                            {/* Platform Choice (Apple / Android / Universal / Web) */}
+                            <div className="mb-4 p-3 rounded-xl bg-white/[0.03] border border-white/5">
+                                <label className="text-[11px] font-bold text-gray-300 block mb-2">
+                                    Piattaforma / Tipo di Dispositivo (con Logo Automatico in Evidenza):
+                                </label>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setNewQrPlatform('android')}
+                                        className={`p-2.5 rounded-lg border text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                                            newQrPlatform === 'android'
+                                                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-md shadow-emerald-500/20 scale-[1.02]'
+                                                : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                                        }`}
+                                    >
+                                        <AndroidLogo size={16} className="text-emerald-400" />
+                                        <span>Android (APK)</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setNewQrPlatform('ios')}
+                                        className={`p-2.5 rounded-lg border text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                                            newQrPlatform === 'ios'
+                                                ? 'bg-white/20 border-white text-white shadow-md shadow-white/10 scale-[1.02]'
+                                                : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                                        }`}
+                                    >
+                                        <AppleLogo size={15} className="text-white" />
+                                        <span>Apple (iOS)</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setNewQrPlatform('both')}
+                                        className={`p-2.5 rounded-lg border text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                                            newQrPlatform === 'both'
+                                                ? 'bg-sky-500/20 border-sky-400 text-sky-200 shadow-md shadow-sky-500/20 scale-[1.02]'
+                                                : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                                        }`}
+                                    >
+                                        <AppleLogo size={13} className="text-white" />
+                                        <AndroidLogo size={13} className="text-emerald-400" />
+                                        <span>Universale (iOS/Android)</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setNewQrPlatform('web')}
+                                        className={`p-2.5 rounded-lg border text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                                            newQrPlatform === 'web'
+                                                ? 'bg-theme-primary/25 border-theme-primary text-theme-primary shadow-md shadow-theme-primary/20 scale-[1.02]'
+                                                : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                                        }`}
+                                    >
+                                        <Globe size={15} />
+                                        <span>Web / Link Generale</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Category Selection */}
+                            <div className="mb-5">
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="text-[11px] font-bold text-gray-300 block">
+                                        Assegna a Riga / Categoria:
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsCreatingCustomCat(prev => !prev)}
+                                        className="text-[11px] text-theme-primary hover:underline font-bold"
+                                    >
+                                        {isCreatingCustomCat ? 'Scegli tra esistenti' : '+ Nuova Categoria'}
+                                    </button>
+                                </div>
+
+                                {isCreatingCustomCat ? (
+                                    <input
+                                        type="text"
+                                        value={customCatName}
+                                        onChange={(e) => setCustomCatName(e.target.value)}
+                                        placeholder="Nome nuova categoria (es. Utility Firmware, Schede Tecniche...)"
+                                        autoFocus
+                                        className="w-full bg-black/40 border border-theme-primary/60 rounded-lg px-3.5 py-2 text-xs text-theme-text focus:outline-none"
+                                    />
+                                ) : (
+                                    <div className="flex flex-wrap gap-2">
+                                        {categories.map(cat => (
                                             <button
                                                 type="button"
                                                 key={cat}
                                                 onClick={() => setNewQrCategory(cat)}
-                                                className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-colors ${newQrCategory === cat ? 'bg-theme-primary text-theme-primaryContent' : 'bg-white/5 text-gray-400 hover:text-white border border-white/5'}`}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                                    newQrCategory === cat
+                                                        ? 'bg-theme-primary text-theme-primaryContent shadow-sm font-extrabold scale-[1.02]'
+                                                        : 'bg-white/5 text-gray-400 hover:text-white border border-white/5'
+                                                }`}
                                             >
                                                 {cat}
                                             </button>
                                         ))}
                                     </div>
-                                    <div className="flex items-center gap-2 shrink-0">
+                                )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex justify-end items-center gap-3 pt-3 border-t border-white/5">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAddQrForm(false)}
+                                    className="px-4 py-2 rounded-lg text-xs text-gray-400 hover:text-white transition-colors"
+                                >
+                                    Annulla
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-5 py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-md shadow-emerald-600/30 flex items-center gap-2"
+                                >
+                                    <CheckCircle size={15} /> Salva & Genera QR
+                                </button>
+                            </div>
+                        </form>
+                    )}
+
+                    {/* Render Category Rows in Order */}
+                    {categories.map((catName, catIdx) => {
+                        const catItems = qrCodes.filter(q => (q.category || 'Altro') === catName);
+
+                        return (
+                            <div
+                                key={catName}
+                                className="glass-panel p-5 rounded-theme-panel border border-theme-panelBorder flex flex-col gap-4 bg-black/20"
+                            >
+                                {/* Category Header with Reorder Controls */}
+                                <div className="flex justify-between items-center pb-3 border-b border-white/5 flex-wrap gap-2">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-theme-primary/15 text-theme-primary flex items-center justify-center font-bold text-xs border border-theme-primary/20">
+                                            {catName.toLowerCase().includes('app') ? (
+                                                <Smartphone size={16} />
+                                            ) : catName.toLowerCase().includes('social') ? (
+                                                <Globe size={16} />
+                                            ) : catName.toLowerCase().includes('negozio') ? (
+                                                <Tag size={16} />
+                                            ) : (
+                                                <Layers size={16} />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="font-extrabold text-sm text-theme-text">{catName}</h4>
+                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/5 text-gray-300 border border-white/10">
+                                                    {catItems.length} {catItems.length === 1 ? 'QR' : 'QR'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Action Buttons: Sposta Su / Giù & Aggiungi in questa riga */}
+                                    <div className="flex items-center gap-1.5">
                                         <button
                                             type="button"
-                                            onClick={() => setShowAddQrForm(false)}
-                                            className="px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-white transition-colors"
+                                            onClick={() => handleMoveCategory(catIdx, 'up')}
+                                            disabled={catIdx === 0}
+                                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border border-white/5 disabled:opacity-25 disabled:pointer-events-none transition-colors"
+                                            title="Sposta riga su"
                                         >
-                                            Annulla
+                                            <ChevronUp size={14} />
                                         </button>
                                         <button
-                                            type="submit"
-                                            className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-md shadow-emerald-600/30 flex items-center gap-1.5"
+                                            type="button"
+                                            onClick={() => handleMoveCategory(catIdx, 'down')}
+                                            disabled={catIdx === categories.length - 1}
+                                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border border-white/5 disabled:opacity-25 disabled:pointer-events-none transition-colors"
+                                            title="Sposta riga giù"
                                         >
-                                            <CheckCircle size={14} /> Salva & Genera QR
+                                            <ChevronDown size={14} />
                                         </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setNewQrCategory(catName);
+                                                setShowAddQrForm(true);
+                                            }}
+                                            className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-theme-primary hover:text-white text-xs font-bold border border-white/10 transition-colors flex items-center gap-1"
+                                        >
+                                            <Plus size={13} /> Aggiungi QR
+                                        </button>
+                                        {catItems.length === 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDeleteCategory(catName)}
+                                                className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-white/5 rounded-lg transition-colors"
+                                                title="Elimina categoria vuota"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
-                            </form>
-                        )}
 
-                        {/* Notification toast for copied link */}
-                        {qrCopiedToast && (
-                            <div className="mb-4 p-2.5 rounded-lg bg-green-500/20 border border-green-500/40 text-green-300 text-xs font-bold flex items-center justify-center gap-2 animate-fade-in">
-                                <CheckCircle size={14} /> Link copiato negli appunti!
+                                {/* QR Codes Grid in this Category */}
+                                {catItems.length === 0 ? (
+                                    <div className="p-6 text-center text-xs text-gray-500 border border-dashed border-white/10 rounded-xl">
+                                        Nessun codice QR in <strong className="text-gray-400">{catName}</strong>. Clicca "+ Aggiungi QR" per inserirne uno.
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                        {catItems.map(item => (
+                                            <QRCodeCard
+                                                key={item.id}
+                                                item={item}
+                                                onZoom={(it, dUrl) => setZoomedQr({ item: it, dataUrl: dUrl })}
+                                                onDelete={handleDeleteQrCode}
+                                                onCopy={handleCopyQrLink}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                        )}
-
-                        {/* Grid of QR Codes */}
-                        {qrCodes.length === 0 ? (
-                            <div className="flex-1 flex flex-col items-center justify-center text-center p-12 text-gray-500">
-                                <QrCode size={36} className="mb-2 opacity-30 text-gray-400" />
-                                <p className="text-sm font-semibold text-gray-400">Nessun QR Code salvato</p>
-                                <p className="text-xs text-gray-500 mt-1 max-w-sm">
-                                    Clicca sul pulsante "+ Nuovo QR Code" in alto a destra per creare il tuo primo codice QR.
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                {qrCodes.map(item => (
-                                    <QRCodeCard
-                                        key={item.id}
-                                        item={item}
-                                        onZoom={(it, dUrl) => setZoomedQr({ item: it, dataUrl: dUrl })}
-                                        onDelete={handleDeleteQrCode}
-                                        onCopy={handleCopyQrLink}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                        );
+                    })}
                 </div>
             )}
 
@@ -1664,11 +1961,14 @@ const maxTypeCount = Math.max(...Object.values(deviceTypeCounts), 1);
                             <X size={20} />
                         </button>
 
-                        <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-theme-primary/20 text-theme-primary border border-theme-primary/30 mb-2">
-                            {zoomedQr.item.category || 'Link Rapido'}
-                        </span>
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-theme-primary/20 text-theme-primary border border-theme-primary/30">
+                                {zoomedQr.item.category || 'Link Rapido'}
+                            </span>
+                            {renderPlatformBadge(zoomedQr.item.platform)}
+                        </div>
                         <h3 className="text-xl font-black text-theme-text mb-1">{zoomedQr.item.title}</h3>
-                        <p className="text-xs text-gray-400 mb-6 font-mono truncate max-w-xs">{zoomedQr.item.url}</p>
+                        <p className="text-xs text-gray-400 mb-5 font-mono truncate max-w-xs">{zoomedQr.item.url}</p>
 
                         <div className="bg-white p-6 rounded-2xl shadow-2xl mb-6">
                             <img src={zoomedQr.dataUrl} alt={zoomedQr.item.title} className="w-64 h-64 object-contain block" />
