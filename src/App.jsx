@@ -3,7 +3,7 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import {
   Search, PenTool, ClipboardList, Settings as SettingsIcon, Home as HomeIcon,
   Box, Activity, Users, Cpu, Smartphone, X, Keyboard, Command, Calculator,
-  AlertTriangle, Receipt, Zap, Package, Wrench, ChevronDown
+  AlertTriangle, Receipt, Zap, Package, Wrench, ChevronDown, RefreshCw, Download
 } from 'lucide-react';
 import Home from './pages/Home';
 import SearchComponents from './pages/SearchComponents';
