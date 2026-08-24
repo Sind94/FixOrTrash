@@ -19,15 +19,10 @@ const Settings = () => {
     ];
 
     const THEMES = [
-        { id: 'default', label: 'Dark Yellow (Predefinito)', preview: ['#0a0a0a', '#eab308', '#141414'] },
-        { id: 'studio-pro-gray', label: 'Studio Pro — Grigio Premiere & Giallo (Stile Antigravity)', preview: ['#1e1e20', '#facc15', '#2b2b2f'] },
-        { id: 'modern-light-amber', label: 'Modern Light — Grigio & Ambra (Ispirato UI)', preview: ['#eaedf2', '#f59e0b', '#ffffff'] },
-        { id: 'modern-light-azure', label: 'Modern Light — Grigio & Azzurro', preview: ['#eaedf2', '#0284c7', '#ffffff'] },
-        { id: 'classic-light', label: 'Classico Grigio & Blu (Chiaro)', preview: ['#f1f5f9', '#2563eb', '#ffffff'] },
-        { id: 'classic-cream', label: 'Classico Crema & Ardesia (Chiaro)', preview: ['#faf6ee', '#44403c', '#ffffff'] },
-        { id: 'ocean-dark', label: 'Ocean Dark — Blu & Ciano', preview: ['#060d1a', '#06b6d4', '#0d1b2e'] },
-        { id: 'slate-pro', label: 'Slate Pro — Ardesia & Viola', preview: ['#0f1117', '#8b5cf6', '#1a1d2e'] },
-        { id: 'forest-night', label: 'Forest Night — Verde & Lime', preview: ['#080f0a', '#84cc16', '#0f1a10'] },
+        { id: 'default', label: 'Dark Yellow (Originale Predefinito)', preview: ['#0a0a0a', '#eab308', '#141414'] },
+        { id: 'solar-high-contrast', label: 'Solar High-Contrast (Nero Puro & Giallo Neon)', preview: ['#000000', '#facc15', '#0f0f12'] },
+        { id: 'daylight-crisp', label: 'Daylight Crisp (Bianco Puro & Ambra Solare)', preview: ['#f8fafc', '#d97706', '#ffffff'] },
+        { id: 'solar-titanium-orange', label: 'Solar Titanium & Safety Orange (Alta Visibilità)', preview: ['#edf0f5', '#ea580c', '#ffffff'] },
     ];
 
     const SHAPES = [

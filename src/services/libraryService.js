@@ -10,16 +10,29 @@ export const defaultCpus = [
     { name: "Intel Core i9-14900K", socket: "LGA1700", ramType: "DDR5", tdp: 125, maxTDP: 253, tier: "Ultra High-End", bottleneckGroup: 7 },
     { name: "Intel Core i7-14700K", socket: "LGA1700", ramType: "DDR5", tdp: 125, maxTDP: 253, tier: "High-End", bottleneckGroup: 6 },
     { name: "Intel Core i5-14600K", socket: "LGA1700", ramType: "DDR5/DDR4", tdp: 125, maxTDP: 181, tier: "Upper Mid-Range", bottleneckGroup: 5 },
+    { name: "Intel Core i5-14400", socket: "LGA1700", ramType: "DDR5/DDR4", tdp: 65, maxTDP: 148, tier: "Mid-Range", bottleneckGroup: 4 },
+    { name: "Intel Core i5-13400", socket: "LGA1700", ramType: "DDR4/DDR5", tdp: 65, maxTDP: 148, tier: "Mid-Range", bottleneckGroup: 4 },
+    { name: "Intel Core i5-12400", socket: "LGA1700", ramType: "DDR4", tdp: 65, maxTDP: 117, tier: "Mid-Range", bottleneckGroup: 4 },
     { name: "Intel Core i5-12400F", socket: "LGA1700", ramType: "DDR4", tdp: 65, maxTDP: 117, tier: "Mid-Range", bottleneckGroup: 4 },
+    { name: "Intel Core i3-12100", socket: "LGA1700", ramType: "DDR4", tdp: 60, maxTDP: 89, tier: "Budget", bottleneckGroup: 3 },
     { name: "Intel Core i3-12100F", socket: "LGA1700", ramType: "DDR4", tdp: 58, maxTDP: 89, tier: "Budget", bottleneckGroup: 3 },
     { name: "AMD Ryzen 9 9950X", socket: "AM5", ramType: "DDR5", tdp: 170, maxTDP: 230, tier: "Ultra High-End", bottleneckGroup: 7 },
     { name: "AMD Ryzen 7 9800X3D", socket: "AM5", ramType: "DDR5", tdp: 120, maxTDP: 162, tier: "Ultra High-End", bottleneckGroup: 7 },
     { name: "AMD Ryzen 7 9700X", socket: "AM5", ramType: "DDR5", tdp: 65, maxTDP: 88, tier: "High-End", bottleneckGroup: 6 },
     { name: "AMD Ryzen 5 9600X", socket: "AM5", ramType: "DDR5", tdp: 65, maxTDP: 88, tier: "Upper Mid-Range", bottleneckGroup: 5 },
+    { name: "AMD Ryzen 9 7900X", socket: "AM5", ramType: "DDR5", tdp: 170, maxTDP: 230, tier: "High-End", bottleneckGroup: 7 },
     { name: "AMD Ryzen 7 7800X3D", socket: "AM5", ramType: "DDR5", tdp: 120, maxTDP: 162, tier: "Ultra High-End", bottleneckGroup: 7 },
+    { name: "AMD Ryzen 7 7700X", socket: "AM5", ramType: "DDR5", tdp: 105, maxTDP: 142, tier: "High-End", bottleneckGroup: 6 },
     { name: "AMD Ryzen 5 7600X", socket: "AM5", ramType: "DDR5", tdp: 105, maxTDP: 142, tier: "High-End", bottleneckGroup: 5 },
+    { name: "AMD Ryzen 5 7600", socket: "AM5", ramType: "DDR5", tdp: 65, maxTDP: 88, tier: "Upper Mid-Range", bottleneckGroup: 5 },
+    { name: "AMD Ryzen 5 8600G (iGPU)", socket: "AM5", ramType: "DDR5", tdp: 65, maxTDP: 88, tier: "Mid-Range", bottleneckGroup: 4 },
+    { name: "AMD Ryzen 5 8500G (iGPU)", socket: "AM5", ramType: "DDR5", tdp: 65, maxTDP: 88, tier: "Mid-Range", bottleneckGroup: 4 },
     { name: "AMD Ryzen 7 5700X3D", socket: "AM4", ramType: "DDR4", tdp: 105, maxTDP: 105, tier: "High-End", bottleneckGroup: 5 },
-    { name: "AMD Ryzen 5 5600X", socket: "AM4", ramType: "DDR4", tdp: 65, maxTDP: 65, tier: "Mid-Range", bottleneckGroup: 4 }
+    { name: "AMD Ryzen 7 5700X", socket: "AM4", ramType: "DDR4", tdp: 65, maxTDP: 65, tier: "Mid-Range", bottleneckGroup: 4 },
+    { name: "AMD Ryzen 5 5600X", socket: "AM4", ramType: "DDR4", tdp: 65, maxTDP: 65, tier: "Mid-Range", bottleneckGroup: 4 },
+    { name: "AMD Ryzen 5 5600", socket: "AM4", ramType: "DDR4", tdp: 65, maxTDP: 65, tier: "Mid-Range", bottleneckGroup: 4 },
+    { name: "AMD Ryzen 5 5600G (iGPU)", socket: "AM4", ramType: "DDR4", tdp: 65, maxTDP: 65, tier: "Budget", bottleneckGroup: 3 },
+    { name: "AMD Ryzen 5 4600G (iGPU)", socket: "AM4", ramType: "DDR4", tdp: 65, maxTDP: 65, tier: "Budget", bottleneckGroup: 3 }
 ];
 
 export const defaultGpus = [
@@ -28,12 +41,24 @@ export const defaultGpus = [
     { name: "NVIDIA GeForce RTX 5070 Ti", tdp: 300, tier: "High-End", bottleneckGroup: 6, recommendedPSU: 750 },
     { name: "NVIDIA GeForce RTX 5070", tdp: 250, tier: "Upper Mid-Range", bottleneckGroup: 5, recommendedPSU: 650 },
     { name: "NVIDIA GeForce RTX 4090", tdp: 450, tier: "Ultra High-End", bottleneckGroup: 7, recommendedPSU: 850 },
+    { name: "NVIDIA GeForce RTX 4080 Super", tdp: 320, tier: "Ultra High-End", bottleneckGroup: 7, recommendedPSU: 850 },
     { name: "NVIDIA GeForce RTX 4070 Ti Super", tdp: 285, tier: "High-End", bottleneckGroup: 6, recommendedPSU: 750 },
+    { name: "NVIDIA GeForce RTX 4070 Super", tdp: 220, tier: "High-End", bottleneckGroup: 6, recommendedPSU: 650 },
+    { name: "NVIDIA GeForce RTX 4070", tdp: 200, tier: "Upper Mid-Range", bottleneckGroup: 5, recommendedPSU: 650 },
+    { name: "NVIDIA GeForce RTX 4060 Ti", tdp: 160, tier: "Upper Mid-Range", bottleneckGroup: 5, recommendedPSU: 550 },
     { name: "NVIDIA GeForce RTX 4060", tdp: 115, tier: "Mid-Range", bottleneckGroup: 4, recommendedPSU: 500 },
-    { name: "AMD Radeon RX 9070 XT", tdp: 300, tier: "High-End", bottleneckGroup: 6, recommendedPSU: 750 },
-    { name: "AMD Radeon RX 9060 XT", tdp: 200, tier: "Mid-Range", bottleneckGroup: 4, recommendedPSU: 600 },
+    { name: "NVIDIA GeForce RTX 3060 12GB", tdp: 170, tier: "Mid-Range", bottleneckGroup: 4, recommendedPSU: 550 },
+    { name: "NVIDIA GeForce RTX 3050 8GB", tdp: 130, tier: "Budget", bottleneckGroup: 3, recommendedPSU: 450 },
+    { name: "NVIDIA GeForce GTX 1660 Super", tdp: 125, tier: "Budget", bottleneckGroup: 3, recommendedPSU: 450 },
     { name: "AMD Radeon RX 7900 XTX", tdp: 355, tier: "Ultra High-End", bottleneckGroup: 7, recommendedPSU: 800 },
-    { name: "AMD Radeon RX 7800 XT", tdp: 263, tier: "High-End", bottleneckGroup: 6, recommendedPSU: 700 }
+    { name: "AMD Radeon RX 7900 XT", tdp: 315, tier: "High-End", bottleneckGroup: 6, recommendedPSU: 750 },
+    { name: "AMD Radeon RX 7800 XT", tdp: 263, tier: "High-End", bottleneckGroup: 6, recommendedPSU: 700 },
+    { name: "AMD Radeon RX 7700 XT", tdp: 245, tier: "Upper Mid-Range", bottleneckGroup: 5, recommendedPSU: 650 },
+    { name: "AMD Radeon RX 7600 XT", tdp: 190, tier: "Mid-Range", bottleneckGroup: 4, recommendedPSU: 600 },
+    { name: "AMD Radeon RX 7600", tdp: 165, tier: "Mid-Range", bottleneckGroup: 4, recommendedPSU: 550 },
+    { name: "AMD Radeon RX 6600", tdp: 132, tier: "Budget", bottleneckGroup: 3, recommendedPSU: 450 },
+    { name: "Grafica Integrata AMD Radeon (iGPU)", tdp: 15, tier: "Integrata", bottleneckGroup: 1, recommendedPSU: 400 },
+    { name: "Grafica Integrata Intel UHD (iGPU)", tdp: 15, tier: "Integrata", bottleneckGroup: 1, recommendedPSU: 400 }
 ];
 
 // DYNAMIC UPDATER & MERGE SERVICE
