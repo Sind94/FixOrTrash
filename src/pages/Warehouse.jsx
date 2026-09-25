@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Box, Save, PenSquare, Check, X, Search } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Box, Save, PenSquare, Check, X, Search, Sparkles, TrendingUp } from 'lucide-react';
 import { deviceTypes, componentsList } from '../services/mockData';
 import { dataManager } from '../services/dataManager';
 import { libraryService } from '../services/libraryService';
+import { pricingEngine } from '../services/pricingEngine';
 
 const Warehouse = () => {
     const navigate = useNavigate();
@@ -20,6 +21,10 @@ const Warehouse = () => {
     const [cost, setCost] = useState(''); // Cost state
     const [unlimited, setUnlimited] = useState(false); // Unlimited state
     const [markupPercentInput, setMarkupPercentInput] = useState(''); // Custom markup percent state
+    const [sellingPriceInput, setSellingPriceInput] = useState(''); // Calculated / custom selling price
+    const [useRecommendedMarkup, setUseRecommendedMarkup] = useState(true);
+    const [roundToEuro, setRoundToEuro] = useState(true);
+    const [shopDefaultMarkup, setShopDefaultMarkup] = useState(50);
     const [atecoCodeInput, setAtecoCodeInput] = useState('47.41.00'); // ATECO code state (default Commercio)
 
     // Autocomplete states for adding items
@@ -58,10 +63,13 @@ const Warehouse = () => {
         }
         setBrandList(libraryService.getMergedBrandData());
         
-        // Load default density
+        // Load default density and default markup
         const savedSettings = dataManager.getSync('settings') || {};
         if (savedSettings.density) {
             setDensity(savedSettings.density);
+        }
+        if (savedSettings.markupPercent !== undefined) {
+            setShopDefaultMarkup(parseFloat(savedSettings.markupPercent) || 50);
         }
     }, []);
 
@@ -73,6 +81,84 @@ const Warehouse = () => {
         const settings = dataManager.getSync('settings') || {};
         settings.density = nextDensity;
         await dataManager.updateSlice('settings', settings);
+    };
+
+    // ─── SMART PRICING HANDLERS ───────────────────────────────────────────────
+    const handleCostChange = (val) => {
+        setCost(val);
+        const costNum = parseFloat(val) || 0;
+        if (costNum <= 0) {
+            setMarkupPercentInput('');
+            setSellingPriceInput('');
+            return;
+        }
+        if (useRecommendedMarkup) {
+            const rec = pricingEngine.getRecommendedMarkup(costNum, roundToEuro);
+            setMarkupPercentInput(rec.recommendedMarkup.toString());
+            setSellingPriceInput(rec.sellingPrice.toFixed(2));
+        } else {
+            const currentMarkup = markupPercentInput !== '' ? parseFloat(markupPercentInput) : shopDefaultMarkup;
+            const res = pricingEngine.calculatePriceFromMarkup(costNum, currentMarkup, roundToEuro);
+            setSellingPriceInput(res.sellingPrice.toFixed(2));
+        }
+    };
+
+    const handleMarkupInputChange = (val) => {
+        setMarkupPercentInput(val);
+        setUseRecommendedMarkup(false);
+        const costNum = parseFloat(cost) || 0;
+        if (costNum > 0) {
+            const markupNum = val !== '' ? parseFloat(val) : shopDefaultMarkup;
+            const res = pricingEngine.calculatePriceFromMarkup(costNum, markupNum, roundToEuro);
+            setSellingPriceInput(res.sellingPrice.toFixed(2));
+        }
+    };
+
+    const handleSellingPriceInputChange = (val) => {
+        setSellingPriceInput(val);
+        setUseRecommendedMarkup(false);
+        const costNum = parseFloat(cost) || 0;
+        if (costNum > 0 && val !== '') {
+            const res = pricingEngine.calculateMarkupFromPrice(costNum, parseFloat(val) || 0);
+            setMarkupPercentInput(res.markup.toString());
+        }
+    };
+
+    const applyRecommendedMarkup = () => {
+        const costNum = parseFloat(cost) || 0;
+        if (costNum > 0) {
+            setUseRecommendedMarkup(true);
+            const rec = pricingEngine.getRecommendedMarkup(costNum, roundToEuro);
+            setMarkupPercentInput(rec.recommendedMarkup.toString());
+            setSellingPriceInput(rec.sellingPrice.toFixed(2));
+        }
+    };
+
+    const applyQuickMarkupPill = (percent) => {
+        setUseRecommendedMarkup(false);
+        setMarkupPercentInput(percent.toString());
+        const costNum = parseFloat(cost) || 0;
+        if (costNum > 0) {
+            const res = pricingEngine.calculatePriceFromMarkup(costNum, percent, roundToEuro);
+            setSellingPriceInput(res.sellingPrice.toFixed(2));
+        }
+    };
+
+    const toggleRoundToEuro = () => {
+        const nextRound = !roundToEuro;
+        setRoundToEuro(nextRound);
+        const costNum = parseFloat(cost) || 0;
+        if (costNum > 0) {
+            if (useRecommendedMarkup) {
+                const rec = pricingEngine.getRecommendedMarkup(costNum, nextRound);
+                setMarkupPercentInput(rec.recommendedMarkup.toString());
+                setSellingPriceInput(rec.sellingPrice.toFixed(2));
+            } else {
+                const currentMarkup = markupPercentInput !== '' ? parseFloat(markupPercentInput) : shopDefaultMarkup;
+                const res = pricingEngine.calculatePriceFromMarkup(costNum, currentMarkup, nextRound);
+                setSellingPriceInput(res.sellingPrice.toFixed(2));
+            }
+        }
     };
 
     // Save to LocalStorage/DataManager
@@ -162,6 +248,12 @@ const Warehouse = () => {
             return;
         }
 
+        const costNum = parseFloat(cost) || 0;
+        let finalMarkup = markupPercentInput !== '' ? parseFloat(markupPercentInput) : '';
+        if (finalMarkup === '' && costNum > 0 && useRecommendedMarkup) {
+            finalMarkup = pricingEngine.getRecommendedMarkup(costNum, roundToEuro).recommendedMarkup;
+        }
+
         const newItem = {
             id: Date.now(),
             type: deviceTypes.find(t => t.id === selectedDeviceType)?.label || selectedDeviceType,
@@ -170,8 +262,8 @@ const Warehouse = () => {
             component,
             quantity: unlimited ? 999999 : parseInt(quantity),
             minQuantity: unlimited ? 0 : parseInt(minQuantity) || 1,
-            cost: parseFloat(cost) || 0,
-            markupPercent: markupPercentInput !== '' ? parseFloat(markupPercentInput) : '',
+            cost: costNum,
+            markupPercent: finalMarkup,
             committed: 0,
             date: new Date().toLocaleDateString(),
             unlimited: !!unlimited,
@@ -186,6 +278,8 @@ const Warehouse = () => {
         setMinQuantity(1);
         setCost('');
         setMarkupPercentInput('');
+        setSellingPriceInput('');
+        setUseRecommendedMarkup(true);
         setUnlimited(false);
         setAtecoCodeInput('47.41.00');
         showMessage('Componente registrato in magazzino!', 'success');
@@ -500,32 +594,118 @@ const Warehouse = () => {
                                     />
                                 </div>
 
-                                {/* Cost */}
-                                <div className="space-y-2">
-                                    <label className="text-sm text-gray-400 ml-1">Costo (€)</label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={cost}
-                                        onChange={(e) => setCost(e.target.value)}
-                                        placeholder="0.00"
-                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-4 text-theme-text focus:border-theme-primary/50 focus:outline-none text-right"
-                                    />
+                            </div>
+
+                            {/* SMART PRICING & MARKUP SECTION */}
+                            <div className="border border-theme-panelBorder bg-black/25 p-4 rounded-theme-btn space-y-3.5 my-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                                        <TrendingUp size={14} className="text-theme-primary" /> Calcolo Prezzo & Margine
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={toggleRoundToEuro}
+                                        className={`px-2 py-0.5 rounded text-[11px] font-bold border transition-colors ${
+                                            roundToEuro 
+                                                ? 'bg-theme-primary/20 text-theme-primary border-theme-primary/40' 
+                                                : 'bg-theme-panel text-gray-400 border-theme-panelBorder'
+                                        }`}
+                                        title="Arrotonda al valore intero più vicino (< .50 difetto, >= .50 eccesso)"
+                                    >
+                                        {roundToEuro ? '✓ Arrotonda €' : 'Cent. Decimali'}
+                                    </button>
                                 </div>
 
-                                {/* Markup Percent */}
-                                <div className="space-y-2">
-                                    <label className="text-sm text-gray-400 ml-1">Ricarico (%)</label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={markupPercentInput}
-                                        onChange={(e) => setMarkupPercentInput(e.target.value)}
-                                        placeholder="Default"
-                                        className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-4 text-theme-text focus:border-theme-primary/50 focus:outline-none text-right"
-                                    />
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    {/* Costo Fornitore */}
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-gray-400 font-semibold block">Costo Fornitore (€)</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={cost}
+                                            onChange={(e) => handleCostChange(e.target.value)}
+                                            placeholder="0.00"
+                                            className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 text-theme-text font-bold focus:border-theme-primary/50 focus:outline-none text-right font-mono text-sm"
+                                        />
+                                    </div>
+
+                                    {/* Ricarico % */}
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-gray-400 font-semibold block">Ricarico (%)</label>
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={markupPercentInput}
+                                                onChange={(e) => handleMarkupInputChange(e.target.value)}
+                                                placeholder={useRecommendedMarkup ? "Auto" : "0"}
+                                                className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn p-3 pr-7 text-theme-text font-bold focus:border-theme-primary/50 focus:outline-none text-right font-mono text-sm"
+                                            />
+                                            <span className="absolute right-2.5 top-3 text-xs text-gray-400 font-bold">%</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Prezzo Vendita Finale */}
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-theme-primary font-bold block">Prezzo Vendita (€)</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={sellingPriceInput}
+                                            onChange={(e) => handleSellingPriceInputChange(e.target.value)}
+                                            placeholder="0.00"
+                                            className="w-full bg-theme-panel border border-theme-primary/60 rounded-theme-btn p-3 text-theme-primary font-extrabold focus:border-theme-primary focus:outline-none text-right font-mono text-base"
+                                        />
+                                    </div>
                                 </div>
+
+                                {/* Smart Recommended Markup Banner & Quick Pills */}
+                                {parseFloat(cost) > 0 && (
+                                    <div className="space-y-2 pt-1 border-t border-white/5">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={applyRecommendedMarkup}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border ${
+                                                    useRecommendedMarkup 
+                                                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm' 
+                                                        : 'bg-theme-panel border-theme-panelBorder text-gray-300 hover:text-emerald-400'
+                                                }`}
+                                            >
+                                                <Sparkles size={13} className="text-emerald-400" />
+                                                <span>Rincaro Consigliato +{pricingEngine.getRecommendedMarkup(cost, roundToEuro).recommendedMarkup}%</span>
+                                            </button>
+
+                                            {parseFloat(sellingPriceInput) > 0 && (
+                                                <div className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20">
+                                                    Guadagno Netto: +€ {(parseFloat(sellingPriceInput) - (parseFloat(cost) || 0)).toFixed(2)}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Quick Percentage Pills */}
+                                        <div className="flex items-center gap-1.5 pt-1">
+                                            <span className="text-[10px] text-gray-400 font-bold mr-1">Ricarico rapido:</span>
+                                            {[50, 100, 150, 200, 300].map((pillVal) => (
+                                                <button
+                                                    key={pillVal}
+                                                    type="button"
+                                                    onClick={() => applyQuickMarkupPill(pillVal)}
+                                                    className={`px-2 py-1 rounded text-[11px] font-bold border transition-colors ${
+                                                        !useRecommendedMarkup && parseFloat(markupPercentInput) === pillVal
+                                                            ? 'bg-theme-primary text-black border-theme-primary'
+                                                            : 'bg-theme-panel text-gray-300 border-theme-panelBorder hover:border-theme-primary/40'
+                                                    }`}
+                                                >
+                                                    +{pillVal}%
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <button
@@ -610,6 +790,8 @@ const Warehouse = () => {
                                             <th className={thClass}>Q.tà</th>
                                             <th className={thClass}>Costo</th>
                                             <th className={thClass}>Ricarico</th>
+                                            <th className={thClass}>Prezzo Vendita</th>
+                                            <th className={thClass}>Margine</th>
                                             <th className={thClass}>ATECO</th>
                                             <th className={thClass}>Data</th>
                                             <th className={thClass}>Azioni</th>
@@ -692,18 +874,55 @@ const Warehouse = () => {
                                                                 step="0.01"
                                                                 value={editForm.cost}
                                                                 onChange={(e) => handleEditChange('cost', e.target.value)}
-                                                                className="w-20 bg-theme-bg border border-theme-panelBorder rounded p-1 text-right text-gray-300 focus:outline-none focus:border-theme-primary text-xs"
+                                                                className="w-20 bg-theme-bg border border-theme-panelBorder rounded p-1 text-right text-gray-300 focus:outline-none focus:border-theme-primary text-xs font-mono"
                                                             />
                                                         </td>
                                                         <td className={density === 'comfort' ? 'p-2' : 'p-1'}>
-                                                            <input
-                                                                type="number"
-                                                                value={editForm.markupPercent !== undefined ? editForm.markupPercent : ''}
-                                                                onChange={(e) => handleEditChange('markupPercent', e.target.value)}
-                                                                className="w-16 bg-theme-bg border border-theme-panelBorder rounded p-1 text-center text-gray-300 focus:outline-none focus:border-theme-primary text-xs"
-                                                                placeholder="Default"
-                                                                title="Ricarico personalizzato (%)"
-                                                            />
+                                                            <div className="flex flex-col gap-0.5 items-center">
+                                                                <input
+                                                                    type="number"
+                                                                    value={editForm.markupPercent !== undefined ? editForm.markupPercent : ''}
+                                                                    onChange={(e) => handleEditChange('markupPercent', e.target.value)}
+                                                                    className="w-16 bg-theme-bg border border-theme-panelBorder rounded p-1 text-center text-gray-300 focus:outline-none focus:border-theme-primary text-xs font-mono"
+                                                                    placeholder="Default"
+                                                                    title="Ricarico personalizzato (%)"
+                                                                />
+                                                                {parseFloat(editForm.cost) > 0 && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const rec = pricingEngine.getRecommendedMarkup(editForm.cost, roundToEuro);
+                                                                            handleEditChange('markupPercent', rec.recommendedMarkup);
+                                                                        }}
+                                                                        className="text-[9px] text-emerald-400 hover:underline cursor-pointer"
+                                                                        title="Applica rincaro consigliato"
+                                                                    >
+                                                                        +{pricingEngine.getRecommendedMarkup(editForm.cost, roundToEuro).recommendedMarkup}%
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className={density === 'comfort' ? 'p-2 text-right' : 'p-1 text-right'}>
+                                                            <span className="font-mono text-xs font-bold text-theme-primary">
+                                                                {(() => {
+                                                                    const c = parseFloat(editForm.cost || 0);
+                                                                    const m = editForm.markupPercent !== '' && editForm.markupPercent !== undefined ? parseFloat(editForm.markupPercent) : shopDefaultMarkup;
+                                                                    if (c <= 0) return '-';
+                                                                    const res = pricingEngine.calculatePriceFromMarkup(c, m, roundToEuro);
+                                                                    return `€ ${res.sellingPrice.toFixed(2)}`;
+                                                                })()}
+                                                            </span>
+                                                        </td>
+                                                        <td className={density === 'comfort' ? 'p-2 text-right' : 'p-1 text-right'}>
+                                                            <span className="font-mono text-xs font-bold text-emerald-400">
+                                                                {(() => {
+                                                                    const c = parseFloat(editForm.cost || 0);
+                                                                    const m = editForm.markupPercent !== '' && editForm.markupPercent !== undefined ? parseFloat(editForm.markupPercent) : shopDefaultMarkup;
+                                                                    if (c <= 0) return '-';
+                                                                    const res = pricingEngine.calculatePriceFromMarkup(c, m, roundToEuro);
+                                                                    return res.netProfit > 0 ? `+€ ${res.netProfit.toFixed(2)}` : '-';
+                                                                })()}
+                                                            </span>
                                                         </td>
                                                         <td className={density === 'comfort' ? 'p-2' : 'p-1'}>
                                                             <select
@@ -764,11 +983,35 @@ const Warehouse = () => {
                                                                 </div>
                                                             )}
                                                         </td>
-                                                        <td className={`${tdClass} text-gray-300 font-mono`}>
+                                                        <td className={`${tdClass} text-gray-300 font-mono text-right`}>
                                                             {item.cost ? `€ ${parseFloat(item.cost).toFixed(2)}` : '-'}
                                                         </td>
-                                                        <td className={`${tdClass} text-gray-300 font-semibold text-center font-mono`}>
-                                                            {item.markupPercent !== undefined && item.markupPercent !== null && item.markupPercent !== '' && parseFloat(item.markupPercent) > 0 ? `${item.markupPercent}%` : 'Default'}
+                                                        <td className={`${tdClass} text-gray-300 font-semibold text-center font-mono text-xs`}>
+                                                            {item.markupPercent !== undefined && item.markupPercent !== null && item.markupPercent !== '' && parseFloat(item.markupPercent) > 0 ? `+${item.markupPercent}%` : `Def (+${shopDefaultMarkup}%)`}
+                                                        </td>
+                                                        <td className={`${tdClass} text-right font-mono font-bold text-theme-primary`}>
+                                                            {(() => {
+                                                                const c = parseFloat(item.cost || 0);
+                                                                if (c <= 0) return '-';
+                                                                if (item.unlimited) return `€ ${c.toFixed(2)}`;
+                                                                const m = (item.markupPercent !== undefined && item.markupPercent !== null && item.markupPercent !== '' && parseFloat(item.markupPercent) > 0)
+                                                                    ? parseFloat(item.markupPercent)
+                                                                    : shopDefaultMarkup;
+                                                                const res = pricingEngine.calculatePriceFromMarkup(c, m, roundToEuro);
+                                                                return `€ ${res.sellingPrice.toFixed(2)}`;
+                                                            })()}
+                                                        </td>
+                                                        <td className={`${tdClass} text-right font-mono text-xs text-emerald-400 font-bold`}>
+                                                            {(() => {
+                                                                if (item.unlimited) return '-';
+                                                                const c = parseFloat(item.cost || 0);
+                                                                if (c <= 0) return '-';
+                                                                const m = (item.markupPercent !== undefined && item.markupPercent !== null && item.markupPercent !== '' && parseFloat(item.markupPercent) > 0)
+                                                                    ? parseFloat(item.markupPercent)
+                                                                    : shopDefaultMarkup;
+                                                                const res = pricingEngine.calculatePriceFromMarkup(c, m, roundToEuro);
+                                                                return res.netProfit > 0 ? `+€ ${res.netProfit.toFixed(2)}` : '-';
+                                                            })()}
                                                         </td>
                                                         <td className={`${tdClass} text-center font-mono text-xs`}>
                                                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${

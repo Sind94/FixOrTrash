@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Camera, Save, User, Smartphone, Wrench, Search, Upload, X, FileText, CheckCircle, Download, RotateCcw, Home, Plus, Trash2, ExternalLink, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Camera, Save, User, Smartphone, Wrench, Search, Upload, X, FileText, CheckCircle, Download, RotateCcw, Home, Plus, Trash2, ExternalLink, ClipboardList, Sparkles, Coins } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -8,6 +8,7 @@ import { deviceTypes, brandData, componentsList as componentsData } from '../ser
 import { dataManager } from '../services/dataManager';
 import logoReport from '../assets/logo_denis.jpg';
 import { pdfLayoutEngine } from '../services/pdfLayoutEngine';
+import { pricingEngine } from '../services/pricingEngine';
 
 const checklistItems = {
     power: "Accensione",
@@ -443,19 +444,28 @@ const CheckIn = () => {
         showMessage('Bozza cancellata e campi reimpostati.', 'success');
     };
 
+    const getPartsTotalWithMarkup = (parts) => {
+        let sum = 0;
+        (parts || []).forEach(part => {
+            if (part.unlimited) {
+                sum += (parseFloat(part.cost) || 0);
+            } else if (part.sellingPrice !== undefined && part.sellingPrice !== '' && !isNaN(parseFloat(part.sellingPrice))) {
+                sum += parseFloat(part.sellingPrice);
+            } else {
+                const cost = parseFloat(part.cost) || 0;
+                const pMarkup = (part.markupPercent !== undefined && part.markupPercent !== '') ? parseFloat(part.markupPercent) : parseFloat(markupPercent);
+                const markupAmount = cost * (pMarkup / 100);
+                sum += (cost + markupAmount);
+            }
+        });
+        return sum;
+    };
+
     // Calculate Total when Parts or Labor changes
     useEffect(() => {
         try {
             const labor = parseFloat(laborCost) || 0;
-            
-            let partsTotalWithMarkup = 0;
-            selectedParts.forEach(part => {
-                 const cost = parseFloat(part.cost) || 0;
-                 const pMarkup = (part.markupPercent !== undefined && part.markupPercent !== '') ? parseFloat(part.markupPercent) : parseFloat(markupPercent);
-                 const markupAmount = part.unlimited ? 0 : cost * (pMarkup / 100);
-                 partsTotalWithMarkup += (cost + markupAmount);
-            });
-
+            const partsTotalWithMarkup = getPartsTotalWithMarkup(selectedParts);
             const subtotal = labor + partsTotalWithMarkup;
             const ivaAmount = subtotal * (parseFloat(ivaPercent) / 100);
             
@@ -476,21 +486,72 @@ const CheckIn = () => {
     // Handle adding a part from inventory
     const handleAddPart = (part) => {
         if (part) {
-            const pMarkup = (part.markupPercent !== undefined && part.markupPercent !== null && part.markupPercent !== '')
-                ? parseFloat(part.markupPercent)
-                : parseFloat(markupPercent);
+            const costVal = parseFloat(part.cost) || 0;
+            let pMarkup;
+            if (part.markupPercent !== undefined && part.markupPercent !== null && part.markupPercent !== '' && parseFloat(part.markupPercent) > 0) {
+                pMarkup = parseFloat(part.markupPercent);
+            } else if (costVal > 0) {
+                pMarkup = pricingEngine.getRecommendedMarkup(costVal, true).recommendedMarkup;
+            } else {
+                pMarkup = parseFloat(markupPercent) || 30;
+            }
+
+            const rawSelling = costVal * (1 + pMarkup / 100);
+            const sellingPrice = pricingEngine.roundToEuro(rawSelling);
 
             setSelectedParts(prev => [...prev, {
                 id: part.id,
                 name: `${part.brand} ${part.model} - ${part.component} `,
-                cost: part.cost || 0,
+                cost: costVal,
                 unlimited: part.unlimited || false,
                 markupPercent: pMarkup,
+                sellingPrice: sellingPrice,
                 atecoCode: part.atecoCode || (part.unlimited ? '95.11.00' : '47.41.00')
             }]);
             setSearchTerm('');
             setIsDropdownOpen(false);
         }
+    };
+
+    const handlePartPriceChange = (index, newPriceStr) => {
+        const newPrice = parseFloat(newPriceStr) || 0;
+        setSelectedParts(prev => prev.map((p, i) => {
+            if (i !== index) return p;
+            const cost = parseFloat(p.cost) || 0;
+            const res = pricingEngine.calculateMarkupFromPrice(cost, newPrice);
+            return {
+                ...p,
+                sellingPrice: newPriceStr,
+                markupPercent: res.markup
+            };
+        }));
+    };
+
+    const handlePartMarkupChange = (index, newMarkupStr) => {
+        const newMarkup = newMarkupStr === '' ? '' : (parseFloat(newMarkupStr) || 0);
+        setSelectedParts(prev => prev.map((p, i) => {
+            if (i !== index) return p;
+            const cost = parseFloat(p.cost) || 0;
+            const res = pricingEngine.calculatePriceFromMarkup(cost, newMarkup, true);
+            return {
+                ...p,
+                markupPercent: newMarkup,
+                sellingPrice: res.sellingPrice
+            };
+        }));
+    };
+
+    const handlePartApplyRecommended = (index) => {
+        setSelectedParts(prev => prev.map((p, i) => {
+            if (i !== index) return p;
+            const cost = parseFloat(p.cost) || 0;
+            const rec = pricingEngine.getRecommendedMarkup(cost, true);
+            return {
+                ...p,
+                markupPercent: rec.recommendedMarkup,
+                sellingPrice: rec.sellingPrice
+            };
+        }));
     };
 
     const handleRemovePart = (index) => {
@@ -505,15 +566,7 @@ const CheckIn = () => {
         const discVal = parseFloat(discount) || 0;
         const targetSubtotal = (newTotal + discVal) / (1 + (parseFloat(ivaPercent) || 0) / 100);
         
-        // Calculate parts total with markup
-        let partsTotalWithMarkup = 0;
-        selectedParts.forEach(part => {
-             const cost = parseFloat(part.cost) || 0;
-             const pMarkup = (part.markupPercent !== undefined && part.markupPercent !== '') ? parseFloat(part.markupPercent) : parseFloat(markupPercent);
-             const markupAmount = part.unlimited ? 0 : cost * (pMarkup / 100);
-             partsTotalWithMarkup += (cost + markupAmount);
-        });
-
+        const partsTotalWithMarkup = getPartsTotalWithMarkup(selectedParts);
         // The remaining amount goes into labor cost
         const requiredLabor = targetSubtotal - partsTotalWithMarkup;
         setLaborCost(requiredLabor > 0 ? requiredLabor.toFixed(2) : '0');
@@ -523,13 +576,7 @@ const CheckIn = () => {
         setIsEditingTotal(false);
         // Force recalculation to snap totalCost to correct rounded sum
         const labor = parseFloat(laborCost) || 0;
-        let partsTotalWithMarkup = 0;
-        selectedParts.forEach(part => {
-             const cost = parseFloat(part.cost) || 0;
-             const pMarkup = (part.markupPercent !== undefined && part.markupPercent !== '') ? parseFloat(part.markupPercent) : parseFloat(markupPercent);
-             const markupAmount = part.unlimited ? 0 : cost * (pMarkup / 100);
-             partsTotalWithMarkup += (cost + markupAmount);
-        });
+        const partsTotalWithMarkup = getPartsTotalWithMarkup(selectedParts);
         const subtotal = labor + partsTotalWithMarkup;
         const ivaAmount = subtotal * ((parseFloat(ivaPercent) || 0) / 100);
         const discVal = parseFloat(discount) || 0;
@@ -537,6 +584,17 @@ const CheckIn = () => {
         if (!isNaN(finalTotal)) {
             setTotalCost(Math.max(0, finalTotal));
         }
+    };
+
+    const handleRoundTotalToEuro = () => {
+        const currentTotal = parseFloat(totalCost) || 0;
+        const rounded = pricingEngine.roundToEuro(currentTotal);
+        setTotalCost(rounded);
+        const discVal = parseFloat(discount) || 0;
+        const targetSubtotal = (rounded + discVal) / (1 + (parseFloat(ivaPercent) || 0) / 100);
+        const partsTotalWithMarkup = getPartsTotalWithMarkup(selectedParts);
+        const requiredLabor = targetSubtotal - partsTotalWithMarkup;
+        setLaborCost(requiredLabor > 0 ? requiredLabor.toFixed(2) : '0');
     };
 
     // Handle Photo Upload
@@ -572,14 +630,10 @@ const CheckIn = () => {
 
         // Calculate total parts cost
         let partsTotalBase = 0;
-        let partsTotalWithMarkup = 0;
         selectedParts.forEach(part => {
-             const cost = parseFloat(part.cost) || 0;
-             const pMarkup = (part.markupPercent !== undefined && part.markupPercent !== '') ? parseFloat(part.markupPercent) : parseFloat(markupPercent);
-             const markupAmount = part.unlimited ? 0 : cost * (pMarkup / 100);
-             partsTotalBase += cost;
-             partsTotalWithMarkup += (cost + markupAmount);
+             partsTotalBase += (parseFloat(part.cost) || 0);
         });
+        const partsTotalWithMarkup = getPartsTotalWithMarkup(selectedParts);
 
         // Save to tickets (create new array if needed)
         const existingRepairs = dataManager.getSync('repairs') || [];
@@ -1375,47 +1429,85 @@ const CheckIn = () => {
                             {selectedParts.length > 0 && (
                                 <div className="space-y-2">
                                     <label className="text-sm text-gray-400 ml-1">Ricambi Selezionati:</label>
-                                    {selectedParts.map((part, index) => (
-                                         <div key={index} className="flex justify-between items-center bg-theme-panel border border-theme-panelBorder p-3 rounded-lg border border-theme-panelBorder">
-                                             <div>
-                                                 <div className="text-sm text-theme-text font-medium">{part.name}</div>
-                                                 <div className="text-xs text-gray-500">
-                                                     Costo: € {part.cost}
-                                                     {!part.unlimited && (
-                                                         <span className="text-gray-400 ml-2">
-                                                             (Ricaricato: € {(parseFloat(part.cost) * (1 + (parseFloat(part.markupPercent) || 0) / 100)).toFixed(2)})
-                                                         </span>
-                                                     )}
+                                    {selectedParts.map((part, index) => {
+                                         const cost = parseFloat(part.cost) || 0;
+                                         const markup = part.markupPercent !== undefined && part.markupPercent !== '' ? parseFloat(part.markupPercent) : 0;
+                                         const currentSelling = part.sellingPrice !== undefined && part.sellingPrice !== ''
+                                             ? parseFloat(part.sellingPrice)
+                                             : (part.unlimited ? cost : pricingEngine.roundToEuro(cost * (1 + markup / 100)));
+                                         const profit = Math.max(0, currentSelling - cost);
+                                         const rec = pricingEngine.getRecommendedMarkup(cost, true);
+
+                                         return (
+                                             <div key={index} className="bg-theme-panel border border-theme-panelBorder p-3 rounded-lg space-y-2">
+                                                 <div className="flex justify-between items-start">
+                                                     <div>
+                                                         <div className="text-sm text-theme-text font-semibold">{part.name}</div>
+                                                         <div className="flex items-center gap-2 mt-0.5">
+                                                             <span className="text-xs text-gray-400 font-mono">Costo Mio: € {cost.toFixed(2)}</span>
+                                                             {!part.unlimited && profit > 0 && (
+                                                                 <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 font-mono">
+                                                                     Margine: +€ {profit.toFixed(2)}
+                                                                 </span>
+                                                             )}
+                                                         </div>
+                                                     </div>
+                                                     <button
+                                                         type="button"
+                                                         onClick={() => handleRemovePart(index)}
+                                                         className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                                                         title="Rimuovi ricambio"
+                                                     >
+                                                         <Trash2 size={16} />
+                                                     </button>
                                                  </div>
-                                             </div>
-                                             <div className="flex items-center gap-3">
+
                                                  {!part.unlimited && (
-                                                     <div className="flex items-center gap-1">
-                                                         <span className="text-[10px] text-gray-400">Ricarico:</span>
-                                                         <input
-                                                             type="number"
-                                                             min="0"
-                                                             value={part.markupPercent !== undefined ? part.markupPercent : ''}
-                                                             onChange={(e) => {
-                                                                 const val = e.target.value === '' ? '' : (parseFloat(e.target.value) || 0);
-                                                                 setSelectedParts(prev => prev.map((p, i) => i === index ? { ...p, markupPercent: val } : p));
-                                                             }}
-                                                             className="w-16 bg-theme-bg border border-theme-panelBorder rounded p-1 text-center text-xs text-theme-text focus:outline-none focus:border-theme-primary font-bold"
-                                                             placeholder="%"
-                                                             title="Modifica percentuale ricarico"
-                                                         />
-                                                         <span className="text-xs text-gray-400">%</span>
+                                                     <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-theme-panelBorder/40">
+                                                         <div className="flex items-center gap-3">
+                                                             <div className="flex items-center gap-1">
+                                                                 <span className="text-[10px] text-theme-primary font-bold">Prezzo Cliente:</span>
+                                                                 <span className="text-xs font-bold text-gray-400">€</span>
+                                                                 <input
+                                                                     type="number"
+                                                                     min="0"
+                                                                     step="0.01"
+                                                                     value={part.sellingPrice !== undefined ? part.sellingPrice : currentSelling}
+                                                                     onChange={(e) => handlePartPriceChange(index, e.target.value)}
+                                                                     className="w-20 bg-theme-bg border border-theme-panelBorder rounded p-1 text-right text-xs text-theme-primary font-mono font-bold focus:outline-none focus:border-theme-primary"
+                                                                     placeholder="0.00"
+                                                                 />
+                                                             </div>
+
+                                                             <div className="flex items-center gap-1">
+                                                                 <span className="text-[10px] text-gray-400 font-bold">Ricarico:</span>
+                                                                 <input
+                                                                     type="number"
+                                                                     min="0"
+                                                                     value={part.markupPercent !== undefined ? part.markupPercent : ''}
+                                                                     onChange={(e) => handlePartMarkupChange(index, e.target.value)}
+                                                                     className="w-16 bg-theme-bg border border-theme-panelBorder rounded p-1 text-center text-xs text-theme-text font-mono font-bold focus:outline-none focus:border-theme-primary"
+                                                                     placeholder="%"
+                                                                 />
+                                                                 <span className="text-xs text-gray-400">%</span>
+                                                             </div>
+                                                         </div>
+
+                                                         {cost > 0 && (
+                                                             <button
+                                                                 type="button"
+                                                                 onClick={() => handlePartApplyRecommended(index)}
+                                                                 className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-1 rounded border border-emerald-500/30 flex items-center gap-1 transition-colors cursor-pointer select-none"
+                                                                 title="Applica rincaro consigliato con arrotondamento"
+                                                             >
+                                                                 <Sparkles size={11} /> Consigliato: +{rec.recommendedMarkup}% (arr. €{rec.sellingPrice})
+                                                             </button>
+                                                         )}
                                                      </div>
                                                  )}
-                                                 <button
-                                                     onClick={() => handleRemovePart(index)}
-                                                     className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
-                                                 >
-                                                     <Trash2 size={16} />
-                                                 </button>
                                              </div>
-                                         </div>
-                                     ))}
+                                         );
+                                    })}
                                 </div>
                             )}
 
@@ -1458,40 +1550,119 @@ const CheckIn = () => {
                                     </div>
                                 </div>
 
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-400 font-semibold text-emerald-400">Acconto Versato</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-emerald-500 font-semibold">€</span>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            value={deposit}
-                                            onChange={(e) => setDeposit(e.target.value)}
-                                            className="w-24 bg-theme-panel border border-theme-panelBorder rounded-lg p-2 text-right text-emerald-400 font-semibold focus:border-theme-primary/50 focus:outline-none"
-                                            placeholder="0.00"
-                                        />
+                                {/* Totale Stimato */}
+                                <div className="p-3 bg-theme-primary/10 rounded-theme-btn border border-theme-primary/20">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="font-bold text-theme-primary uppercase tracking-wider text-sm">Totale Stimato</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xl font-bold text-theme-text">€</span>
+                                            <input
+                                                type="number"
+                                                value={isEditingTotal ? totalCost : (parseFloat(totalCost) || 0).toFixed(2)}
+                                                onChange={handleTotalCostChange}
+                                                onFocus={() => setIsEditingTotal(true)}
+                                                onBlur={handleTotalBlur}
+                                                className="w-32 bg-theme-panel border border-theme-panelBorder rounded-lg p-2 text-right text-2xl font-bold text-theme-text focus:border-theme-primary/50 focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-end">
+                                        <button
+                                            type="button"
+                                            onClick={handleRoundTotalToEuro}
+                                            title="Arrotonda al numero intero (<.50 difetto, >=.50 eccesso)"
+                                            className="text-[11px] font-bold text-theme-primary bg-theme-panel border border-theme-panelBorder hover:border-theme-primary/50 px-2.5 py-1 rounded-md transition-colors flex items-center gap-1 select-none cursor-pointer"
+                                        >
+                                            <Sparkles size={12} /> Arrotonda → € {pricingEngine.roundToEuro(totalCost)}
+                                        </button>
                                     </div>
                                 </div>
 
-                                <div className="flex justify-between items-center text-xs text-gray-500 border-t border-white/5 pt-2">
-                                    <span>Saldo da saldare al ritiro:</span>
-                                    <span className="font-bold text-gray-300">€ {Math.max(0, (parseFloat(totalCost) || 0) - (parseFloat(deposit) || 0)).toFixed(2)}</span>
-                                </div>
-
-                                <div className="p-4 bg-theme-primary/10 rounded-theme-btn border border-theme-primary/20 flex justify-between items-center">
-                                    <span className="font-bold text-theme-primary uppercase tracking-wider">Totale Stimato</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xl font-bold text-theme-text">€</span>
-                                        <input
-                                            type="number"
-                                            value={isEditingTotal ? totalCost : (parseFloat(totalCost) || 0).toFixed(2)}
-                                            onChange={handleTotalCostChange}
-                                            onFocus={() => setIsEditingTotal(true)}
-                                            onBlur={handleTotalBlur}
-                                            className="w-32 bg-theme-panel border border-theme-panelBorder rounded-lg p-2 text-right text-2xl font-bold text-theme-text focus:border-theme-primary/50 focus:outline-none"
-                                        />
+                                {/* Acconto Versato */}
+                                <div className="p-3 bg-theme-panel border border-theme-panelBorder rounded-theme-btn space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-300 font-semibold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                                            <Coins size={13} className="text-emerald-400" /> Acconto al Check-In
+                                        </span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-emerald-500 font-semibold">€</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={deposit}
+                                                onChange={(e) => setDeposit(e.target.value)}
+                                                className="w-24 bg-theme-bg border border-theme-panelBorder rounded-lg p-1.5 text-right text-emerald-400 font-bold focus:border-theme-primary/50 focus:outline-none text-base"
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                        {[0, 10, 20, 50].map(amt => (
+                                            <button
+                                                key={amt}
+                                                type="button"
+                                                onClick={() => setDeposit(amt === 0 ? '' : amt.toString())}
+                                                className={`px-2 py-1 rounded text-[11px] font-bold border transition-colors ${
+                                                    (deposit === '' && amt === 0) || parseFloat(deposit) === amt
+                                                        ? 'bg-emerald-500 text-black border-emerald-500'
+                                                        : 'bg-theme-bg border-theme-panelBorder text-gray-400 hover:text-white'
+                                                }`}
+                                            >
+                                                {amt === 0 ? 'Nessuno' : `€${amt}`}
+                                            </button>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const half = pricingEngine.roundToEuro((parseFloat(totalCost) || 0) / 2);
+                                                setDeposit(half > 0 ? half.toString() : '');
+                                            }}
+                                            className="px-2 py-1 rounded text-[11px] font-bold border bg-theme-bg border-theme-panelBorder text-gray-400 hover:text-white"
+                                        >
+                                            50% (€{pricingEngine.roundToEuro((parseFloat(totalCost) || 0) / 2)})
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const full = parseFloat(totalCost) || 0;
+                                                setDeposit(full > 0 ? full.toString() : '');
+                                            }}
+                                            className="px-2 py-1 rounded text-[11px] font-bold border bg-theme-bg border-theme-panelBorder text-emerald-400 hover:text-white ml-auto"
+                                        >
+                                            Saldo Intero
+                                        </button>
                                     </div>
                                 </div>
+
+                                {/* Banner Saldo al Ritiro */}
+                                {(() => {
+                                    const tot = parseFloat(totalCost) || 0;
+                                    const dep = parseFloat(deposit) || 0;
+                                    const balance = Math.max(0, tot - dep);
+                                    const isFullyPaid = dep >= tot && tot > 0;
+                                    return (
+                                        <div className={`p-4 rounded-theme-btn border flex justify-between items-center transition-all ${
+                                            isFullyPaid
+                                                ? 'bg-emerald-500/15 border-emerald-500/40'
+                                                : 'bg-amber-500/10 border-amber-500/30'
+                                        }`}>
+                                            <div>
+                                                <div className={`text-[10px] uppercase font-bold tracking-wider mb-0.5 ${isFullyPaid ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                                    {isFullyPaid ? 'Stato Pagamento' : 'Saldo da Pagare al Ritiro'}
+                                                </div>
+                                                <div className={`text-2xl font-black font-mono ${isFullyPaid ? 'text-emerald-300' : 'text-amber-300'}`}>
+                                                    {isFullyPaid ? '✅ SALDATO' : `€ ${balance.toFixed(2)}`}
+                                                </div>
+                                            </div>
+                                            {dep > 0 && !isFullyPaid && (
+                                                <div className="text-right text-xs text-gray-400 font-mono">
+                                                    <div>Totale: €{tot.toFixed(2)}</div>
+                                                    <div className="text-emerald-400 font-semibold">- Acc: €{dep.toFixed(2)}</div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </div>

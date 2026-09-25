@@ -1066,8 +1066,11 @@ const PcConfigurator = () => {
     // Pricing totals
     const customRowsSubtotal = customRows.reduce((acc, curr) => acc + (parseFloat(curr.price) || 0), 0);
     const partsSubtotal = Object.values(prices).reduce((acc, curr) => acc + (parseFloat(curr) || 0), 0) + customRowsSubtotal;
-    const subtotal = partsSubtotal + (parseFloat(laborFee) || 0);
-    const totalCost = Math.max(0, subtotal - (parseFloat(discount) || 0));
+    const laborFeeNum = parseFloat(laborFee) || 0;
+    const discountNum = parseFloat(discount) || 0;
+    const subtotal = partsSubtotal + laborFeeNum;
+    const totalCost = Math.max(0, subtotal - discountNum);
+    const profitMargin = parseFloat((totalCost - partsSubtotal).toFixed(2)); // assembly+labor minus parts-only cost
 
     // PDF Quote Exporter
     const handleGeneratePdf = (action = 'download') => {
@@ -2239,7 +2242,7 @@ const PcConfigurator = () => {
 
                                 <div className="space-y-2 text-xs">
                                     <div className="flex justify-between text-gray-400">
-                                        <span>Subtotale Componenti:</span>
+                                        <span>Costo Componenti:</span>
                                         <span className="font-bold text-theme-text font-mono">€ {partsSubtotal.toFixed(2)}</span>
                                     </div>
 
@@ -2273,9 +2276,17 @@ const PcConfigurator = () => {
                                         </div>
                                     </div>
 
+                                    {/* Guadagno Netto badge */}
+                                    {profitMargin !== 0 && (
+                                        <div className={`flex justify-between items-center pt-1 ${profitMargin > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                            <span>Guadagno Netto:</span>
+                                            <span className="font-bold font-mono">{profitMargin > 0 ? '+' : ''}€ {profitMargin.toFixed(2)}</span>
+                                        </div>
+                                    )}
+
                                     {/* Total Pricing */}
-                                    <div className="flex justify-between items-center text-xl font-black pt-2 text-theme-primary">
-                                        <span>Totale Finale:</span>
+                                    <div className="flex justify-between items-center text-xl font-black pt-2 border-t border-white/5 text-theme-primary">
+                                        <span>Totale Cliente:</span>
                                         <span className="font-mono text-2xl">€ {totalCost.toFixed(2)}</span>
                                     </div>
                                 </div>

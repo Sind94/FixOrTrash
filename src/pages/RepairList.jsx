@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Search, Clock, CheckCircle, Trash2, X, Smartphone, User, Wrench, Calendar, Euro, FileText, Upload, File, LayoutGrid, List, Tag, History, AlertCircle, ClipboardList, Activity, Receipt, MessageCircle, Minimize2, Edit3 } from 'lucide-react';
+import { ArrowLeft, Search, Clock, CheckCircle, Trash2, X, Smartphone, User, Wrench, Calendar, Euro, FileText, Upload, File, LayoutGrid, List, Tag, History, AlertCircle, ClipboardList, Activity, Receipt, MessageCircle, Minimize2, Edit3, Coins, Sparkles } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import logoReport from '../assets/logo_denis.jpg';
@@ -7,6 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { dataManager } from '../services/dataManager';
 import { soundService } from '../services/soundService';
 import { pdfLayoutEngine } from '../services/pdfLayoutEngine';
+import { pricingEngine } from '../services/pricingEngine';
 
 const checklistItems = {
     power: "Accensione",
@@ -208,6 +209,7 @@ const RepairList = () => {
     const [viewMode, setViewMode] = useState('grid');
     const [isCompact, setIsCompact] = useState(false);
     const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+    const [pickupCashReceived, setPickupCashReceived] = useState('');
     const [pdfTemplate, setPdfTemplate] = useState({});
     const [pdfStyle, setPdfStyle] = useState('classic');
 
@@ -554,7 +556,16 @@ const RepairList = () => {
                 </p>
 
                 <div className="flex justify-between items-end mt-4 pt-4 border-t border-theme-panelBorder">
-                    <div className={`font-bold text-theme-text ${isCompact ? 'text-lg' : 'text-2xl'}`}>€ {parseFloat(ticket.repair.totalCost).toFixed(2)}</div>
+                    <div>
+                        <div className={`font-bold text-theme-text ${isCompact ? 'text-lg' : 'text-xl'}`}>€ {parseFloat(ticket.repair.totalCost).toFixed(2)}</div>
+                        {ticket.status !== 'completed' && (() => {
+                            const tot = parseFloat(ticket.repair.totalCost) || 0;
+                            const dep = parseFloat(ticket.repair.deposit) || 0;
+                            if (dep >= tot && tot > 0) return <div className="text-[10px] font-bold text-emerald-400">✅ Saldato</div>;
+                            if (dep > 0) return <div className="text-[10px] font-bold text-amber-400">Saldo: €{Math.max(0, tot - dep).toFixed(2)}</div>;
+                            return null;
+                        })()}
+                    </div>
                     {/* Quick Action Buttons — visible on hover */}
                     <div className="flex items-center gap-2">
                         {/* WhatsApp quick message */}
@@ -1173,47 +1184,223 @@ const RepairList = () => {
                                                 </div>
                                             </div>
 
-                                            <div className="flex justify-between text-xs border-t border-theme-panelBorder pt-2 mt-2">
-                                                <span className="text-gray-500 font-semibold text-emerald-400">Acconto Versato</span>
-                                                <div className="flex items-center gap-1">
-                                                    <span className="text-emerald-400 font-semibold">€</span>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        value={selectedTicket.repair.deposit !== undefined ? selectedTicket.repair.deposit : 0}
-                                                        onChange={async (e) => {
-                                                            const newDeposit = parseFloat(e.target.value) || 0;
-                                                            const updatedTickets = tickets.map(t => {
-                                                                if (t.id === selectedTicket.id) {
-                                                                    return {
-                                                                        ...t,
-                                                                        repair: {
-                                                                            ...t.repair,
-                                                                            deposit: newDeposit
-                                                                        }
-                                                                    };
-                                                                }
-                                                                return t;
-                                                            });
-                                                            setTickets(updatedTickets);
-                                                            await dataManager.updateSlice('repairs', updatedTickets);
-                                                            setSelectedTicket({
-                                                                ...selectedTicket,
-                                                                repair: {
-                                                                    ...selectedTicket.repair,
-                                                                    deposit: newDeposit
-                                                                }
-                                                            });
-                                                        }}
-                                                        className="w-20 bg-theme-bg border border-theme-panelBorder rounded p-1 text-xs text-right text-emerald-400 font-semibold focus:outline-none focus:border-theme-primary"
-                                                    />
+                                            {/* Acconto & Saldo al Ritiro */}
+                                            <div className="border-t border-theme-panelBorder pt-2 mt-2 space-y-2">
+                                                <div className="flex justify-between items-center text-xs">
+                                                    <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                                                        <Coins size={12} /> Acconto Versato
+                                                    </span>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-emerald-400 font-semibold">€</span>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            value={selectedTicket.repair.deposit !== undefined ? selectedTicket.repair.deposit : 0}
+                                                            onChange={async (e) => {
+                                                                const newDeposit = parseFloat(e.target.value) || 0;
+                                                                const updatedTickets = tickets.map(t => {
+                                                                    if (t.id === selectedTicket.id) {
+                                                                        return {
+                                                                            ...t,
+                                                                            repair: {
+                                                                                ...t.repair,
+                                                                                deposit: newDeposit
+                                                                            }
+                                                                        };
+                                                                    }
+                                                                    return t;
+                                                                });
+                                                                setTickets(updatedTickets);
+                                                                await dataManager.updateSlice('repairs', updatedTickets);
+                                                                setSelectedTicket({
+                                                                    ...selectedTicket,
+                                                                    repair: {
+                                                                        ...selectedTicket.repair,
+                                                                        deposit: newDeposit
+                                                                    }
+                                                                });
+                                                            }}
+                                                            className="w-20 bg-theme-bg border border-theme-panelBorder rounded p-1 text-xs text-right text-emerald-400 font-semibold focus:outline-none focus:border-theme-primary"
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex justify-between text-xs">
-                                                <span className="text-gray-500">Saldo da saldare</span>
-                                                <span className="font-bold text-gray-300">€ {Math.max(0, (selectedTicket.repair.totalCost || 0) - (selectedTicket.repair.deposit || 0)).toFixed(2)}</span>
+
+                                                {/* Saldo al Ritiro Banner */}
+                                                {(() => {
+                                                    const tot = parseFloat(selectedTicket.repair.totalCost) || 0;
+                                                    const dep = parseFloat(selectedTicket.repair.deposit) || 0;
+                                                    const balance = Math.max(0, tot - dep);
+                                                    const isFullyPaid = dep >= tot && tot > 0;
+                                                    return (
+                                                        <div className={`p-2.5 rounded-lg border flex justify-between items-center ${
+                                                            isFullyPaid
+                                                                ? 'bg-emerald-500/15 border-emerald-500/30'
+                                                                : 'bg-amber-500/10 border-amber-500/25'
+                                                        }`}>
+                                                            <div>
+                                                                <div className={`text-[9px] uppercase font-bold tracking-wider ${isFullyPaid ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                                                    {isFullyPaid ? 'Stato Saldo' : 'Saldo da Incassare al Ritiro'}
+                                                                </div>
+                                                                <div className={`text-base font-black font-mono ${isFullyPaid ? 'text-emerald-300' : 'text-amber-300'}`}>
+                                                                    {isFullyPaid ? '✅ INTERAMENTE SALDATO' : `€ ${balance.toFixed(2)}`}
+                                                                </div>
+                                                            </div>
+                                                            {dep > 0 && !isFullyPaid && (
+                                                                <div className="text-right text-[10px] text-gray-400 font-mono">
+                                                                    <div>Tot: €{tot.toFixed(2)}</div>
+                                                                    <div className="text-emerald-400">-Acc: €{dep.toFixed(2)}</div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
 
+                                            {/* Quick Cash-Out & Pickup Section */}
+                                            {(() => {
+                                                const tot = parseFloat(selectedTicket.repair.totalCost) || 0;
+                                                const dep = parseFloat(selectedTicket.repair.deposit) || 0;
+                                                const balance = Math.max(0, tot - dep);
+
+                                                if (selectedTicket.status !== 'completed' && balance > 0) {
+                                                    return (
+                                                        <div className="bg-black/35 border border-amber-500/30 rounded-theme-btn p-3 space-y-2.5 mt-3">
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5 uppercase tracking-wider">
+                                                                    <Coins size={13} className="text-amber-400" /> Incasso Restante al Banco
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setPickupCashReceived(balance.toString())}
+                                                                    className="text-[11px] font-bold text-theme-primary hover:underline cursor-pointer select-none"
+                                                                >
+                                                                    Importo Esatto
+                                                                </button>
+                                                            </div>
+
+                                                            {/* Quick Bills */}
+                                                            <div className="flex items-center gap-1">
+                                                                {[5, 10, 20, 50, 100].map(bill => (
+                                                                    <button
+                                                                        key={bill}
+                                                                        type="button"
+                                                                        onClick={() => setPickupCashReceived(bill.toString())}
+                                                                        className={`flex-1 py-1 rounded text-[11px] font-bold border transition-colors ${
+                                                                            parseFloat(pickupCashReceived) === bill
+                                                                                ? 'bg-amber-400 text-black border-amber-400'
+                                                                                : 'bg-theme-panel border-theme-panelBorder text-gray-300 hover:border-amber-400/50'
+                                                                        }`}
+                                                                    >
+                                                                        €{bill}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+
+                                                            {/* Input received */}
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <span className="text-xs text-gray-400">Contanti Ricevuti:</span>
+                                                                <div className="flex items-center gap-1">
+                                                                    <span className="text-xs text-gray-400 font-bold">€</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="0.01"
+                                                                        value={pickupCashReceived}
+                                                                        onChange={(e) => setPickupCashReceived(e.target.value)}
+                                                                        placeholder="0.00"
+                                                                        className="w-24 bg-theme-bg border border-theme-panelBorder rounded p-1 text-right text-xs text-theme-text font-mono font-bold focus:outline-none focus:border-amber-400"
+                                                                    />
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Change alert */}
+                                                            {parseFloat(pickupCashReceived) > 0 && (() => {
+                                                                const chg = pricingEngine.calculateCashChange(balance, pickupCashReceived);
+                                                                if (chg.isSufficient) {
+                                                                    return (
+                                                                        <div className="p-2 rounded bg-emerald-500/15 border border-emerald-500/30 flex justify-between items-center animate-fade-in">
+                                                                            <span className="text-xs font-bold text-emerald-300">Resto da Dare:</span>
+                                                                            <span className="text-base font-black text-emerald-400 font-mono">€ {chg.change.toFixed(2)}</span>
+                                                                        </div>
+                                                                    );
+                                                                } else {
+                                                                    return (
+                                                                        <div className="p-1.5 rounded bg-red-500/15 border border-red-500/30 flex justify-between items-center text-xs text-red-300">
+                                                                            <span>Mancano:</span>
+                                                                            <span className="font-bold font-mono">€ {chg.missing.toFixed(2)}</span>
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                            })()}
+
+                                                            {/* Instant settle and deliver */}
+                                                            <button
+                                                                type="button"
+                                                                onClick={async () => {
+                                                                    soundService.playSuccess();
+                                                                    const fullTot = parseFloat(selectedTicket.repair.totalCost) || 0;
+                                                                    const updatedTickets = tickets.map(t => {
+                                                                        if (t.id === selectedTicket.id) {
+                                                                            return {
+                                                                                ...t,
+                                                                                status: 'completed',
+                                                                                completedDate: new Date().toISOString(),
+                                                                                repair: {
+                                                                                    ...t.repair,
+                                                                                    deposit: fullTot
+                                                                                },
+                                                                                statusHistory: [
+                                                                                    ...(t.statusHistory || []),
+                                                                                    {
+                                                                                        status: 'completed',
+                                                                                        date: new Date().toISOString(),
+                                                                                        note: `Saldato al ritiro (€${balance.toFixed(2)}) e consegnato al cliente.`
+                                                                                    }
+                                                                                ]
+                                                                            };
+                                                                        }
+                                                                        return t;
+                                                                    });
+                                                                    setTickets(updatedTickets);
+                                                                    await dataManager.updateSlice('repairs', updatedTickets);
+                                                                    setSelectedTicket({
+                                                                        ...selectedTicket,
+                                                                        status: 'completed',
+                                                                        completedDate: new Date().toISOString(),
+                                                                        repair: {
+                                                                            ...selectedTicket.repair,
+                                                                            deposit: fullTot
+                                                                        }
+                                                                    });
+                                                                    setPickupCashReceived('');
+                                                                }}
+                                                                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-3 rounded-theme-btn flex items-center justify-center gap-1.5 transition-all text-xs uppercase shadow-md select-none cursor-pointer"
+                                                            >
+                                                                <CheckCircle size={14} /> Salda €{balance.toFixed(2)} & Segna Ritirato
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                }
+
+                                                if (selectedTicket.status !== 'completed' && balance === 0) {
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                soundService.playSuccess();
+                                                                handleStatusChange(selectedTicket.id, 'completed', 'Dispositivo consegnato al cliente (già saldato).');
+                                                            }}
+                                                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-3 rounded-theme-btn mt-3 flex items-center justify-center gap-1.5 transition-all text-xs uppercase select-none cursor-pointer shadow-md"
+                                                        >
+                                                            <CheckCircle size={14} /> Consegna al Cliente (Già Saldato)
+                                                        </button>
+                                                    );
+                                                }
+
+                                                return null;
+                                            })()}
+
+                                            {/* Link to Full Receipt / Cashier */}
                                             {(selectedTicket.status === 'ready' || selectedTicket.status === 'completed') && (
                                                 <button
                                                     type="button"
@@ -1221,9 +1408,9 @@ const RepairList = () => {
                                                         soundService.playClick();
                                                         navigate('/sales-receipt', { state: { preloadedRepair: selectedTicket } });
                                                     }}
-                                                    className="w-full bg-theme-primary text-theme-primaryContent hover:bg-theme-primary/90 font-bold py-2.5 px-3 rounded-theme-btn mt-3 flex items-center justify-center gap-1.5 transition-all text-xs uppercase select-none"
+                                                    className="w-full bg-theme-panel border border-theme-panelBorder hover:border-theme-primary/50 text-gray-300 hover:text-white font-bold py-2 px-3 rounded-theme-btn mt-2 flex items-center justify-center gap-1.5 transition-all text-xs uppercase select-none cursor-pointer"
                                                 >
-                                                    <Receipt size={13} /> Vai alla Cassa / Incassa
+                                                    <Receipt size={13} /> Vai alla Cassa / Stampa Ricevuta
                                                 </button>
                                             )}
 

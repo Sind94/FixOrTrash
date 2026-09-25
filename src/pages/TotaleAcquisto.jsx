@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, Save, FileText, Download, Receipt, Search, User, Calendar, X, Smartphone, Box, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, FileText, Download, Receipt, Search, User, Calendar, X, Smartphone, Box, AlertTriangle, Coins, Banknote, Sparkles } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -7,6 +7,7 @@ import { dataManager } from '../services/dataManager';
 import { soundService } from '../services/soundService';
 import logoReport from '../assets/logo_denis.jpg';
 import { pdfLayoutEngine } from '../services/pdfLayoutEngine';
+import { pricingEngine } from '../services/pricingEngine';
 
 const TotaleAcquisto = () => {
     const navigate = useNavigate();
@@ -37,6 +38,7 @@ const TotaleAcquisto = () => {
     const [globalDiscount, setGlobalDiscount] = useState(0);
     const [showDiscountInPdf, setShowDiscountInPdf] = useState(false);
     const [repairDeposit, setRepairDeposit] = useState(0);
+    const [cashReceived, setCashReceived] = useState('');
 
     // Totals calculations
     const [totals, setTotals] = useState({
@@ -190,6 +192,27 @@ const TotaleAcquisto = () => {
             ...prev,
             { id: Date.now(), description: '', price: '', quantity: 1, discount: 0, iva: 0, warehouseItemId: null, repairTicketId: null, atecoCode: '47.41.00' }
         ]);
+    };
+
+    const handleAddQuickPreset = (desc, price, ateco) => {
+        soundService.playClick();
+        const newItem = {
+            id: Date.now(),
+            description: desc,
+            price: price.toFixed(2),
+            quantity: 1,
+            discount: 0,
+            iva: 0,
+            warehouseItemId: null,
+            repairTicketId: null,
+            atecoCode: ateco
+        };
+        setItems(prev => {
+            if (prev.length === 1 && (!prev[0].description || prev[0].description.trim() === '') && (parseFloat(prev[0].price) || 0) === 0) {
+                return [newItem];
+            }
+            return [...prev, newItem];
+        });
     };
 
     const handleRemoveItem = (id) => {
@@ -408,6 +431,7 @@ const TotaleAcquisto = () => {
         setNotes('');
         setGlobalDiscount(0);
         setRepairDeposit(0);
+        setCashReceived('');
         setItems([{ id: Date.now(), description: '', price: '', quantity: 1, discount: 0, iva: 0, warehouseItemId: null, repairTicketId: null, atecoCode: '47.41.00' }]);
         
         const nextNum = (sales.length + 1).toString().padStart(4, '0');
@@ -523,6 +547,35 @@ const TotaleAcquisto = () => {
                                 >
                                     <Plus size={14} /> Aggiungi Riga
                                 </button>
+                            </div>
+                        </div>
+
+                        {/* Quick Touch Bar for Counter/Market Stall Sales */}
+                        <div className="mb-5 p-3 bg-black/25 border border-theme-panelBorder rounded-lg">
+                            <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                <Sparkles size={13} className="text-theme-primary" /> Vendite Veloci da Banco (1 Tocco)
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {[
+                                    { label: 'Pellicola Hydrogel', price: 10, icon: '📱', ateco: '47.41.00' },
+                                    { label: 'Cavo Type-C / Lightning', price: 10, icon: '🔌', ateco: '47.41.00' },
+                                    { label: 'Alimentatore 20W Fast', price: 15, icon: '⚡', ateco: '47.41.00' },
+                                    { label: 'Cover Telefono', price: 10, icon: '🛡️', ateco: '47.41.00' },
+                                    { label: 'Manodopera Rapida', price: 15, icon: '🔧', ateco: '95.11.00' },
+                                    { label: 'Diagnosi Tecnica', price: 15, icon: '🔍', ateco: '95.11.00' },
+                                    { label: 'Pulizia Dispositivo', price: 10, icon: '✨', ateco: '95.11.00' },
+                                ].map((preset, idx) => (
+                                    <button
+                                        key={idx}
+                                        type="button"
+                                        onClick={() => handleAddQuickPreset(preset.label, preset.price, preset.ateco)}
+                                        className="px-2.5 py-1.5 bg-theme-panel border border-theme-panelBorder hover:border-theme-primary hover:bg-theme-primary/10 rounded-lg text-xs font-semibold text-theme-text transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer select-none"
+                                    >
+                                        <span>{preset.icon}</span>
+                                        <span>{preset.label}</span>
+                                        <span className="font-bold text-theme-primary font-mono ml-0.5">€{preset.price}</span>
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
@@ -770,6 +823,83 @@ const TotaleAcquisto = () => {
                                 <span className="font-extrabold text-2xl text-theme-primary">€ {totals.total.toFixed(2)}</span>
                             </div>
                         </div>
+
+                        {/* CONTANTI RESTO CALCULATOR */}
+                        {paymentMethod === 'Contanti' && totals.total > 0 && (
+                            <div className="bg-black/25 border border-theme-panelBorder rounded-theme-btn p-3.5 space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                                        <Coins size={14} className="text-theme-primary" /> Calcolo Resto Contanti
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCashReceived(totals.total.toString())}
+                                        className="text-[11px] font-bold text-theme-primary hover:underline"
+                                    >
+                                        Importo Esatto
+                                    </button>
+                                </div>
+
+                                {/* Cash received input */}
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-400 font-semibold shrink-0">Ricevuti:</span>
+                                    <div className="relative flex-1">
+                                        <span className="absolute left-3 top-2.5 text-xs text-gray-400 font-bold">€</span>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.50"
+                                            value={cashReceived}
+                                            onChange={(e) => setCashReceived(e.target.value)}
+                                            placeholder={totals.total.toFixed(2)}
+                                            className="w-full bg-theme-panel border border-theme-panelBorder rounded-theme-btn py-2 pl-7 pr-3 text-theme-text font-bold text-sm text-right font-mono focus:border-theme-primary/50 focus:outline-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Quick Bill Touch Pills */}
+                                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                    {[5, 10, 20, 50, 100].map(bill => (
+                                        <button
+                                            key={bill}
+                                            type="button"
+                                            onClick={() => setCashReceived(bill.toString())}
+                                            className={`flex-1 py-1.5 px-2 rounded-theme-btn text-xs font-bold border transition-colors ${
+                                                parseFloat(cashReceived) === bill 
+                                                    ? 'bg-theme-primary text-black border-theme-primary shadow-sm' 
+                                                    : 'bg-theme-panel border-theme-panelBorder text-gray-300 hover:border-theme-primary/40'
+                                            }`}
+                                        >
+                                            €{bill}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Change Display Result */}
+                                {parseFloat(cashReceived) > 0 && (() => {
+                                    const chg = pricingEngine.calculateCashChange(totals.total, cashReceived);
+                                    if (chg.isSufficient) {
+                                        return (
+                                            <div className="p-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex justify-between items-center animate-fade-in">
+                                                <span className="text-xs font-bold text-emerald-300">Resto da Restituire:</span>
+                                                <span className="text-lg font-black text-emerald-400 font-mono">
+                                                    € {chg.change.toFixed(2)}
+                                                </span>
+                                            </div>
+                                        );
+                                    } else {
+                                        return (
+                                            <div className="p-2 rounded-lg bg-amber-500/15 border border-amber-500/30 flex justify-between items-center animate-fade-in text-xs">
+                                                <span className="font-bold text-amber-300">Mancano al saldo:</span>
+                                                <span className="font-black text-amber-400 font-mono">
+                                                    € {chg.missing.toFixed(2)}
+                                                </span>
+                                            </div>
+                                        );
+                                    }
+                                })()}
+                            </div>
+                        )}
 
                         {/* Control actions buttons */}
                         <div className="space-y-3 pt-4 border-t border-theme-panelBorder">

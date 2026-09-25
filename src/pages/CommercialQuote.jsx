@@ -441,18 +441,22 @@ const CommercialQuote = () => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 border-b border-white/5 pb-6">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 border-b border-white/5 pb-6">
                             <div className="bg-theme-panel p-3 rounded-lg border border-theme-panelBorder">
-                                <div className="text-xs text-gray-400">Subtotale Voci</div>
-                                <div className="text-xl font-bold text-theme-text">€ {totals.taxable.toFixed(2)}</div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Subtotale Voci</div>
+                                <div className="text-lg font-bold text-theme-text font-mono">€ {totals.taxable.toFixed(2)}</div>
                             </div>
                             <div className="bg-theme-panel p-3 rounded-lg border border-theme-panelBorder">
-                                <div className="text-xs text-gray-400">Sconto Applicato</div>
-                                <div className="text-xl font-bold text-red-400">€ {(parseFloat(globalDiscount) || 0).toFixed(2)}</div>
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">IVA Totale</div>
+                                <div className="text-lg font-bold text-blue-400 font-mono">€ {(totals.ivaAmount || 0).toFixed(2)}</div>
+                            </div>
+                            <div className="bg-theme-panel p-3 rounded-lg border border-theme-panelBorder">
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Sconto Applicato</div>
+                                <div className="text-lg font-bold text-red-400 font-mono">- € {(parseFloat(globalDiscount) || 0).toFixed(2)}</div>
                             </div>
                             <div className="bg-theme-panel p-4 rounded-lg border border-theme-primary/20 bg-theme-primary/5">
-                                <div className="text-xs text-theme-primary font-semibold uppercase">Totale Preventivo</div>
-                                <div className="text-2xl font-black text-theme-primary">€ {totals.total.toFixed(2)}</div>
+                                <div className="text-[10px] text-theme-primary font-semibold uppercase tracking-wider">Totale Preventivo</div>
+                                <div className="text-2xl font-black text-theme-primary font-mono">€ {totals.total.toFixed(2)}</div>
                             </div>
                         </div>
 
